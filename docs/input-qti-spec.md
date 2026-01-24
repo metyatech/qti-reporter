@@ -146,23 +146,39 @@ Child elements:
 ## Linking results to items
 `itemResult@identifier` uses `Q{n}`, while assessment item identifiers are derived
 from source file names. The reporter must accept a mapping definition that
-declares how each `Q{n}` maps to an item identifier.
+declares how each result item identifier maps to an assessment item identifier.
 
 ### Mapping definition (required input)
 Provide a mapping definition as a separate input alongside the QTI files.
-The definition is a list of entries with:
+The definition is a CSV file (UTF-8, no BOM) with a single header row:
 
-- `sequenceIndex` (integer): the `n` from `Q{n}`.
+```
+resultItemIdentifier,itemIdentifier
+```
+
+Each subsequent row defines one mapping entry with:
+
+- `resultItemIdentifier` (string): the `itemResult@identifier` value
+  (for example `Q1`).
 - `itemIdentifier` (string): the assessment item `identifier`.
+
+Constraints:
+- One-to-one mapping (no duplicates on either side).
+- All `itemResult@identifier` values must be mapped.
+- All mapped `itemIdentifier` values must exist in the item set.
 
 Example (conceptual):
 
 ```
-1 -> item-001
-2 -> item-002
+resultItemIdentifier,itemIdentifier
+Q1,item-001
+Q2,item-002
 ```
 
-The concrete file format (JSON/YAML/CSV) is TODO.
+Notes:
+- Row order does not matter.
+- Both values are treated as case-sensitive identifiers.
+- The mapping file path must be provided as a command-line argument.
 
 ## TODO (needs confirmation)
 - Confirm whether multiple `testResult` blocks are expected in one run.
