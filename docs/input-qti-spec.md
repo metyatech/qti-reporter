@@ -73,8 +73,14 @@ Required attributes:
 `context` provides identifiers for the session and learner.
 
 - `@sourcedId` (required): unique candidate identifier (account).
-- `sessionIdentifier` (0..n): repeated identifiers for class, trainee, and
-  material metadata.
+  - Must contain at least one continuous digit sequence.
+  - The first continuous digit sequence is used as the candidate number
+    (leading zeros preserved).
+- `sessionIdentifier` (0..n): repeated identifiers using common `sourceID` keys
+  for class, candidate, and material metadata (for example `candidateName`,
+  `candidateId`, `materialTitle`).
+  - `sourceID=candidateName` is required (candidate display name).
+  - `sourceID=materialTitle` is required (test title).
 
 ### testResult
 Represents the assessment attempt.
