@@ -27,6 +27,7 @@ export interface GeneratedHtmlReport {
   html: string;
   styleMode: StyleMode;
   externalStylePath: string | null;
+  unusedItemResultIdentifiers: string[];
 }
 
 interface ItemReportModel {
@@ -272,6 +273,11 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   const assessmentTest = parseAssessmentTest(paths.assessmentTestPath);
   const assessmentResult = parseAssessmentResult(paths.assessmentResultPath);
 
+  const assessmentItemIdentifiers = new Set(assessmentTest.itemRefs.map((itemRef) => itemRef.identifier));
+  const unusedItemResultIdentifiers = Array.from(assessmentResult.itemResults.keys())
+    .filter((identifier) => !assessmentItemIdentifiers.has(identifier))
+    .sort();
+
   const directoryName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName}`;
   const fileName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName} ${assessmentResult.testTitle} 結果.html`;
   const outputDirPath = path.join(paths.outputRootDir, directoryName);
@@ -320,5 +326,6 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
     html,
     styleMode: resolvedStyle.styleMode,
     externalStylePath: resolvedStyle.externalStylePath,
+    unusedItemResultIdentifiers,
   };
 }

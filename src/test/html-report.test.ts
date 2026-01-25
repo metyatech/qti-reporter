@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
+import { runCli } from "../cli";
 import { generateHtmlReportFromFiles } from "../report/htmlReport";
 
 function getRepoRootFromDist(): string {
@@ -47,6 +48,7 @@ test("generates HTML report with required naming and ordering", () => {
   assert.ok(!html.includes('data-qti-reporter-style="external"'));
   assert.ok(html.includes("score-total"));
   assert.ok(html.includes("meta-value"));
+  assert.ok(report.unusedItemResultIdentifiers.includes("item-extra"));
 
   const titleIndex = html.indexOf("Physics Basics");
   const numberIndex = html.indexOf("0007");
@@ -164,4 +166,29 @@ test("uses external CSS when styleCssPath is provided", () => {
   const html = report.html;
   assert.ok(html.includes('data-qti-reporter-style="external"'));
   assert.ok(!html.includes('data-qti-reporter-style="default"'));
+});
+
+test("logs unused itemResult identifiers to standard output", () => {
+  const outputRootDir = createCleanOutputDir("html-unused-log");
+  const logs: string[] = [];
+  const errors: string[] = [];
+
+  const exitCode = runCli(
+    [
+      "--assessment-test",
+      resolveFixturePath("assessment-test.qti.xml"),
+      "--assessment-result",
+      resolveFixturePath("assessment-result.xml"),
+      "--out-dir",
+      outputRootDir,
+    ],
+    {
+      log: (message: string) => logs.push(message),
+      error: (message: string) => errors.push(message),
+    },
+  );
+
+  assert.equal(exitCode, 0);
+  assert.equal(errors.length, 0);
+  assert.ok(logs.some((line) => line.includes("item-extra")));
 });

@@ -81,6 +81,12 @@ Do not display any other fields.
     - Directory: `0001 Yamada Taro`
     - File: `0001 Yamada Taro Algebra Test 結果.html`
 
+### Unused data reporting (standard output)
+- If `assessmentResult/itemResult@identifier` exists but is not referenced by
+  `qti-assessment-item-ref@identifier`, it is treated as unused data.
+- Unused identifiers are reported to standard output as:
+  `Unused itemResult identifiers: <id1>, <id2>, ...`
+
 ## HTML styling specification (problem + response)
 
 ### Style selection

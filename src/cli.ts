@@ -1,12 +1,12 @@
 import path from "node:path";
 
-import { generateHtmlReportFromFiles } from "./report/htmlReport";
+import { generateHtmlReportFromFiles, HtmlReportInputPaths } from "./report/htmlReport";
 
-interface CliOptions {
-  assessmentTestPath: string;
-  assessmentResultPath: string;
-  outputRootDir: string;
-  styleCssPath: string | undefined;
+interface CliOptions extends HtmlReportInputPaths {}
+
+export interface CliLogger {
+  log: (message: string) => void;
+  error: (message: string) => void;
 }
 
 function parseCliOptions(argv: string[]): CliOptions {
@@ -71,16 +71,29 @@ function parseCliOptions(argv: string[]): CliOptions {
   };
 }
 
-function main(): void {
+function logUnusedData(report: ReturnType<typeof generateHtmlReportFromFiles>, logger: CliLogger): void {
+  if (report.unusedItemResultIdentifiers.length === 0) {
+    return;
+  }
+  logger.log(
+    `Unused itemResult identifiers: ${report.unusedItemResultIdentifiers.join(", ")}`,
+  );
+}
+
+export function runCli(argv: string[], logger: CliLogger = console): number {
   try {
-    const options = parseCliOptions(process.argv.slice(2));
+    const options = parseCliOptions(argv);
     const report = generateHtmlReportFromFiles(options);
-    console.log(`Generated: ${report.outputFilePath}`);
+    logger.log(`Generated: ${report.outputFilePath}`);
+    logUnusedData(report, logger);
+    return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to generate HTML report: ${message}`);
-    process.exitCode = 1;
+    logger.error(`Failed to generate HTML report: ${message}`);
+    return 1;
   }
 }
 
-main();
+if (require.main === module) {
+  process.exitCode = runCli(process.argv.slice(2));
+}

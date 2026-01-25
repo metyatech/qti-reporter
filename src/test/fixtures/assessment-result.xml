@@ -84,4 +84,14 @@ especially toward Earth.</value>
       <value>true</value>
     </outcomeVariable>
   </itemResult>
+  <itemResult identifier="item-extra" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>Extra</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+  </itemResult>
 </assessmentResult>
