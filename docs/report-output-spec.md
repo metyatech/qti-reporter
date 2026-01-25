@@ -208,7 +208,7 @@ Columns are ordered as follows.
 | `item_title`       | string           | required | `qti-assessment-item@title`. Falls back to `item_identifier` if missing.                                                                                             |
 | `item_score`       | number           | required | `itemResult/outcomeVariable identifier="SCORE"` when present; otherwise rubric-based computed score.                                                                 |
 | `item_max_score`   | number           | required | Sum of rubric criterion points (`qti-rubric-block view="scorer"`).                                                                                                   |
-| `rubric_outcomes`  | string           | required | Per-criterion achievement encoded as `index:true` or `index:false` pairs joined by `;` in criterion order (example: `1:true;2:false`). |
+| `rubric_outcomes`  | string           | required | Per-criterion achievement encoded as `index:true` or `index:false` pairs joined by `;` in criterion order (example: `1:true;2:false`).                               |
 | `rubric_points`    | string           | required | Per-criterion points encoded as `index:points` pairs joined by `;` in criterion order (example: `1:2;2:1`).                                                          |
 | `response_values`  | string           | required | Candidate responses from `responseVariable identifier="RESPONSE"`. Multiple values are joined by `\n` in assessment result order. Empty when no response is present. |
 | `response_labels`  | string           | required | Response values rendered for readability. For choice items, each line is `CHOICE_ID: choice text`. For non-choice items, identical to `response_values`.             |
