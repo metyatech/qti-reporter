@@ -30,6 +30,11 @@ export function stripTags(xmlFragment: string): string {
   return decodeXmlEntities(normalizedWhitespace);
 }
 
+export function stripTagsPreserveWhitespace(xmlFragment: string): string {
+  const withoutTags = xmlFragment.replace(/<[^>]+>/g, "");
+  return decodeXmlEntities(withoutTags);
+}
+
 export function findAllSelfClosingTags(xml: string, tagName: string): string[] {
   const pattern = new RegExp(`<${tagName}\\b[^>]*/>`, "g");
   const matches = xml.match(pattern);

@@ -110,7 +110,7 @@ must be treated as stable for external CSS.
 - Image selector: `.report-image`
 - Code selectors: `.code-inline`, `.code-block`, `.code-block-code`
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
-- Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-empty`
+- Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-pre`, `.response-empty`
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
 
 ### Styling data attributes
@@ -130,6 +130,12 @@ External CSS may also rely on the following data attributes:
   `./assets/<itemIdentifier>/<fileName>`
 - External sources (`http`, `https`, `data`, absolute `/`) are not copied and
   are left unchanged.
+
+### Candidate response rendering
+- Candidate responses are rendered without collapsing whitespace.
+- Line breaks in responses are preserved as entered.
+- The default renderer uses a whitespace-preserving block:
+  `<pre class="response-text response-pre">...</pre>`
 
 ### Code language inference (no JavaScript)
 - If the language is explicitly specified on `code` (for example

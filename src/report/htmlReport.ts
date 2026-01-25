@@ -78,8 +78,8 @@ function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[
     }
     return escapeHtml(response);
   });
-  const joined = renderedResponses.join("<br />");
-  return `<p class=\"response-text\">${joined}</p>`;
+  const joined = renderedResponses.join("\n");
+  return `<pre class="response-text response-pre">${joined}</pre>`;
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {

@@ -6,6 +6,7 @@ import {
   findFirstTagBlock,
   parseAttributes,
   stripTags,
+  stripTagsPreserveWhitespace,
 } from "./xml";
 
 export interface ParsedItemResult {
@@ -101,7 +102,8 @@ function parseCandidateResponses(itemXml: string): string[] {
     const responses: string[] = [];
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
     while (valueMatch) {
-      responses.push(stripTags(valueMatch[1]));
+      const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, "\n");
+      responses.push(preserved);
       valueMatch = valuePattern.exec(candidateResponseXml);
     }
     return responses;

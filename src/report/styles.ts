@@ -131,6 +131,17 @@ tr[data-criterion-status="false"] .criterion-status {
   color: var(--muted);
   font-style: italic;
 }
+.response-text {
+  margin: 0;
+}
+.response-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
 .report-image {
   display: block;
   max-width: 100%;

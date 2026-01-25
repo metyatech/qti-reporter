@@ -96,6 +96,11 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   assert.ok(html.includes("data-code-lang=\"ts\""));
   assert.ok(html.includes("data-code-lang=\"html\""));
   assert.ok(!html.includes("images/sample.svg"));
+  assert.ok(
+    html.includes(
+      "Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.",
+    ),
+  );
 });
 
 test("copies image assets and rewrites img src to output-relative paths", () => {

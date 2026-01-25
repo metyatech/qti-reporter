@@ -28,7 +28,8 @@
   <itemResult identifier="item-2" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
     <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
       <candidateResponse>
-        <value>Gravity is a force that attracts objects with mass toward each other, especially toward Earth.</value>
+        <value>Gravity is a force that attracts objects with mass toward each other,
+especially toward Earth.</value>
       </candidateResponse>
     </responseVariable>
     <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
