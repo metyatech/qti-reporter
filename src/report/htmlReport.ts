@@ -67,7 +67,7 @@ function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
 
 function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[]): string {
   if (responses.length === 0) {
-    return "<p class=\"response-empty\">(no response)</p>";
+    return "<p class=\"response-empty\">（無回答）</p>";
   }
   const choiceTextMap = buildChoiceTextMap(item);
   const renderedResponses = responses.map((response) => {
@@ -126,13 +126,13 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
     .join("");
   return `
     <section class="rubric-section">
-      <h3 class="section-title">Per-criterion correctness</h3>
+      <h3 class="section-title">観点別の達成状況</h3>
       <table class="rubric-table">
         <thead>
           <tr>
-            <th>Criterion</th>
-            <th>Points</th>
-            <th>Met</th>
+            <th>観点</th>
+            <th>配点</th>
+            <th>達成</th>
           </tr>
         </thead>
         <tbody>${rowsHtml}
@@ -151,12 +151,12 @@ function renderItemBlock(model: ItemReportModel): string {
       </summary>
       <div class="item-content">
         <section class="question-section">
-          <h3 class="section-title">Question</h3>
+          <h3 class="section-title">問題</h3>
           ${model.item.questionHtml}
         </section>
         ${rubricHtml}
         <details class="candidate-response-block">
-          <summary>Candidate response</summary>
+          <summary>受験者の回答</summary>
           <div class="candidate-response-content">
             ${model.candidateResponseHtml}
           </div>
@@ -174,11 +174,11 @@ function renderHtmlDocument(
 ): string {
   const itemsHtml = items.map((item) => renderItemBlock(item)).join("\n");
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(assessmentResult.testTitle)} Result</title>
+    <title>${escapeHtml(assessmentResult.testTitle)} 結果</title>
     ${styleElement}
   </head>
   <body>
@@ -186,9 +186,9 @@ function renderHtmlDocument(
       <header class="report-header">
         <h1 class="report-title">${escapeHtml(assessmentResult.testTitle)}</h1>
         <div class="meta-grid">
-          <div class="meta-row"><span class="meta-label">Candidate number</span>${escapeHtml(assessmentResult.candidateNumber)}</div>
-          <div class="meta-row"><span class="meta-label">Candidate name</span>${escapeHtml(assessmentResult.candidateName)}</div>
-          <div class="meta-row"><span class="meta-label">Total score</span>${totalScore} / ${totalMaxScore}</div>
+          <div class="meta-row"><span class="meta-label">受験番号</span>${escapeHtml(assessmentResult.candidateNumber)}</div>
+          <div class="meta-row"><span class="meta-label">氏名</span>${escapeHtml(assessmentResult.candidateName)}</div>
+          <div class="meta-row"><span class="meta-label">合計得点</span>${totalScore} / ${totalMaxScore}</div>
         </div>
       </header>
       <main class="items-section">
