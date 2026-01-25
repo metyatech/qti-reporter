@@ -105,6 +105,7 @@ must be treated as stable for external CSS.
 - Root layout selectors: `body`, `.report-root`
 - Header selectors: `.report-header`, `.report-title`, `.meta-grid`, `.meta-row`, `.meta-label`
 - Items section selectors: `.items-section`, `.item-block`, `.item-summary`, `.item-score`, `.item-id`, `.item-content`
+- Score selectors: `.score-badge`, `.score-total`, `.score-value`, `.score-max`, `.score-separator`
 - Section title selector: `.section-title`
 - Question content selectors: `.question-section`, `.item-body`
 - Image selector: `.report-image`

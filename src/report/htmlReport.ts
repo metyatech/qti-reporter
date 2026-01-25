@@ -147,7 +147,11 @@ function renderItemBlock(model: ItemReportModel): string {
   return `
     <details class="item-block" data-item-identifier="${escapeHtml(model.item.identifier)}">
       <summary class="item-summary">
-        <span class="item-score">${model.itemScore} / ${model.itemMaxScore}</span>
+        <span class="item-score score-badge">
+          <span class="score-value">${model.itemScore}</span>
+          <span class="score-separator">/</span>
+          <span class="score-max">${model.itemMaxScore}</span>
+        </span>
         <span class="item-id">${escapeHtml(model.item.identifier)}</span>
       </summary>
       <div class="item-content">
@@ -189,7 +193,14 @@ function renderHtmlDocument(
         <div class="meta-grid">
           <div class="meta-row"><span class="meta-label">受験番号</span>${escapeHtml(assessmentResult.candidateNumber)}</div>
           <div class="meta-row"><span class="meta-label">氏名</span>${escapeHtml(assessmentResult.candidateName)}</div>
-          <div class="meta-row"><span class="meta-label">合計得点</span>${totalScore} / ${totalMaxScore}</div>
+          <div class="meta-row">
+            <span class="meta-label">合計得点</span>
+            <span class="score-badge score-total">
+              <span class="score-value">${totalScore}</span>
+              <span class="score-separator">/</span>
+              <span class="score-max">${totalMaxScore}</span>
+            </span>
+          </div>
         </div>
       </header>
       <main class="items-section">

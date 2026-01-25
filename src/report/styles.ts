@@ -42,6 +42,36 @@ body {
   margin-right: 6px;
   color: var(--muted);
 }
+.score-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 700;
+  line-height: 1.1;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+.score-total {
+  padding: 6px 12px;
+  font-size: 18px;
+}
+.item-summary .score-badge {
+  font-size: 16px;
+}
+.score-value {
+  font-size: 1.2em;
+  font-weight: 800;
+}
+.score-max {
+  opacity: 0.9;
+}
+.score-separator {
+  opacity: 0.85;
+}
 .items-section {
   margin-top: 16px;
 }

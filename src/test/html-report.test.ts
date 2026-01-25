@@ -45,11 +45,12 @@ test("generates HTML report with required naming and ordering", () => {
 
   assert.ok(html.includes('data-qti-reporter-style="default"'));
   assert.ok(!html.includes('data-qti-reporter-style="external"'));
+  assert.ok(html.includes("score-total"));
 
   const titleIndex = html.indexOf("Physics Basics");
   const numberIndex = html.indexOf("0007");
   const nameIndex = html.indexOf("Yamada Taro");
-  const totalScoreIndex = html.indexOf("7 / 9");
+  const totalScoreIndex = html.lastIndexOf("score-total");
 
   assert.ok(titleIndex >= 0, "test title must be present");
   assert.ok(numberIndex > titleIndex, "candidate number must appear after test title");
@@ -95,6 +96,7 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   assert.match(html, /class="[^"]*\bcode-block-code\b/);
   assert.ok(html.includes("data-code-lang=\"ts\""));
   assert.ok(html.includes("data-code-lang=\"html\""));
+  assert.match(html, /class="[^"]*\bscore-badge\b/);
   assert.ok(!html.includes("images/sample.svg"));
   assert.ok(
     html.includes(
