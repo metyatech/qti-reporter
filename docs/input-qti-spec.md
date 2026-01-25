@@ -65,8 +65,20 @@ elements inside the surrounding QTI text container.
 | Choice                    | `base-type="identifier"`, `cardinality="single"` | `qti-choice-interaction max-choices="1"` with `qti-simple-choice` entries | `qti-correct-response` contains `CHOICE_<n>` |
 | Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"`     | `qti-text-entry-interaction` inlined at each `{{...}}` placeholder        | Correct answer is the text inside `{{...}}`  |
 
-### Optional rubric blocks
-- `## Explanation` maps to `qti-rubric-block view="candidate"` containing a `qti-p`.
+### Explanation output
+When `## Explanation` is present, it is emitted as post-response feedback using
+`qti-modal-feedback` (outside `qti-item-body`).
+
+Expected elements:
+- `qti-outcome-declaration identifier="FEEDBACK"`
+  - `cardinality="single"`, `base-type="identifier"`
+- `qti-response-processing`
+  - Sets `FEEDBACK` to `EXPLANATION`
+- `qti-modal-feedback outcome-identifier="FEEDBACK" identifier="EXPLANATION"`
+  - `show-hide="show"`
+  - Contains a `qti-content-body` with the rendered explanation flow content
+
+### Scoring rubric blocks
 - `## Scoring` maps to `qti-rubric-block view="scorer"` with one `qti-p` per criterion.
 
 Scoring rubric line format:

@@ -19,7 +19,8 @@ The reporter can draw from the following inputs:
   `RESPONSE`, per-item `SCORE`, rubric outcome variables
   (`RUBRIC_{index}_MET`).
 - Question content from `qti-assessment-item`:
-  prompt text, options, correct responses (if defined), and rubric blocks.
+  prompt text, options, correct responses (if defined), scorer rubrics, and
+  modal feedback explanations.
 - Question ordering from `qti-assessment-test` (required input).
 
 ## HTML report format (per respondent)
