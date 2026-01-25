@@ -91,6 +91,8 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   assert.ok(html.includes('data-criterion-status="false"'));
   assert.match(html, /<p>Explain the meaning of gravity\.<\/p>/);
   assert.match(html, /<p>What is 1 \+ 1\?<\/p>/);
+  assert.ok(!html.includes("extended text response"));
+  assert.ok(!html.includes("text entry response"));
   assert.ok(html.includes("<pre"));
   assert.match(html, /class="[^"]*\bcode-block\b/);
   assert.match(html, /class="[^"]*\bcode-block-code\b/);

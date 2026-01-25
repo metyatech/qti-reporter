@@ -99,14 +99,8 @@ function replaceInteractionPlaceholders(xml: string): string {
   const textEntryPattern = /<qti-text-entry-interaction\b[^>]*\/>/g;
   const choiceInteractionPattern = /<qti-choice-interaction\b[^>]*>/g;
 
-  const withExtendedText = xml.replace(
-    extendedTextPattern,
-    '<div class="interaction-placeholder">[extended text response]</div>',
-  );
-  const withTextEntry = withExtendedText.replace(
-    textEntryPattern,
-    '<div class="interaction-placeholder">[text entry response]</div>',
-  );
+  const withExtendedText = xml.replace(extendedTextPattern, "");
+  const withTextEntry = withExtendedText.replace(textEntryPattern, "");
   return withTextEntry.replace(choiceInteractionPattern, '<div class="choice-interaction">');
 }
 
