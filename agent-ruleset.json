@@ -1,6 +1,3 @@
 {
-  "output": "AGENTS.md",
-  "rules": [
-    "agent-rules-local/rules/main-branch-workflow.md"
-  ]
+  "output": "AGENTS.md"
 }
