@@ -170,6 +170,16 @@ tr[data-criterion-status="false"] .criterion-status {
   border-radius: 8px;
   padding: 12px;
 }
+.comment-section {
+  margin-top: 16px;
+}
+.comment-content {
+  margin-top: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 12px;
+}
 .response-empty {
   color: var(--muted);
   font-style: italic;
@@ -178,6 +188,17 @@ tr[data-criterion-status="false"] .criterion-status {
   margin: 0;
 }
 .response-pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.comment-text {
+  margin: 0;
+}
+.comment-pre {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: inherit;

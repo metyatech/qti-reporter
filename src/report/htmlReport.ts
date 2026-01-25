@@ -37,6 +37,7 @@ interface ItemReportModel {
   itemMaxScore: number;
   rubricRows: RubricRowModel[];
   candidateResponseHtml: string;
+  commentHtml: string | null;
 }
 
 interface RubricRowModel {
@@ -81,6 +82,14 @@ function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[
   });
   const joined = renderedResponses.join("\n");
   return `<pre class="response-text response-pre">${joined}</pre>`;
+}
+
+function formatItemComment(comment: string | null): string | null {
+  if (!comment) {
+    return null;
+  }
+  const escaped = escapeHtml(comment);
+  return `<pre class="comment-text comment-pre">${escaped}</pre>`;
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
@@ -145,6 +154,15 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
 
 function renderItemBlock(model: ItemReportModel): string {
   const rubricHtml = renderRubricTable(model.rubricRows);
+  const commentSectionHtml = model.commentHtml
+    ? `
+        <section class="comment-section">
+          <h3 class="section-title">採点者コメント</h3>
+          <div class="comment-content">
+            ${model.commentHtml}
+          </div>
+        </section>`
+    : "";
   return `
     <details class="item-block" data-item-identifier="${escapeHtml(model.item.identifier)}">
       <summary class="item-summary">
@@ -161,6 +179,7 @@ function renderItemBlock(model: ItemReportModel): string {
           ${model.item.questionHtml}
         </section>
         ${rubricHtml}
+        ${commentSectionHtml}
         <details class="candidate-response-block">
           <summary>受験者の回答</summary>
           <div class="candidate-response-content">
@@ -223,6 +242,7 @@ function buildItemReportModel(item: ParsedAssessmentItem, itemResult: ParsedItem
   const itemScore = computeItemScore(item, itemResult);
   const rubricRows = buildRubricRows(item, itemResult);
   const candidateResponseHtml = formatCandidateResponses(item, itemResult.responses);
+  const commentHtml = formatItemComment(itemResult.comment);
   return {
     item,
     itemResult,
@@ -230,6 +250,7 @@ function buildItemReportModel(item: ParsedAssessmentItem, itemResult: ParsedItem
     itemMaxScore,
     rubricRows,
     candidateResponseHtml,
+    commentHtml,
   };
 }
 

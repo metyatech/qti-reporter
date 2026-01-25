@@ -44,6 +44,9 @@ especially toward Earth.</value>
     <outcomeVariable identifier="RUBRIC_3_MET" baseType="boolean" cardinality="single">
       <value>false</value>
     </outcomeVariable>
+    <outcomeVariable identifier="COMMENT" baseType="string" cardinality="single">
+      <value>2点の観点は満たせていますが、表現をより簡潔にしてください。</value>
+    </outcomeVariable>
   </itemResult>
   <itemResult identifier="item-3" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
     <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">

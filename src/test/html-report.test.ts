@@ -86,6 +86,8 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   assert.ok(html.includes("Mentions attraction between masses"));
   assert.ok(html.includes("Notes acceleration toward Earth"));
   assert.ok(html.includes("Uses clear wording"));
+  assert.ok(html.includes("採点者コメント"));
+  assert.ok(html.includes("表現をより簡潔にしてください"));
 
   assert.ok(html.includes("Select the correct sum"));
   assert.ok(html.includes("Avoid common mistake"));

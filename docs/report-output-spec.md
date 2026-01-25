@@ -117,6 +117,7 @@ must be treated as stable for external CSS.
 - Image selector: `.report-image`
 - Code selectors: `.code-inline`, `.code-block`, `.code-block-code`
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
+- Comment selectors: `.comment-section`, `.comment-content`, `.comment-text`, `.comment-pre`
 - Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-pre`, `.response-empty`
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
 
@@ -143,6 +144,13 @@ External CSS may also rely on the following data attributes:
 - Line breaks in responses are preserved as entered.
 - The default renderer uses a whitespace-preserving block:
   `<pre class="response-text response-pre">...</pre>`
+
+### Item comment rendering
+- When `itemResult/outcomeVariable identifier="COMMENT"` exists, it is rendered
+  inside the item block as a dedicated section.
+- Comment text preserves line breaks and whitespace.
+- The default renderer uses:
+  `<pre class="comment-text comment-pre">...</pre>`
 
 ### Code language inference (no JavaScript)
 - If the language is explicitly specified on `code` (for example

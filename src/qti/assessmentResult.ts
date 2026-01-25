@@ -14,6 +14,7 @@ export interface ParsedItemResult {
   score: number | null;
   responses: string[];
   rubricOutcomes: Map<number, boolean>;
+  comment: string | null;
 }
 
 export interface ParsedAssessmentResult {
@@ -79,6 +80,23 @@ function parseOutcomeVariableNumber(xml: string, identifier: string): number | n
     throw new Error(`Invalid numeric outcomeVariable value for ${identifier}`);
   }
   return value;
+}
+
+function parseOutcomeVariableString(xml: string, identifier: string): string | null {
+  const pattern = new RegExp(
+    `<outcomeVariable\\b[^>]*identifier="${identifier}"[^>]*>[\\s\\S]*?<\\/outcomeVariable>`,
+  );
+  const match = xml.match(pattern);
+  if (!match) {
+    return null;
+  }
+  const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>/;
+  const valueMatch = match[0].match(valuePattern);
+  if (!valueMatch) {
+    return null;
+  }
+  const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, "\n").trim();
+  return preserved.length > 0 ? preserved : null;
 }
 
 function parseCandidateResponses(itemXml: string): string[] {
@@ -147,12 +165,14 @@ function parseItemResults(xml: string): Map<string, ParsedItemResult> {
     const score = parseOutcomeVariableNumber(tag, "SCORE");
     const responses = parseCandidateResponses(tag);
     const rubricOutcomes = parseRubricOutcomes(tag);
+    const comment = parseOutcomeVariableString(tag, "COMMENT");
 
     itemResults.set(identifier, {
       identifier,
       score,
       responses,
       rubricOutcomes,
+      comment,
     });
   });
 
