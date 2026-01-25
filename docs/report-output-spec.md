@@ -161,8 +161,97 @@ External CSS may also rely on the following data attributes:
 - The generated markup includes highlight token classes (for example
   `hljs-keyword`, `hljs-string`) and requires only CSS at runtime.
 
-## TODO (CSV report format)
-- Define row granularity (per respondent or per respondent-question).
-- Define required columns and ordering.
-- Define encoding for missing answers, skipped items, and optional questions.
-- Define file naming conventions.
+## CSV report format (aggregated across respondents)
+
+### Purpose
+- Provide a single, machine-readable export that aggregates all respondents.
+- Ensure that one CSV contains enough information to analyze results without
+  opening the HTML reports.
+
+### Row granularity
+- One row represents one respondent-item pair.
+- A single respondent therefore produces `N` rows, where `N` is the number of
+  items referenced by the assessment test.
+- Item order is the canonical order from `qti-assessment-item-ref`.
+
+### Output location and naming
+- Output directory: the CLI `--out-dir` root directory.
+- File name: `report.csv`
+- Output path: `{outDir}/report.csv`
+
+### Append and overwrite rules
+- If `report.csv` does not exist, create it and write the header row first.
+- If `report.csv` already exists, append only data rows.
+- The header row must appear exactly once at the top of the file.
+
+### Encoding, delimiter, and line endings
+- Encoding: UTF-8 with BOM.
+- Delimiter: comma (`,`).
+- Line endings: LF (`\n`).
+- Quoting rules follow RFC 4180:
+  - Fields containing commas, double quotes, or newlines must be wrapped in
+    double quotes.
+  - Double quotes inside a quoted field must be escaped by doubling them.
+
+### Column definitions and ordering
+Columns are ordered as follows.
+
+| Column name        | Type             | Required | Description / source                                                                                                                                                 |
+| ------------------ | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `candidate_number` | string           | required | Extracted from `context@sourcedId` as the first continuous digit sequence (leading zeros preserved).                                                                 |
+| `candidate_name`   | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateName`.                                                                                               |
+| `test_title`       | string           | required | `context/sessionIdentifier@identifier` where `sourceID=materialTitle`.                                                                                               |
+| `total_score`      | number           | required | `testResult/outcomeVariable identifier="SCORE"` when present; otherwise the sum of item scores.                                                                      |
+| `total_max_score`  | number           | required | Sum of per-item maximum scores derived from scorer rubrics.                                                                                                          |
+| `item_order`       | number (integer) | required | 1-based index of the item in `qti-assessment-item-ref` order.                                                                                                        |
+| `item_identifier`  | string           | required | `qti-assessment-item-ref@identifier`.                                                                                                                                |
+| `item_title`       | string           | required | `qti-assessment-item@title`. Falls back to `item_identifier` if missing.                                                                                             |
+| `item_score`       | number           | required | `itemResult/outcomeVariable identifier="SCORE"` when present; otherwise rubric-based computed score.                                                                 |
+| `item_max_score`   | number           | required | Sum of rubric criterion points (`qti-rubric-block view="scorer"`).                                                                                                   |
+| `rubric_outcomes`  | string           | required | Per-criterion achievement encoded as `index:true` or `index:false` pairs joined by `;` in criterion order (example: `1:true;2:false`). |
+| `rubric_points`    | string           | required | Per-criterion points encoded as `index:points` pairs joined by `;` in criterion order (example: `1:2;2:1`).                                                          |
+| `response_values`  | string           | required | Candidate responses from `responseVariable identifier="RESPONSE"`. Multiple values are joined by `\n` in assessment result order. Empty when no response is present. |
+| `response_labels`  | string           | required | Response values rendered for readability. For choice items, each line is `CHOICE_ID: choice text`. For non-choice items, identical to `response_values`.             |
+| `comment`          | string           | required | `itemResult/outcomeVariable identifier="COMMENT"` when present; otherwise empty.                                                                                     |
+
+### Rubric encoding details
+- Criterion order is the order of `qti-p` elements inside
+  `qti-rubric-block view="scorer"`.
+- Each criterion index is 1-based.
+- `rubric_outcomes` uses `true` and `false` literals.
+- If rubric criteria exist, every criterion must appear in both
+  `rubric_outcomes` and `rubric_points`.
+- Missing rubric outcomes are treated as an error (do not emit partial data).
+
+### Response encoding details
+- The exporter targets `responseVariable identifier="RESPONSE"`.
+- Multiple `<value>` elements are supported and are emitted in order.
+- Line breaks inside responses are preserved as LF (`\n`) within the CSV cell.
+- If no candidate response exists, emit an empty string.
+- The literal `（無回答）` is not used in CSV; it is HTML-only presentation.
+
+### Score computation rules
+- `item_max_score` is computed as the sum of rubric criterion points.
+- `item_score` is sourced in the following order:
+  - Use `itemResult/outcomeVariable identifier="SCORE"` when present.
+  - Otherwise compute from rubric outcomes and rubric points.
+  - If neither is possible, treat as an error.
+- `total_score` is sourced in the following order:
+  - Use `testResult/outcomeVariable identifier="SCORE"` when present.
+  - Otherwise compute as the sum of `item_score`.
+
+### Item coverage rules
+- Items must be emitted strictly in assessment test order.
+- If an assessment test item is missing a corresponding `itemResult`, treat as
+  an error.
+- `itemResult` entries that do not appear in the assessment test are considered
+  unused data:
+  - They are not emitted to CSV.
+  - They must be reported to standard output in the same format as the HTML
+    report: `Unused itemResult identifiers: <id1>, <id2>, ...`.
+
+### Missing and invalid data handling
+- Required fields must not be silently defaulted.
+- If a required input is missing or invalid, the exporter must fail fast with a
+  clear error message describing what to fix.
+
