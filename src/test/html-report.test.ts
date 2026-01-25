@@ -46,6 +46,7 @@ test("generates HTML report with required naming and ordering", () => {
   assert.ok(html.includes('data-qti-reporter-style="default"'));
   assert.ok(!html.includes('data-qti-reporter-style="external"'));
   assert.ok(html.includes("score-total"));
+  assert.ok(html.includes("meta-value"));
 
   const titleIndex = html.indexOf("Physics Basics");
   const numberIndex = html.indexOf("0007");

@@ -191,11 +191,17 @@ function renderHtmlDocument(
       <header class="report-header">
         <h1 class="report-title">${escapeHtml(assessmentResult.testTitle)}</h1>
         <div class="meta-grid">
-          <div class="meta-row"><span class="meta-label">受験番号</span>${escapeHtml(assessmentResult.candidateNumber)}</div>
-          <div class="meta-row"><span class="meta-label">氏名</span>${escapeHtml(assessmentResult.candidateName)}</div>
+          <div class="meta-row">
+            <span class="meta-label">受験番号</span>
+            <span class="meta-value">${escapeHtml(assessmentResult.candidateNumber)}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">氏名</span>
+            <span class="meta-value">${escapeHtml(assessmentResult.candidateName)}</span>
+          </div>
           <div class="meta-row">
             <span class="meta-label">合計得点</span>
-            <span class="score-badge score-total">
+            <span class="meta-value score-badge score-total">
               <span class="score-value">${totalScore}</span>
               <span class="score-separator">/</span>
               <span class="score-max">${totalMaxScore}</span>

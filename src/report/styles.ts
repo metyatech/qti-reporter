@@ -37,10 +37,23 @@ body {
   gap: 8px 16px;
   font-size: 15px;
 }
+.meta-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  min-height: 56px;
+  gap: 6px;
+}
 .meta-label {
   font-weight: 600;
-  margin-right: 6px;
   color: var(--muted);
+}
+.meta-value {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 700;
+  font-size: 18px;
 }
 .score-badge {
   display: inline-flex;
