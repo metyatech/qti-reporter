@@ -26,5 +26,8 @@
   "devDependencies": {
     "@types/node": "^25.0.10",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1"
   }
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="item-4" title="Item 4" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>次のHTMLの種類を答えなさい。</qti-p>
+    <qti-p>
+      <pre><code>&lt;button id="btn"&gt;クリック&lt;/button&gt;
+&lt;p id="text"&gt;OFF&lt;/p&gt;</code></pre>
+    </qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] HTMLと答えている</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

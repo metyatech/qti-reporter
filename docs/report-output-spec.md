@@ -107,6 +107,7 @@ must be treated as stable for external CSS.
 - Items section selectors: `.items-section`, `.item-block`, `.item-summary`, `.item-score`, `.item-id`, `.item-content`
 - Section title selector: `.section-title`
 - Question content selectors: `.question-section`, `.item-body`
+- Code selectors: `.code-inline`, `.code-block`, `.code-block-code`
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
 - Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-empty`
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
@@ -117,6 +118,15 @@ External CSS may also rely on the following data attributes:
 - Report style mode: `data-qti-reporter-style="default"`, `data-qti-reporter-style="external"`
 - Item identifier: `data-item-identifier="<itemIdentifier>"`
 - Rubric row attributes: `data-criterion-index="<criterionIndex>"`, `data-criterion-status="true|false"`
+- Code language attribute: `data-code-lang="<language>"`
+
+### Code language inference (no JavaScript)
+- If the language is explicitly specified on `code` (for example
+  `class="language-ts"` or `data-lang="ts"`), that value is used when supported.
+- If the explicit language is missing or is `plain`, the tool infers the
+  language from the code content using server-side auto-detection.
+- The generated markup includes highlight token classes (for example
+  `hljs-keyword`, `hljs-string`) and requires only CSS at runtime.
 
 ## TODO (CSV report format)
 - Define row granularity (per respondent or per respondent-question).

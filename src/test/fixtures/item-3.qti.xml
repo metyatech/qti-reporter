@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="item-3" title="Item 3" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>次のコードの出力を答えなさい。</qti-p>
+    <qti-p>
+      <pre><code class="language-ts">const values = [1, 2, 3];
+const total = values.reduce((sum, v) => sum + v, 0);
+console.log(total);</code></pre>
+    </qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] 合計値を正しく答えている</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>
