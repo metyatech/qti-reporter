@@ -37,6 +37,7 @@ The output is written as:
 - Directory: `{candidateNumber} {candidateName}`
 - File: `{candidateNumber} {candidateName} {testTitle} 結果.html`
 - External style file (when `--style-css` is used): `report-style.css`
+- Aggregated CSV (at the output root): `report.csv` (UTF-8 with BOM)
 
 Example using the repository fixtures:
 

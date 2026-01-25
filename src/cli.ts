@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { generateHtmlReportFromFiles, HtmlReportInputPaths } from "./report/htmlReport";
+import { generateCsvReportFromFiles } from "./report/csvReport";
 
 interface CliOptions extends HtmlReportInputPaths {}
 
@@ -83,9 +84,11 @@ function logUnusedData(report: ReturnType<typeof generateHtmlReportFromFiles>, l
 export function runCli(argv: string[], logger: CliLogger = console): number {
   try {
     const options = parseCliOptions(argv);
-    const report = generateHtmlReportFromFiles(options);
-    logger.log(`Generated: ${report.outputFilePath}`);
-    logUnusedData(report, logger);
+    const htmlReport = generateHtmlReportFromFiles(options);
+    const csvReport = generateCsvReportFromFiles(options);
+    logger.log(`Generated HTML: ${htmlReport.outputFilePath}`);
+    logger.log(`Generated CSV: ${csvReport.csvPath}`);
+    logUnusedData(htmlReport, logger);
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
