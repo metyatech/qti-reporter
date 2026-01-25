@@ -4,25 +4,50 @@
 This document defines the QTI input formats consumed by qti-reporter.
 There are two input categories:
 
-- Question data: QTI 3.0 assessment items (problem statements).
+- Question data: QTI 3.0 assessment test (and referenced items).
 - Response data: QTI 3.0 results reporting (candidate responses).
 
-The question items are based on the QTI mapping in the upstream authoring
+The question data is based on the QTI mapping in the upstream authoring
 specification.
 The response data is based on the QTI 3.0 Results Reporting output
 specification used by the upstream converter.
 
-## Input 1: Question data (assessment item)
+## Input 1: Question data (assessment test)
 
 ### Required structure
-- Root element: `qti-assessment-item` (QTI 3.0).
-  - `identifier`: derived from the source file name (without extension).
-  - `title`: the `# <title>` heading.
-  - `adaptive="false"`, `time-dependent="false"`.
-- Child element: `qti-item-body`.
-  - The prompt is emitted as `qti-p`.
-  - Interactions vary by question type (below).
-- `qti-response-declaration` is required and varies by question type.
+- Root element: `qti-assessment-test`
+  - `identifier="assessment-test"` (fixed)
+  - `title="Assessment Test"` (fixed)
+- `qti-test-part`
+  - `identifier="part-1"` (fixed)
+  - `navigation-mode="linear"` (fixed)
+  - `submission-mode="individual"` (fixed)
+- `qti-assessment-section`
+  - `identifier="section-1"` (fixed)
+  - `title="Section 1"` (fixed)
+  - `visible="true"` (fixed)
+- `qti-assessment-item-ref` (one per item)
+  - `identifier`: matches the item `identifier`
+  - `href`: `<identifier>.qti.xml` (relative path)
+
+Ordering:
+- The order of `qti-assessment-item-ref` defines the canonical item order for
+  reporting.
+
+Resolution of referenced items:
+- Each `qti-assessment-item-ref@href` is resolved relative to the
+  `qti-assessment-test` file location.
+- The referenced `qti-assessment-item` documents are required inputs, but are
+  discovered via the assessment test rather than being passed directly.
+
+### Referenced assessment items
+Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
+
+- `identifier`: derived from the source file name (without extension).
+- `title`: the `# <title>` heading.
+- `adaptive="false"`, `time-dependent="false"`.
+- `qti-item-body` containing the prompt rendered as QTI flow content.
+- `qti-response-declaration` appropriate for the item type.
 
 ### Inline images
 Markdown images in the prompt/options/explanation are converted into `qti-img`
@@ -34,11 +59,11 @@ elements inside the surrounding QTI text container.
 
 ### Question types
 
-| Type | `qti-response-declaration` | Interaction | Correct response |
-| --- | --- | --- | --- |
-| Descriptive | `base-type="string"`, `cardinality="single"` | `qti-extended-text-interaction` with `response-identifier="RESPONSE"` | Omitted |
-| Choice | `base-type="identifier"`, `cardinality="single"` | `qti-choice-interaction max-choices="1"` with `qti-simple-choice` entries | `qti-correct-response` contains `CHOICE_<n>` |
-| Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"` | `qti-text-entry-interaction` inlined at each `{{...}}` placeholder | Correct answer is the text inside `{{...}}` |
+| Type                      | `qti-response-declaration`                       | Interaction                                                               | Correct response                             |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- | -------------------------------------------- |
+| Descriptive               | `base-type="string"`, `cardinality="single"`     | `qti-extended-text-interaction` with `response-identifier="RESPONSE"`     | Omitted                                      |
+| Choice                    | `base-type="identifier"`, `cardinality="single"` | `qti-choice-interaction max-choices="1"` with `qti-simple-choice` entries | `qti-correct-response` contains `CHOICE_<n>` |
+| Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"`     | `qti-text-entry-interaction` inlined at each `{{...}}` placeholder        | Correct answer is the text inside `{{...}}`  |
 
 ### Optional rubric blocks
 - `## Explanation` maps to `qti-rubric-block view="candidate"` containing a `qti-p`.
@@ -94,11 +119,12 @@ Child elements:
 - `outcomeVariable` (0..n)
 
 ### itemResult
-Emitted per question, based on question index `n` (starting at 1).
+Emitted per question.
 
 Attributes:
-- `identifier`: `Q{n}`
-- `sequenceIndex`: `n`
+- `identifier`: the assessment test item identifier
+  (matches `qti-assessment-item-ref@identifier`)
+- `sequenceIndex`: assessment test order index (optional)
 - `datestamp`: attempt end time (`endAt`) in ISO 8601.
 - `sessionStatus`: `final`
 
@@ -150,41 +176,15 @@ Child elements:
 - Timezone is configurable (default: Asia/Tokyo in the source specification).
 
 ## Linking results to items
-`itemResult@identifier` uses `Q{n}`, while assessment item identifiers are derived
-from source file names. The reporter must accept a mapping definition that
-declares how each result item identifier maps to an assessment item identifier.
+`itemResult@identifier` is the assessment item identifier, so items are linked
+by identifier equality:
 
-### Mapping definition (required input)
-Provide a mapping definition as a separate input alongside the QTI files.
-The definition is a CSV file (UTF-8, no BOM) with a single header row:
+- `itemResult@identifier` must match a `qti-assessment-item@identifier`
+- The identifier should also appear in `qti-assessment-item-ref@identifier`
 
-```
-resultItemIdentifier,itemIdentifier
-```
-
-Each subsequent row defines one mapping entry with:
-
-- `resultItemIdentifier` (string): the `itemResult@identifier` value
-  (for example `Q1`).
-- `itemIdentifier` (string): the assessment item `identifier`.
-
-Constraints:
-- One-to-one mapping (no duplicates on either side).
-- All `itemResult@identifier` values must be mapped.
-- All mapped `itemIdentifier` values must exist in the item set.
-
-Example (conceptual):
-
-```
-resultItemIdentifier,itemIdentifier
-Q1,item-001
-Q2,item-002
-```
-
-Notes:
-- Row order does not matter.
-- Both values are treated as case-sensitive identifiers.
-- The mapping file path must be provided as a command-line argument.
+Ordering:
+- Report display order follows the `qti-assessment-item-ref` order in the
+  assessment test.
 
 ## TODO (needs confirmation)
 - Confirm whether multiple `testResult` blocks are expected in one run.

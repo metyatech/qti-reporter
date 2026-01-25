@@ -16,9 +16,11 @@ The reporter can draw from the following inputs:
 - Test-level variables from `assessmentResult/testResult`:
   `completionStatus`, `SCORE`, `duration`, `numAttempts`.
 - Item-level variables from `assessmentResult/itemResult`:
-  `RESPONSE`, per-item `SCORE`, item title variables.
+  `RESPONSE`, per-item `SCORE`, rubric outcome variables
+  (`RUBRIC_{index}_MET`).
 - Question content from `qti-assessment-item`:
   prompt text, options, correct responses (if defined), and rubric blocks.
+- Question ordering from `qti-assessment-test` (required input).
 
 ## HTML report format (per respondent)
 
@@ -37,6 +39,19 @@ Output must be arranged in the following order:
   `context/@sourcedId`. Use the extracted string as-is (preserve leading zeros).
   If no digit sequence is present, treat as an error.
 - Candidate name: `context/sessionIdentifier` with `sourceID=candidateName`.
+
+### Item matching and order
+- Items are matched by identifier equality:
+  - `itemResult@identifier` == `qti-assessment-item@identifier`
+- Display order follows the `qti-assessment-item-ref` order in the
+  assessment test.
+
+### Per-criterion correctness sourcing
+- Use item-level rubric outcomes:
+  - `itemResult/outcomeVariable@identifier = RUBRIC_{index}_MET`
+  - `baseType=boolean`, value is `true/false`
+- Map `{index}` to the scorer rubric criterion order in the corresponding
+  `qti-rubric-block view="scorer"`.
 
 ### Item block content
 Each item block must include:
