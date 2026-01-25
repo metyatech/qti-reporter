@@ -1,0 +1,11 @@
+:root {
+  font-family: "Yu Gothic UI", "Segoe UI", sans-serif;
+}
+body {
+  background: #0f172a;
+  color: #e5e7eb;
+}
+.item-summary {
+  background: #111827;
+  color: #f9fafb;
+}

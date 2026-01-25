@@ -1,0 +1,30 @@
+{
+  "name": "qti-reporter",
+  "version": "1.0.0",
+  "description": "qti-reporter generates human-readable HTML reports per respondent and an aggregated CSV report from QTI 3.0 assessment items and results.",
+  "main": "dist/cli.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
+    "start": "node dist/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/metyatech/qti-reporter.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/metyatech/qti-reporter/issues"
+  },
+  "homepage": "https://github.com/metyatech/qti-reporter#readme",
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "typescript": "^5.9.3"
+  }
+}

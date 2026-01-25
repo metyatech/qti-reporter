@@ -81,6 +81,43 @@ Do not display any other fields.
     - Directory: `0001 Yamada Taro`
     - File: `0001 Yamada Taro Algebra Test 結果.html`
 
+## HTML styling specification (problem + response)
+
+### Style selection
+- If no external style is specified, the report embeds the default style:
+  `<style data-qti-reporter-style="default">...</style>`
+- If an external style is specified, the tool copies it and links it:
+  `<link rel="stylesheet" href="./report-style.css" data-qti-reporter-style="external" />`
+- When external style is used, the default style is not embedded.
+
+### External style input and output contract
+- External style is provided via CLI option: `--style-css <path-to-css>`
+- The specified CSS file must exist and must not be empty.
+- The tool copies the CSS into the candidate output directory using the fixed
+  file name: `report-style.css`
+- The HTML file references the copied CSS using a relative path from the HTML:
+  `./report-style.css`
+
+### Styling DOM contract (stable selectors)
+The following structure and class names are part of the styling contract and
+must be treated as stable for external CSS.
+
+- Root layout selectors: `body`, `.report-root`
+- Header selectors: `.report-header`, `.report-title`, `.meta-grid`, `.meta-row`, `.meta-label`
+- Items section selectors: `.items-section`, `.item-block`, `.item-summary`, `.item-score`, `.item-id`, `.item-content`
+- Section title selector: `.section-title`
+- Question content selectors: `.question-section`, `.item-body`
+- Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
+- Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-empty`
+- Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
+
+### Styling data attributes
+External CSS may also rely on the following data attributes:
+
+- Report style mode: `data-qti-reporter-style="default"`, `data-qti-reporter-style="external"`
+- Item identifier: `data-item-identifier="<itemIdentifier>"`
+- Rubric row attributes: `data-criterion-index="<criterionIndex>"`, `data-criterion-status="true|false"`
+
 ## TODO (CSV report format)
 - Define row granularity (per respondent or per respondent-question).
 - Define required columns and ordering.
