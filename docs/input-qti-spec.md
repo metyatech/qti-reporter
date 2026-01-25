@@ -66,9 +66,16 @@ Expected elements:
   - Contains a `qti-content-body` with the rendered explanation flow content
 
 ### Scoring rubric blocks
-- Scoring rubrics may be represented using `qti-rubric-block view="scorer"`.
+- `## Scoring` maps to `qti-rubric-block view="scorer"` with one `qti-p` per criterion.
 
-The internal structure of rubric content is not constrained by this document.
+Scoring rubric line format:
+
+```
+[<points>] <criterion>
+```
+
+`<points>` is the numeric value from the Markdown list item, and `<criterion>`
+is the criterion text.
 
 ## Input 2: Response data (assessmentResult)
 
