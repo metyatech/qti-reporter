@@ -6,7 +6,7 @@
   </context>
   <testResult identifier="assessment-test" datestamp="2026-01-25T12:00:00+09:00">
     <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
-      <value>6</value>
+      <value>7</value>
     </outcomeVariable>
   </testResult>
   <itemResult identifier="item-1" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
@@ -61,6 +61,19 @@
     <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
       <candidateResponse>
         <value>HTML</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="item-5" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>Sample</value>
       </candidateResponse>
     </responseVariable>
     <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">

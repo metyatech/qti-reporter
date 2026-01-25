@@ -131,6 +131,15 @@ tr[data-criterion-status="false"] .criterion-status {
   color: var(--muted);
   font-style: italic;
 }
+.report-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+}
 .code-inline {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   background: #e2e8f0;

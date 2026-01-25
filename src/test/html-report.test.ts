@@ -49,7 +49,7 @@ test("generates HTML report with required naming and ordering", () => {
   const titleIndex = html.indexOf("Physics Basics");
   const numberIndex = html.indexOf("0007");
   const nameIndex = html.indexOf("Yamada Taro");
-  const totalScoreIndex = html.indexOf("6 / 8");
+  const totalScoreIndex = html.indexOf("7 / 9");
 
   assert.ok(titleIndex >= 0, "test title must be present");
   assert.ok(numberIndex > titleIndex, "candidate number must appear after test title");
@@ -72,10 +72,12 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   const item1Index = html.indexOf('data-item-identifier="item-1"');
   const item3Index = html.indexOf('data-item-identifier="item-3"');
   const item4Index = html.indexOf('data-item-identifier="item-4"');
+  const item5Index = html.indexOf('data-item-identifier="item-5"');
   assert.ok(item2Index >= 0, "item-2 block must exist");
   assert.ok(item1Index > item2Index, "item order must follow assessment-test refs");
   assert.ok(item3Index > item1Index, "item-3 must appear after item-1");
   assert.ok(item4Index > item3Index, "item-4 must appear after item-3");
+  assert.ok(item5Index > item4Index, "item-5 must appear after item-4");
 
   assert.ok(html.includes("Mentions attraction between masses"));
   assert.ok(html.includes("Notes acceleration toward Earth"));
@@ -93,6 +95,27 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   assert.match(html, /class="[^"]*\bcode-block-code\b/);
   assert.ok(html.includes("data-code-lang=\"ts\""));
   assert.ok(html.includes("data-code-lang=\"html\""));
+  assert.ok(!html.includes("images/sample.svg"));
+});
+
+test("copies image assets and rewrites img src to output-relative paths", () => {
+  const outputRootDir = createCleanOutputDir("html-images");
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath("assessment-test.qti.xml"),
+    assessmentResultPath: resolveFixturePath("assessment-result.xml"),
+    outputRootDir,
+  });
+
+  const expectedAssetPath = path.join(
+    report.outputDirPath,
+    "assets",
+    "item-5",
+    "sample.svg",
+  );
+
+  assert.equal(fs.existsSync(expectedAssetPath), true);
+  assert.ok(report.html.includes("./assets/item-5/sample.svg"));
 });
 
 test("throws a clear error when candidate number cannot be extracted", () => {

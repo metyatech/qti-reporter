@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { parseAssessmentItem, ParsedAssessmentItem, RubricCriterion } from "../qti/assessmentItem";
+import { resolveItemAssets } from "../qti/assetResolver";
 import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult";
 import { parseAssessmentTest } from "../qti/assessmentTest";
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from "./styles";
@@ -254,8 +255,25 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   const assessmentTest = parseAssessmentTest(paths.assessmentTestPath);
   const assessmentResult = parseAssessmentResult(paths.assessmentResultPath);
 
+  const directoryName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName}`;
+  const fileName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName} ${assessmentResult.testTitle} 結果.html`;
+  const outputDirPath = path.join(paths.outputRootDir, directoryName);
+  const outputFilePath = path.join(outputDirPath, fileName);
+
+  fs.mkdirSync(outputDirPath, { recursive: true });
+
   const items: ItemReportModel[] = assessmentTest.itemRefs.map((itemRef) => {
-    const item = parseAssessmentItem(itemRef.itemPath, itemRef.identifier);
+    const parsedItem = parseAssessmentItem(itemRef.itemPath, itemRef.identifier);
+    const resolvedAssets = resolveItemAssets(
+      parsedItem.questionHtml,
+      itemRef.itemPath,
+      parsedItem.identifier,
+      outputDirPath,
+    );
+    const item: ParsedAssessmentItem = {
+      ...parsedItem,
+      questionHtml: resolvedAssets.html,
+    };
     const itemResult = assessmentResult.itemResults.get(item.identifier);
     if (!itemResult) {
       throw new Error(`Missing itemResult for ${item.identifier}`);
@@ -268,13 +286,6 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   if (totalMaxScore <= 0) {
     throw new Error("Invalid maximum score: total maximum score must be greater than zero");
   }
-
-  const directoryName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName}`;
-  const fileName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName} ${assessmentResult.testTitle} 結果.html`;
-  const outputDirPath = path.join(paths.outputRootDir, directoryName);
-  const outputFilePath = path.join(outputDirPath, fileName);
-
-  fs.mkdirSync(outputDirPath, { recursive: true });
 
   const resolvedStyle = resolveStyle(paths.styleCssPath, outputDirPath);
   const html = renderHtmlDocument(assessmentResult, items, totalScore, totalMaxScore, resolvedStyle.styleElement);

@@ -107,6 +107,7 @@ must be treated as stable for external CSS.
 - Items section selectors: `.items-section`, `.item-block`, `.item-summary`, `.item-score`, `.item-id`, `.item-content`
 - Section title selector: `.section-title`
 - Question content selectors: `.question-section`, `.item-body`
+- Image selector: `.report-image`
 - Code selectors: `.code-inline`, `.code-block`, `.code-block-code`
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
 - Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-empty`
@@ -119,6 +120,16 @@ External CSS may also rely on the following data attributes:
 - Item identifier: `data-item-identifier="<itemIdentifier>"`
 - Rubric row attributes: `data-criterion-index="<criterionIndex>"`, `data-criterion-status="true|false"`
 - Code language attribute: `data-code-lang="<language>"`
+
+### Image asset handling
+- Local image paths in `img@src` are resolved relative to the referenced
+  assessment item file.
+- Local images are copied into the candidate output directory under:
+  `assets/<itemIdentifier>/<fileName>`
+- The HTML rewrites local image sources to output-relative paths:
+  `./assets/<itemIdentifier>/<fileName>`
+- External sources (`http`, `https`, `data`, absolute `/`) are not copied and
+  are left unchanged.
 
 ### Code language inference (no JavaScript)
 - If the language is explicitly specified on `code` (for example

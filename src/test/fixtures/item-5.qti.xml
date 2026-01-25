@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="item-5" title="Item 5" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>次の画像に書かれた英単語を答えなさい。</qti-p>
+    <qti-p><img src="images/sample.svg" alt="sample image" /></qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Sampleと答えている</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>
