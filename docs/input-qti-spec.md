@@ -7,11 +7,6 @@ There are two input categories:
 - Question data: QTI 3.0 assessment test (and referenced items).
 - Response data: QTI 3.0 results reporting (candidate responses).
 
-The question data is based on the QTI mapping in the upstream authoring
-specification.
-The response data is based on the QTI 3.0 Results Reporting output
-specification used by the upstream converter.
-
 ## Input 1: Question data (assessment test)
 
 ### Required structure
@@ -43,19 +38,11 @@ Resolution of referenced items:
 ### Referenced assessment items
 Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 
-- `identifier`: derived from the source file name (without extension).
-- `title`: the `# <title>` heading.
+- `identifier`: matches the `qti-assessment-item-ref@identifier`.
+- `title`: human-readable item title.
 - `adaptive="false"`, `time-dependent="false"`.
-- `qti-item-body` containing the prompt rendered as QTI flow content.
-- `qti-response-declaration` appropriate for the item type.
-
-### Inline images
-Markdown images in the prompt/options/explanation are converted into `qti-img`
-elements inside the surrounding QTI text container.
-
-- `src`: the original image path.
-- `alt`: the Markdown alt text (empty alt is allowed).
-- `title`: emitted only when a Markdown image title is present.
+- `qti-item-body` containing the prompt and interaction(s) as QTI flow content.
+- `qti-response-declaration` aligned to the interaction(s) used.
 
 ### Question types
 
@@ -63,10 +50,10 @@ elements inside the surrounding QTI text container.
 | ------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------- | -------------------------------------------- |
 | Descriptive               | `base-type="string"`, `cardinality="single"`     | `qti-extended-text-interaction` with `response-identifier="RESPONSE"`     | Omitted                                      |
 | Choice                    | `base-type="identifier"`, `cardinality="single"` | `qti-choice-interaction max-choices="1"` with `qti-simple-choice` entries | `qti-correct-response` contains `CHOICE_<n>` |
-| Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"`     | `qti-text-entry-interaction` inlined at each `{{...}}` placeholder        | Correct answer is the text inside `{{...}}`  |
+| Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"`     | `qti-text-entry-interaction`                                              | `qti-correct-response` contains the answer   |
 
 ### Explanation output
-When `## Explanation` is present, it is emitted as post-response feedback using
+If item-level post-response feedback is provided, it is emitted using
 `qti-modal-feedback` (outside `qti-item-body`).
 
 Expected elements:
@@ -79,16 +66,9 @@ Expected elements:
   - Contains a `qti-content-body` with the rendered explanation flow content
 
 ### Scoring rubric blocks
-- `## Scoring` maps to `qti-rubric-block view="scorer"` with one `qti-p` per criterion.
+- Scoring rubrics may be represented using `qti-rubric-block view="scorer"`.
 
-Scoring rubric line format:
-
-```
-[<points>] <criterion>
-```
-
-`<points>` is the numeric value from the Markdown list item, and `<criterion>`
-is the criterion text.
+The internal structure of rubric content is not constrained by this document.
 
 ## Input 2: Response data (assessmentResult)
 
@@ -123,8 +103,8 @@ Required attributes:
 Represents the assessment attempt.
 
 Required attributes:
-- `identifier`: test/material identifier (`id`).
-- `datestamp`: attempt end time (`endAt`) in ISO 8601.
+- `identifier`: test/material identifier.
+- `datestamp`: attempt end time in ISO 8601.
 
 Child elements:
 - `responseVariable` (0..n)
@@ -137,7 +117,7 @@ Attributes:
 - `identifier`: the assessment test item identifier
   (matches `qti-assessment-item-ref@identifier`)
 - `sequenceIndex`: assessment test order index (optional)
-- `datestamp`: attempt end time (`endAt`) in ISO 8601.
+- `datestamp`: attempt end time in ISO 8601.
 - `sessionStatus`: `final`
 
 Child elements:
@@ -159,33 +139,28 @@ Child elements:
 ### ResponseVariable mapping by question type
 
 1) Free-response (descriptive)
-- Condition: no correct response is present in the source data.
 - `baseType="string"`, `cardinality="single"`
 - `correctResponse` omitted.
 - `candidateResponse`: free-text response.
 
 2) Choice
-- Condition: correct answer and candidate answer are numeric indices.
 - `baseType="identifier"`, `cardinality="single"`
 - `correctResponse`: `CHOICE_{index}`
 - `candidateResponse`: `CHOICE_{index}`
 
 3) Fill-in-the-blank
-- Condition: correct answer contains one or more `${...}` placeholders.
 - `baseType="string"`, `cardinality="ordered"`
-- `correctResponse`: values derived from `${...}` placeholders in order
-  (if the placeholder content is wrapped in `/.../`, keep the `/.../` string).
-- `candidateResponse`: values from the answer split by `;` in order.
+- `correctResponse`: ordered values.
+- `candidateResponse`: ordered values.
 
 ### Missing values
 - Do not apply fallbacks.
-- If an optional source field is empty, omit the corresponding attribute or variable.
-- If a required attribute cannot be emitted, the conversion is considered invalid.
+- If an optional input field is empty, omit the corresponding attribute or variable.
+- If a required attribute cannot be emitted, the input is considered invalid.
 
 ### Timestamp handling
-- Source timestamps are local time without timezone.
 - Output timestamps include a timezone offset.
-- Timezone is configurable (default: Asia/Tokyo in the source specification).
+- Timezone handling is defined by the producer of the results report.
 
 ## Linking results to items
 `itemResult@identifier` is the assessment item identifier, so items are linked
