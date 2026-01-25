@@ -1,3 +1,7 @@
 {
-  "output": "AGENTS.md"
+  "output": "AGENTS.md",
+  "domains": ["exam", "node"],
+  "rules": [
+    "agent-rules-local/implementation-doc-sync.md"
+  ]
 }

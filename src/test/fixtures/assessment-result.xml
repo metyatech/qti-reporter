@@ -6,7 +6,7 @@
   </context>
   <testResult identifier="assessment-test" datestamp="2026-01-25T12:00:00+09:00">
     <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
-      <value>7</value>
+      <value>10</value>
     </outcomeVariable>
   </testResult>
   <itemResult identifier="item-1" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
@@ -78,6 +78,50 @@ especially toward Earth.</value>
     <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
       <candidateResponse>
         <value>Sample</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="item-6" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>ON</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="item-7" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>1</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="item-8" datestamp="2026-01-25T12:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE_1" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>0</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="RESPONSE_2" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>{</value>
       </candidateResponse>
     </responseVariable>
     <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">

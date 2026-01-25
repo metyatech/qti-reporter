@@ -77,17 +77,36 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   const item3Index = html.indexOf('data-item-identifier="item-3"');
   const item4Index = html.indexOf('data-item-identifier="item-4"');
   const item5Index = html.indexOf('data-item-identifier="item-5"');
+  const item6Index = html.indexOf('data-item-identifier="item-6"');
+  const item7Index = html.indexOf('data-item-identifier="item-7"');
+  const item8Index = html.indexOf('data-item-identifier="item-8"');
   assert.ok(item2Index >= 0, "item-2 block must exist");
   assert.ok(item1Index > item2Index, "item order must follow assessment-test refs");
   assert.ok(item3Index > item1Index, "item-3 must appear after item-1");
   assert.ok(item4Index > item3Index, "item-4 must appear after item-3");
   assert.ok(item5Index > item4Index, "item-5 must appear after item-4");
+  assert.ok(item6Index > item5Index, "item-6 must appear after item-5");
+  assert.ok(item7Index > item6Index, "item-7 must appear after item-6");
+  assert.ok(item8Index > item7Index, "item-8 must appear after item-7");
 
   assert.ok(html.includes("Mentions attraction between masses"));
   assert.ok(html.includes("Notes acceleration toward Earth"));
   assert.ok(html.includes("Uses clear wording"));
   assert.ok(html.includes("採点者コメント"));
   assert.ok(html.includes("表現をより簡潔にしてください"));
+  assert.match(html, /class(?:="[^"]*\bcloze-input\b"|=cloze-input\b)/);
+  assert.ok(html.includes("2回目以降にクリックしても「ON」のまま。"));
+  assert.ok(html.includes("次のCSSの空欄を埋めなさい。"));
+  assert.ok(html.includes("language-css"));
+  assert.ok(!html.includes("</code><input"), "cloze input must not split code tags");
+  assert.ok(item7Index >= 0, "item-7 block must exist");
+  const item7Html = html.slice(item7Index);
+  assert.ok(item7Html.includes("<input class=cloze-input"), "cloze input must render in code blocks");
+  assert.ok(!item7Html.includes("&lt;input class=cloze-input"), "escaped cloze inputs must be restored");
+  assert.ok(item8Index >= 0, "item-8 block must exist");
+  const item8Html = html.slice(item8Index);
+  assert.ok(!item8Html.includes("</code><input"), "multi-code cloze must not split code tags");
+  assert.ok(!item8Html.includes("&lt;input class=cloze-input"), "multi-code cloze inputs must be restored");
 
   assert.ok(html.includes("Select the correct sum"));
   assert.ok(html.includes("Avoid common mistake"));

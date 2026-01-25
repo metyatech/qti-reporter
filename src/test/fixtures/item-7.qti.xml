@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="item-7" title="Item 7" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>次のCSSの空欄を埋めなさい。</qti-p>
+    <qti-p>
+      <pre><code class="language-css">.modal {
+  opacity: <qti-text-entry-interaction response-identifier='RESPONSE' expected-length='4' />;
+  visibility: hidden;
+}
+
+.modal.is-open {
+  opacity: <qti-text-entry-interaction response-identifier='RESPONSE' expected-length='4' />;
+  visibility: visible;
+}</code></pre>
+    </qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] opacity を 1 と記述している</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

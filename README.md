@@ -17,6 +17,7 @@ npm install
 
 ## Usage (HTML Per Respondent)
 Run the CLI with both the assessment test and the assessment result.
+The `start` script builds the project before running the CLI.
 
 ```bash
 npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-result <path-to-assessment-result.xml> --out-dir <output-directory> [--style-css <path-to-style.css>]

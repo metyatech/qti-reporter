@@ -52,6 +52,29 @@ Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 | Choice                    | `base-type="identifier"`, `cardinality="single"` | `qti-choice-interaction max-choices="1"` with `qti-simple-choice` entries | `qti-correct-response` contains `CHOICE_<n>` |
 | Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"`     | `qti-text-entry-interaction`                                              | `qti-correct-response` contains the answer   |
 
+### Cloze inside code blocks
+`qti-text-entry-interaction` may appear inside code-oriented flow content.
+In particular, the following structure is treated as valid input:
+
+- `qti-pre` containing multiple `qti-code` fragments
+- `qti-text-entry-interaction` inserted between those fragments
+
+Example pattern:
+
+```xml
+<qti-pre>
+  <qti-code>opacity: </qti-code>
+  <qti-text-entry-interaction response-identifier="RESPONSE_1"/>
+  <qti-code>;</qti-code>
+</qti-pre>
+```
+
+Renderer expectations:
+- The full `qti-pre` block is normalized into a single `<pre><code>...</code></pre>`
+  before syntax highlighting.
+- Any `qti-text-entry-interaction` within the block is rendered as a cloze
+  textbox and must not break the surrounding `<code>` structure.
+
 ### Explanation output
 If item-level post-response feedback is provided, it is emitted using
 `qti-modal-feedback` (outside `qti-item-body`).

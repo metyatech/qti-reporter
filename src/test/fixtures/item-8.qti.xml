@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="item-8" title="Item 8" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE_1" base-type="string" cardinality="single" />
+  <qti-response-declaration identifier="RESPONSE_2" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>複数の code 断片に分割された穴埋めを表示する。</qti-p>
+    <qti-pre><qti-code>.modal {
+  opacity: </qti-code><qti-text-entry-interaction response-identifier="RESPONSE_1"/><qti-code>;
+  visibility: hidden;
+}
+
+.modal.is-open </qti-code><qti-text-entry-interaction response-identifier="RESPONSE_2"/><qti-code> {
+  opacity: 1;
+}</qti-code></qti-pre>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] 1つ目の穴埋めが正答</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

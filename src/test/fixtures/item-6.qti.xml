@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="item-6" title="Item 6" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>要件：ボタンをクリックすると、テキストが「OFF」から「ON」に変わる。</qti-p>
+    <qti-p>
+      const status = "<qti-text-entry-interaction response-identifier="RESPONSE" expected-length="8" />";
+      console.log(status);
+    </qti-p>
+    <qti-p>2回目以降にクリックしても「ON」のまま。</qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] ON と記述している</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

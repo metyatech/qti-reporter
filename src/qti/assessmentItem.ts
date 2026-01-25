@@ -55,6 +55,11 @@ export interface ParsedAssessmentItem {
   choices: ChoiceOption[];
 }
 
+interface InteractionPlaceholder {
+  token: string;
+  replacement: string;
+}
+
 function parseCriterionText(rawText: string): { points: number; text: string } {
   const trimmed = rawText.trim();
   const match = trimmed.match(/^\[(\d+(?:\.\d+)?)\]\s*(.*)$/);
@@ -94,14 +99,42 @@ function removeRubricBlocks(itemBodyXml: string): string {
   return itemBodyXml.replace(rubricBlockPattern, "");
 }
 
-function replaceInteractionPlaceholders(xml: string): string {
+function tokenizeInteractions(xml: string): { xml: string; placeholders: InteractionPlaceholder[] } {
   const extendedTextPattern = /<qti-extended-text-interaction\b[^>]*\/>/g;
   const textEntryPattern = /<qti-text-entry-interaction\b[^>]*\/>/g;
   const choiceInteractionPattern = /<qti-choice-interaction\b[^>]*>/g;
+  const choiceInteractionClosePattern = /<\/qti-choice-interaction>/g;
 
-  const withExtendedText = xml.replace(extendedTextPattern, "");
-  const withTextEntry = withExtendedText.replace(textEntryPattern, "");
-  return withTextEntry.replace(choiceInteractionPattern, '<div class="choice-interaction">');
+  const placeholders: InteractionPlaceholder[] = [];
+  const nextToken = (replacement: string): string => {
+    const token = `__QTI_PLACEHOLDER_${placeholders.length}__`;
+    placeholders.push({ token, replacement });
+    return token;
+  };
+
+  const withExtendedTextTokens = xml.replace(extendedTextPattern, () => nextToken(""));
+  const withTextEntryTokens = withExtendedTextTokens.replace(
+    textEntryPattern,
+    () => nextToken("<input class=cloze-input type=text readonly aria-label=blank>"),
+  );
+  const withChoiceOpenTokens = withTextEntryTokens.replace(
+    choiceInteractionPattern,
+    () => nextToken('<div class="choice-interaction">'),
+  );
+  const withChoiceTokens = withChoiceOpenTokens.replace(
+    choiceInteractionClosePattern,
+    () => nextToken("</div>"),
+  );
+
+  return { xml: withChoiceTokens, placeholders };
+}
+
+function restoreInteractionPlaceholders(htmlFragment: string, placeholders: InteractionPlaceholder[]): string {
+  let restored = htmlFragment;
+  placeholders.forEach(({ token, replacement }) => {
+    restored = restored.split(token).join(replacement);
+  });
+  return restored;
 }
 
 function mergeClassNames(existing: string | undefined, additions: string[]): string {
@@ -221,14 +254,41 @@ function enhanceInlineCode(htmlFragment: string): string {
   });
 }
 
+function normalizePreBlocks(htmlFragment: string): string {
+  const prePattern = /<pre\b[^>]*>[\s\S]*?<\/pre>/g;
+  return htmlFragment.replace(prePattern, (preBlock) => {
+    const preOpenMatch = preBlock.match(/^<pre\b[^>]*>/);
+    if (!preOpenMatch) {
+      return preBlock;
+    }
+    const preOpen = preOpenMatch[0];
+
+    let inner: string;
+    try {
+      inner = extractInnerXml(preBlock, "pre");
+    } catch {
+      return preBlock;
+    }
+
+    const firstCodeOpenMatch = inner.match(/<code\b[^>]*>/);
+    if (!firstCodeOpenMatch) {
+      return preBlock;
+    }
+    const firstCodeOpen = firstCodeOpenMatch[0];
+    const withoutCodeTags = inner.replace(/<\/?code\b[^>]*>/g, "");
+    return `${preOpen}${firstCodeOpen}${withoutCodeTags}</code></pre>`;
+  });
+}
+
 function convertQtiXmlToHtml(itemBodyXml: string): string {
   const withoutXmlns = itemBodyXml.replace(/\sxmlns="[^"]*"/g, "");
-  const withPlaceholders = replaceInteractionPlaceholders(withoutXmlns);
-  const withoutChoiceClose = withPlaceholders.replace(/<\/qti-choice-interaction>/g, "</div>");
-  const renamedTags = withoutChoiceClose.replace(/<(\/?)qti-([A-Za-z0-9-]+)/g, "<$1$2");
-  const withCodeBlocks = enhanceCodeBlocks(renamedTags);
+  const tokenized = tokenizeInteractions(withoutXmlns);
+  const renamedTags = tokenized.xml.replace(/<(\/?)qti-([A-Za-z0-9-]+)/g, "<$1$2");
+  const normalizedPreBlocks = normalizePreBlocks(renamedTags);
+  const withCodeBlocks = enhanceCodeBlocks(normalizedPreBlocks);
   const withInlineCode = enhanceInlineCode(withCodeBlocks);
-  return `<div class="item-body">${withInlineCode}</div>`;
+  const restoredInteractions = restoreInteractionPlaceholders(withInlineCode, tokenized.placeholders);
+  return `<div class="item-body">${restoredInteractions}</div>`;
 }
 
 function extractChoices(itemBodyXml: string): ChoiceOption[] {

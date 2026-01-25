@@ -192,3 +192,30 @@
 # Naming consistency
 
 - 命名規則（大文字小文字、略語、区切り方）をリポジトリ内で一貫させ、混在があれば整合するようにリネームする。
+
+# 試験問題（Markdown）
+
+- 試験問題の Markdown を作成・修正する場合は、markdown-to-qti に同梱の `markdown-question-spec.md` の形式に必ず従う。
+
+## Module system (ESM)
+
+- Always set `"type": "module"` in `package.json`.
+- Prefer ESM with `.js` extensions for JavaScript config and scripts (e.g. `next.config.js` as ESM).
+
+## Node packages
+
+### 公開（GitHub / npm）
+
+- スコープ付きパッケージを npm 公開する場合は `publishConfig.access: "public"` を設定する。
+- npm 公開時は `files` を設定し、配布物を意図どおりに限定する。
+- クリーン環境の `npm install` だけで使えない場合は、`prepare` 等で必要なビルドを行う。
+
+### 検証
+
+- 配布物の想定がある場合は `npm pack --dry-run` で内容を確認する。
+- テストがある場合は `npm test` を実行する。
+
+# 実装と仕様の同期
+
+- 実装を変更して仕様に影響がある場合は、同一変更セットで仕様書（例: `docs/`）も更新する。
+- 仕様書の更新が不要な場合でも、最終返答でその理由を明記する。

@@ -124,6 +124,25 @@ body {
 .item-body p {
   margin: 8px 0;
 }
+.cloze-input {
+  display: inline-block;
+  width: 96px;
+  max-width: 100%;
+  height: 32px;
+  padding: 4px 8px;
+  margin: 0 6px;
+  border-radius: 6px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.4;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+.cloze-input[readonly] {
+  background: #f8fafc;
+}
 .rubric-section {
   margin-top: 14px;
 }

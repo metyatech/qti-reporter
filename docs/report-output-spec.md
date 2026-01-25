@@ -114,6 +114,7 @@ must be treated as stable for external CSS.
 - Score selectors: `.score-badge`, `.score-total`, `.score-value`, `.score-max`, `.score-separator`
 - Section title selector: `.section-title`
 - Question content selectors: `.question-section`, `.item-body`
+- Cloze selector: `.cloze-input`
 - Image selector: `.report-image`
 - Code selectors: `.code-inline`, `.code-block`, `.code-block-code`
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
