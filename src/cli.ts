@@ -64,10 +64,10 @@ function parseCliOptions(argv: string[]): CliOptions {
     throw new Error("--assessment-result is required");
   }
 
-  const resolvedAssessmentTestPath = path.resolve(assessmentTestPath);
-  const resolvedAssessmentResultPath = path.resolve(assessmentResultPath);
+  const resolvedAssessmentTestPath = resolveCliPath(assessmentTestPath);
+  const resolvedAssessmentResultPath = resolveCliPath(assessmentResultPath);
   const resolvedOutputRootDir = path.resolve(outputRootDir ?? "out");
-  const resolvedStyleCssPath = styleCssPath ? path.resolve(styleCssPath) : undefined;
+  const resolvedStyleCssPath = styleCssPath ? resolveCliPath(styleCssPath) : undefined;
 
   assertFileExists(resolvedAssessmentTestPath, "Assessment test");
   assertFileExists(resolvedAssessmentResultPath, "Assessment result");
@@ -120,6 +120,19 @@ function assertFileExists(filePath: string, label: string): void {
     }
     throw error;
   }
+}
+
+function resolveCliPath(inputPath: string): string {
+  const resolvedPath = path.resolve(inputPath);
+  if (fs.existsSync(resolvedPath)) {
+    return resolvedPath;
+  }
+  if (!inputPath.includes("^")) {
+    return resolvedPath;
+  }
+  const unescapedPath = inputPath.replaceAll("^", "");
+  const resolvedUnescapedPath = path.resolve(unescapedPath);
+  return fs.existsSync(resolvedUnescapedPath) ? resolvedUnescapedPath : resolvedPath;
 }
 
 if (require.main === module) {
