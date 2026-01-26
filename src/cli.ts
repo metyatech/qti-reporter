@@ -20,6 +20,7 @@ export interface CliLogger {
 function parseCliOptions(argv: string[]): CliOptions {
   let assessmentTestPath: string | null = null;
   const assessmentResultPaths: string[] = [];
+  const assessmentResultDirs: string[] = [];
   let outputRootDir: string | null = null;
   let styleCssPath: string | null = null;
 
@@ -40,6 +41,14 @@ function parseCliOptions(argv: string[]): CliOptions {
         throw new Error("Missing value for --assessment-result");
       }
       assessmentResultPaths.push(nextValue);
+      index += 1;
+      continue;
+    }
+    if (arg === "--assessment-result-dir") {
+      if (!nextValue) {
+        throw new Error("Missing value for --assessment-result-dir");
+      }
+      assessmentResultDirs.push(nextValue);
       index += 1;
       continue;
     }
@@ -66,12 +75,13 @@ function parseCliOptions(argv: string[]): CliOptions {
   if (!assessmentTestPath) {
     throw new Error("--assessment-test is required");
   }
-  if (assessmentResultPaths.length === 0) {
+  if (assessmentResultPaths.length === 0 && assessmentResultDirs.length === 0) {
     throw new Error("--assessment-result is required");
   }
 
   const resolvedAssessmentTestPath = resolveCliPath(assessmentTestPath);
   const resolvedAssessmentResultPaths = assessmentResultPaths.map(resolveCliPath);
+  const resolvedAssessmentResultDirs = assessmentResultDirs.map(resolveCliPath);
   const resolvedOutputRootDir = path.resolve(outputRootDir ?? "out");
   const resolvedStyleCssPath = styleCssPath ? resolveCliPath(styleCssPath) : undefined;
 
@@ -79,15 +89,25 @@ function parseCliOptions(argv: string[]): CliOptions {
   resolvedAssessmentResultPaths.forEach((resultPath) => {
     assertFileExists(resultPath, "Assessment result");
   });
+  resolvedAssessmentResultDirs.forEach((dirPath) => {
+    assertDirectoryExists(dirPath, "Assessment result directory");
+  });
   if (resolvedStyleCssPath) {
     assertFileExists(resolvedStyleCssPath, "Style CSS");
+  }
+
+  const dirResults = resolvedAssessmentResultDirs.flatMap(readResultsFromDir);
+  const combinedResults = [...resolvedAssessmentResultPaths, ...dirResults];
+  const uniqueResults = Array.from(new Set(combinedResults));
+  if (uniqueResults.length === 0) {
+    throw new Error("No assessment result files found");
   }
 
   return {
     assessmentTestPath: resolvedAssessmentTestPath,
     outputRootDir: resolvedOutputRootDir,
     styleCssPath: resolvedStyleCssPath,
-    assessmentResultPaths: resolvedAssessmentResultPaths,
+    assessmentResultPaths: uniqueResults,
   };
 }
 
@@ -137,6 +157,28 @@ function assertFileExists(filePath: string, label: string): void {
     }
     throw error;
   }
+}
+
+function assertDirectoryExists(dirPath: string, label: string): void {
+  try {
+    const stats = fs.statSync(dirPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`${label} must be a directory: ${dirPath}`);
+    }
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      throw new Error(`${label} not found: ${dirPath}`);
+    }
+    throw error;
+  }
+}
+
+function readResultsFromDir(dirPath: string): string[] {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".xml"))
+    .map((entry) => path.join(dirPath, entry.name))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function resolveCliPath(inputPath: string): string {

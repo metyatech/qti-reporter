@@ -110,3 +110,36 @@ test("accepts caret-escaped Windows paths for assessment-result", () => {
   assert.equal(exitCode, 0);
   assert.equal(errors.length, 0);
 });
+
+test("accepts assessment-result directory inputs", () => {
+  const repoRoot = getRepoRootFromDist();
+  const outputRootDir = createCleanOutputDir("cli-result-dir");
+  const resultDir = path.join(repoRoot, "tmp", "cli-result-dir-input");
+  fs.rmSync(resultDir, { recursive: true, force: true });
+  fs.mkdirSync(resultDir, { recursive: true });
+
+  fs.copyFileSync(resolveFixturePath("assessment-result.xml"), path.join(resultDir, "result-a.xml"));
+  fs.copyFileSync(resolveFixturePath("assessment-result-2.xml"), path.join(resultDir, "result-b.xml"));
+
+  const exitCode = runCli(
+    [
+      "--assessment-test",
+      resolveFixturePath("assessment-test.qti.xml"),
+      "--assessment-result-dir",
+      resultDir,
+      "--out-dir",
+      outputRootDir,
+    ],
+    {
+      log: () => undefined,
+      error: () => undefined,
+    },
+  );
+
+  assert.equal(exitCode, 0);
+  const csvPath = path.join(outputRootDir, "report.csv");
+  assert.equal(fs.existsSync(csvPath), true, "report.csv must be created");
+  const text = fs.readFileSync(csvPath, "utf8").replace(/^\uFEFF/, "");
+  assert.ok(text.includes("0007"), "first candidate must be included");
+  assert.ok(text.includes("0008"), "second candidate must be included");
+});

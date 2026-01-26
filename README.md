@@ -20,12 +20,13 @@ Run the CLI with both the assessment test and one or more assessment results.
 The `start` script builds the project before running the CLI.
 
 ```bash
-npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-result <path-to-assessment-result.xml> [--assessment-result <path-to-assessment-result.xml> ...] --out-dir <output-directory> [--style-css <path-to-style.css>]
+npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-result <path-to-assessment-result.xml> [--assessment-result <path-to-assessment-result.xml> ...] [--assessment-result-dir <dir>] --out-dir <output-directory> [--style-css <path-to-style.css>]
 ```
 
 Arguments:
 - `--assessment-test`: Path to the `qti-assessment-test` XML file.
 - `--assessment-result`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run.
+- `--assessment-result-dir`: Directory containing `assessmentResult` XML files. Files are discovered non-recursively and processed in filename order.
 - `--out-dir`: Output root directory. If omitted, `out` is used.
 - `--style-css`: Optional path to a CSS file. When omitted, the default style is embedded.
 
