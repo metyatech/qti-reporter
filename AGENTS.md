@@ -256,10 +256,6 @@ Write final responses to the user in Japanese unless the user requests otherwise
 
 - 命名規則（大文字小文字、略語、区切り方）をリポジトリ内で一貫させ、混在があれば整合するようにリネームする。
 
-# 試験問題（Markdown）
-
-- 試験問題の Markdown を作成・修正する場合は、markdown-to-qti に同梱の `markdown-question-spec.md` の形式に必ず従う。
-
 ## Module system (ESM)
 
 - Always set `"type": "module"` in `package.json`.
