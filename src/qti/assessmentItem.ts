@@ -46,20 +46,20 @@ function normalizeLanguage(language: string): string {
 }
 
 function highlightCode(codeContent: string, explicitLanguage: string | null): { language: string; html: string } {
-  const trimmed = codeContent.trim();
+  const normalizedExplicit = explicitLanguage ? normalizeLanguage(explicitLanguage) : null;
+  const decodedNumeric = codeContent.replace(/&#39;/g, "'").replace(/&#x27;/gi, "'");
+  if (codeContent.includes("cloze-input")) {
+    return { language: normalizedExplicit ?? "plain", html: decodedNumeric };
+  }
+
+  const trimmed = decodedNumeric.trim();
   if (trimmed.length === 0) {
     return { language: "plain", html: "" };
   }
-  if (codeContent.includes("cloze-input")) {
-    return { language: "plain", html: codeContent };
-  }
 
-  if (explicitLanguage) {
-    const normalizedExplicit = normalizeLanguage(explicitLanguage);
-    if (normalizedExplicit !== "plain" && hljs.getLanguage(normalizedExplicit)) {
-      const highlighted = hljs.highlight(trimmed, { language: normalizedExplicit, ignoreIllegals: true });
-      return { language: normalizeLanguage(highlighted.language ?? normalizedExplicit), html: highlighted.value };
-    }
+  if (normalizedExplicit && normalizedExplicit !== "plain" && hljs.getLanguage(normalizedExplicit)) {
+    const highlighted = hljs.highlight(trimmed, { language: normalizedExplicit, ignoreIllegals: true });
+    return { language: normalizeLanguage(highlighted.language ?? normalizedExplicit), html: highlighted.value };
   }
 
   const auto = hljs.highlightAuto(trimmed, AUTO_DETECT_LANGUAGES);

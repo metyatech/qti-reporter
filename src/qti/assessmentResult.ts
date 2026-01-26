@@ -102,32 +102,53 @@ function parseOutcomeVariableString(xml: string, identifier: string): string | n
 function parseCandidateResponses(itemXml: string): string[] {
   const responseVariablePattern = /<responseVariable\b[^>]*>[\s\S]*?<\/responseVariable>/g;
   const responseVariables = itemXml.match(responseVariablePattern) ?? [];
+  const orderedResponses: Array<{ index: number; value: string }> = [];
 
   for (const responseVariable of responseVariables) {
     const openTag = extractOpenTag(responseVariable);
     const attributes = parseAttributes(openTag);
-    if (attributes.identifier !== "RESPONSE") {
+    const identifier = attributes.identifier ?? "";
+    if (!identifier.startsWith("RESPONSE")) {
       continue;
     }
     const candidateResponseMatch = responseVariable.match(
       /<candidateResponse\b[^>]*>([\s\S]*?)<\/candidateResponse>/,
     );
     if (!candidateResponseMatch) {
-      return [];
+      continue;
     }
     const candidateResponseXml = candidateResponseMatch[1];
     const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>/g;
-    const responses: string[] = [];
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
+    const values: string[] = [];
     while (valueMatch) {
       const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, "\n");
-      responses.push(preserved);
+      values.push(preserved);
       valueMatch = valuePattern.exec(candidateResponseXml);
     }
-    return responses;
+    if (values.length === 0) {
+      continue;
+    }
+
+    if (identifier === "RESPONSE") {
+      values.forEach((value, idx) => orderedResponses.push({ index: idx, value }));
+      continue;
+    }
+
+    const match = identifier.match(/^RESPONSE_(\d+)$/);
+    if (!match) {
+      continue;
+    }
+    const index = Number.parseInt(match[1], 10) - 1;
+    if (Number.isNaN(index)) {
+      continue;
+    }
+    values.forEach((value, offset) => orderedResponses.push({ index: index + offset, value }));
   }
 
-  return [];
+  return orderedResponses
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => entry.value);
 }
 
 function parseRubricOutcomes(itemXml: string): Map<number, boolean> {

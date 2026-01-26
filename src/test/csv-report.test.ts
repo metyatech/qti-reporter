@@ -59,7 +59,7 @@ test("generates report.csv with UTF-8 BOM and deterministic rows", () => {
     "0007,Yamada Taro,Physics Basics,10,12,5,item-5,Item 5,1,1,1:true,1:1,Sample,Sample,",
     "0007,Yamada Taro,Physics Basics,10,12,6,item-6,Item 6,1,1,1:true,1:1,ON,ON,",
     "0007,Yamada Taro,Physics Basics,10,12,7,item-7,Item 7,1,1,1:true,1:1,1,1,",
-    "0007,Yamada Taro,Physics Basics,10,12,8,item-8,Item 8,1,1,1:true,1:1,,,",
+    "0007,Yamada Taro,Physics Basics,10,12,8,item-8,Item 8,1,1,1:true,1:1,\"0\n{\",\"0\n{\",",
   ].join("\n");
 
   assert.equal(text, expectedCsv);

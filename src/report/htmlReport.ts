@@ -323,20 +323,23 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
 
   const items: ItemReportModel[] = assessmentTest.itemRefs.map((itemRef) => {
     const parsedItem = parseAssessmentItem(itemRef.itemPath, itemRef.identifier);
+    const itemResult = assessmentResult.itemResults.get(parsedItem.identifier);
+    if (!itemResult) {
+      throw new Error(`Missing itemResult for ${parsedItem.identifier}`);
+    }
     const resolvedAssets = resolveItemAssets(
       parsedItem.questionHtml,
       itemRef.itemPath,
       parsedItem.identifier,
       outputDirPath,
     );
+    const filledQuestionHtml = applyResponsesToPromptHtml(resolvedAssets.html, itemResult.responses, {
+      domParser: DOM_PARSER,
+    });
     const item: ParsedAssessmentItem = {
       ...parsedItem,
-      questionHtml: resolvedAssets.html,
+      questionHtml: filledQuestionHtml,
     };
-    const itemResult = assessmentResult.itemResults.get(item.identifier);
-    if (!itemResult) {
-      throw new Error(`Missing itemResult for ${item.identifier}`);
-    }
     return buildItemReportModel(item, itemResult);
   });
 
