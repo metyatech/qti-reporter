@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { runCli } from "../cli";
+import { runCli } from "../cli.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function getRepoRootFromDist(): string {
   return path.resolve(__dirname, "..", "..");

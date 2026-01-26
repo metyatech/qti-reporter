@@ -7,7 +7,7 @@ import {
   parseAttributes,
   stripTags,
   stripTagsPreserveWhitespace,
-} from "./xml";
+} from "./xml.js";
 
 export interface ParsedItemResult {
   identifier: string;

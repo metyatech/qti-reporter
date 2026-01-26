@@ -35,18 +35,6 @@ export function stripTagsPreserveWhitespace(xmlFragment: string): string {
   return decodeXmlEntities(withoutTags);
 }
 
-export function findAllSelfClosingTags(xml: string, tagName: string): string[] {
-  const pattern = new RegExp(`<${tagName}\\b[^>]*/>`, "g");
-  const matches = xml.match(pattern);
-  return matches ?? [];
-}
-
-export function findAllTagBlocks(xml: string, tagName: string): string[] {
-  const pattern = new RegExp(`<${tagName}\\b[^>]*>[\\s\\S]*?</${tagName}>`, "g");
-  const matches = xml.match(pattern);
-  return matches ?? [];
-}
-
 export function findFirstTagBlock(xml: string, tagName: string): string | null {
   const pattern = new RegExp(`<${tagName}\\b[^>]*>[\\s\\S]*?</${tagName}>`);
   const match = xml.match(pattern);
@@ -68,10 +56,4 @@ export function extractInnerXml(tagBlock: string, tagName: string): string {
     throw new Error(`Invalid XML: could not extract inner XML for ${tagName}`);
   }
   return match[1];
-}
-
-export function extractTagOpen(xml: string, tagName: string): string | null {
-  const pattern = new RegExp(`<${tagName}\\b[^>]*>`);
-  const match = xml.match(pattern);
-  return match ? match[0] : null;
 }

@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { parseAssessmentItem, ParsedAssessmentItem, RubricCriterion } from "../qti/assessmentItem";
-import { resolveItemAssets } from "../qti/assetResolver";
-import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult";
-import { parseAssessmentTest } from "../qti/assessmentTest";
-import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from "./styles";
+import { parseAssessmentItem, ParsedAssessmentItem, RubricCriterion } from "../qti/assessmentItem.js";
+import { resolveItemAssets } from "../qti/assetResolver.js";
+import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult.js";
+import { parseAssessmentTest } from "../qti/assessmentTest.js";
+import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from "./styles.js";
 
 export interface HtmlReportInputPaths {
   assessmentTestPath: string;

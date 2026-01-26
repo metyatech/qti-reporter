@@ -8,16 +8,12 @@ import cssLang from "highlight.js/lib/languages/css";
 import sqlLang from "highlight.js/lib/languages/sql";
 import bashLang from "highlight.js/lib/languages/bash";
 import plaintextLang from "highlight.js/lib/languages/plaintext";
-
 import {
-  decodeXmlEntities,
-  extractInnerXml,
-  extractOpenTag,
-  extractTagOpen,
-  findFirstTagBlock,
-  parseAttributes,
-  stripTags,
-} from "./xml";
+  renderQtiItemForReport,
+  type ChoiceOption,
+  type ParsedItemForReport,
+  type RubricCriterion,
+} from "qti-html-renderer";
 
 hljs.registerLanguage("xml", xmlLang);
 hljs.registerLanguage("html", xmlLang);
@@ -35,155 +31,8 @@ hljs.registerLanguage("plain", plaintextLang);
 
 const AUTO_DETECT_LANGUAGES = ["html", "xml", "ts", "js", "json", "css", "sql", "bash", "plain"];
 
-export interface RubricCriterion {
-  index: number;
-  points: number;
-  text: string;
-}
-
-export interface ChoiceOption {
-  identifier: string;
-  text: string;
-}
-
-export interface ParsedAssessmentItem {
-  identifier: string;
-  title: string;
-  questionHtml: string;
-  rubricCriteria: RubricCriterion[];
-  itemMaxScore: number;
-  choices: ChoiceOption[];
-}
-
-interface InteractionPlaceholder {
-  token: string;
-  replacement: string;
-}
-
-function parseCriterionText(rawText: string): { points: number; text: string } {
-  const trimmed = rawText.trim();
-  const match = trimmed.match(/^\[(\d+(?:\.\d+)?)\]\s*(.*)$/);
-  if (!match) {
-    return { points: 0, text: trimmed };
-  }
-  const points = Number.parseFloat(match[1]);
-  const text = match[2].trim();
-  return { points, text };
-}
-
-function extractRubricCriteria(itemBodyXml: string): RubricCriterion[] {
-  const rubricBlockPattern = /<qti-rubric-block\b[^>]*view="scorer"[^>]*>[\s\S]*?<\/qti-rubric-block>/g;
-  const rubricBlocks = itemBodyXml.match(rubricBlockPattern) ?? [];
-
-  const criteria: RubricCriterion[] = [];
-  rubricBlocks.forEach((block) => {
-    const paragraphPattern = /<qti-p\b[^>]*>([\s\S]*?)<\/qti-p>/g;
-    let paragraphMatch: RegExpExecArray | null = paragraphPattern.exec(block);
-    while (paragraphMatch) {
-      const rawText = stripTags(paragraphMatch[1]);
-      const parsed = parseCriterionText(rawText);
-      criteria.push({
-        index: criteria.length + 1,
-        points: parsed.points,
-        text: parsed.text,
-      });
-      paragraphMatch = paragraphPattern.exec(block);
-    }
-  });
-
-  return criteria;
-}
-
-function removeRubricBlocks(itemBodyXml: string): string {
-  const rubricBlockPattern = /<qti-rubric-block\b[^>]*view="scorer"[^>]*>[\s\S]*?<\/qti-rubric-block>/g;
-  return itemBodyXml.replace(rubricBlockPattern, "");
-}
-
-function tokenizeInteractions(xml: string): { xml: string; placeholders: InteractionPlaceholder[] } {
-  const extendedTextPattern = /<qti-extended-text-interaction\b[^>]*\/>/g;
-  const textEntryPattern = /<qti-text-entry-interaction\b[^>]*\/>/g;
-  const choiceInteractionPattern = /<qti-choice-interaction\b[^>]*>/g;
-  const choiceInteractionClosePattern = /<\/qti-choice-interaction>/g;
-
-  const placeholders: InteractionPlaceholder[] = [];
-  const nextToken = (replacement: string): string => {
-    const token = `__QTI_PLACEHOLDER_${placeholders.length}__`;
-    placeholders.push({ token, replacement });
-    return token;
-  };
-
-  const withExtendedTextTokens = xml.replace(extendedTextPattern, () => nextToken(""));
-  const withTextEntryTokens = withExtendedTextTokens.replace(
-    textEntryPattern,
-    () => nextToken("<input class=cloze-input type=text readonly aria-label=blank>"),
-  );
-  const withChoiceOpenTokens = withTextEntryTokens.replace(
-    choiceInteractionPattern,
-    () => nextToken('<div class="choice-interaction">'),
-  );
-  const withChoiceTokens = withChoiceOpenTokens.replace(
-    choiceInteractionClosePattern,
-    () => nextToken("</div>"),
-  );
-
-  return { xml: withChoiceTokens, placeholders };
-}
-
-function restoreInteractionPlaceholders(htmlFragment: string, placeholders: InteractionPlaceholder[]): string {
-  let restored = htmlFragment;
-  placeholders.forEach(({ token, replacement }) => {
-    restored = restored.split(token).join(replacement);
-  });
-  return restored;
-}
-
-function mergeClassNames(existing: string | undefined, additions: string[]): string {
-  const tokens = new Set<string>();
-  if (existing) {
-    existing
-      .split(/\s+/)
-      .map((token) => token.trim())
-      .filter((token) => token.length > 0)
-      .forEach((token) => tokens.add(token));
-  }
-  additions.forEach((token) => tokens.add(token));
-  return Array.from(tokens).join(" ");
-}
-
-function addOrUpdateAttribute(tagOpen: string, attributeName: string, attributeValue: string): string {
-  const attributePattern = new RegExp(`\\s${attributeName}="[^"]*"`);
-  if (attributePattern.test(tagOpen)) {
-    return tagOpen.replace(attributePattern, ` ${attributeName}="${attributeValue}"`);
-  }
-  return tagOpen.replace(/^<([A-Za-z0-9-]+)/, `<$1 ${attributeName}="${attributeValue}"`);
-}
-
-function addClasses(tagOpen: string, classNames: string[]): string {
-  const attributes = parseAttributes(tagOpen);
-  const merged = mergeClassNames(attributes.class, classNames);
-  return addOrUpdateAttribute(tagOpen, "class", merged);
-}
-
-function detectCodeLanguage(tagOpen: string): string | null {
-  const attributes = parseAttributes(tagOpen);
-  const fromDataLang =
-    attributes["data-lang"] ?? attributes["data-language"] ?? attributes["data-code-lang"];
-  if (fromDataLang) {
-    return fromDataLang.trim();
-  }
-  const classAttr = attributes.class;
-  if (!classAttr) {
-    return null;
-  }
-  const classTokens = classAttr.split(/\s+/);
-  for (const token of classTokens) {
-    const languageMatch = token.match(/^(?:language|lang)-([A-Za-z0-9_-]+)$/);
-    if (languageMatch) {
-      return languageMatch[1];
-    }
-  }
-  return null;
-}
+export type ParsedAssessmentItem = ParsedItemForReport;
+export type { ChoiceOption, RubricCriterion };
 
 function normalizeLanguage(language: string): string {
   const normalized = language.toLowerCase();
@@ -197,10 +46,12 @@ function normalizeLanguage(language: string): string {
 }
 
 function highlightCode(codeContent: string, explicitLanguage: string | null): { language: string; html: string } {
-  const decoded = decodeXmlEntities(codeContent);
-  const trimmed = decoded.trim();
+  const trimmed = codeContent.trim();
   if (trimmed.length === 0) {
     return { language: "plain", html: "" };
+  }
+  if (codeContent.includes("cloze-input")) {
+    return { language: "plain", html: codeContent };
   }
 
   if (explicitLanguage) {
@@ -216,137 +67,9 @@ function highlightCode(codeContent: string, explicitLanguage: string | null): { 
   return { language: autoLanguage, html: auto.value };
 }
 
-function enhanceCodeBlocks(htmlFragment: string): string {
-  const preCodePattern = /(<pre\b[^>]*>)(\s*)(<code\b[^>]*>)([\s\S]*?)(<\/code>)/g;
-  return htmlFragment.replace(
-    preCodePattern,
-    (_match, preOpen, whitespace, codeOpen, codeContent, codeClose) => {
-      const explicitLanguage = detectCodeLanguage(codeOpen);
-      const highlighted = highlightCode(codeContent, explicitLanguage);
-      const language = highlighted.language;
-
-      const enhancedPre = addOrUpdateAttribute(addClasses(preOpen, ["code-block", "hljs"]), "data-code-lang", language);
-      const enhancedCode = addOrUpdateAttribute(
-        addClasses(codeOpen, ["code-block-code"]),
-        "data-code-lang",
-        language,
-      );
-      const content = highlighted.html.length > 0 ? highlighted.html : codeContent;
-      return `${enhancedPre}${whitespace}${enhancedCode}${content}${codeClose}`;
-    },
-  );
-}
-
-function enhanceInlineCode(htmlFragment: string): string {
-  const codeOpenPattern = /<code\b[^>]*>/g;
-  return htmlFragment.replace(codeOpenPattern, (codeOpen) => {
-    const attributes = parseAttributes(codeOpen);
-    const existingClasses = attributes.class ?? "";
-    if (existingClasses.split(/\s+/).includes("code-block-code")) {
-      return codeOpen;
-    }
-    const language = detectCodeLanguage(codeOpen);
-    const enhancedCode = addClasses(codeOpen, ["code-inline"]);
-    if (!language) {
-      return enhancedCode;
-    }
-    return addOrUpdateAttribute(enhancedCode, "data-code-lang", normalizeLanguage(language));
-  });
-}
-
-function normalizePreBlocks(htmlFragment: string): string {
-  const prePattern = /<pre\b[^>]*>[\s\S]*?<\/pre>/g;
-  return htmlFragment.replace(prePattern, (preBlock) => {
-    const preOpenMatch = preBlock.match(/^<pre\b[^>]*>/);
-    if (!preOpenMatch) {
-      return preBlock;
-    }
-    const preOpen = preOpenMatch[0];
-
-    let inner: string;
-    try {
-      inner = extractInnerXml(preBlock, "pre");
-    } catch {
-      return preBlock;
-    }
-
-    const firstCodeOpenMatch = inner.match(/<code\b[^>]*>/);
-    if (!firstCodeOpenMatch) {
-      return preBlock;
-    }
-    const firstCodeOpen = firstCodeOpenMatch[0];
-    const withoutCodeTags = inner.replace(/<\/?code\b[^>]*>/g, "");
-    return `${preOpen}${firstCodeOpen}${withoutCodeTags}</code></pre>`;
-  });
-}
-
-function convertQtiXmlToHtml(itemBodyXml: string): string {
-  const withoutXmlns = itemBodyXml.replace(/\sxmlns="[^"]*"/g, "");
-  const tokenized = tokenizeInteractions(withoutXmlns);
-  const renamedTags = tokenized.xml.replace(/<(\/?)qti-([A-Za-z0-9-]+)/g, "<$1$2");
-  const normalizedPreBlocks = normalizePreBlocks(renamedTags);
-  const withCodeBlocks = enhanceCodeBlocks(normalizedPreBlocks);
-  const withInlineCode = enhanceInlineCode(withCodeBlocks);
-  const restoredInteractions = restoreInteractionPlaceholders(withInlineCode, tokenized.placeholders);
-  return `<div class="item-body">${restoredInteractions}</div>`;
-}
-
-function extractChoices(itemBodyXml: string): ChoiceOption[] {
-  const choicePattern = /<qti-simple-choice\b[^>]*>[\s\S]*?<\/qti-simple-choice>/g;
-  const choiceTags = itemBodyXml.match(choicePattern) ?? [];
-
-  return choiceTags.map((tag) => {
-    const openTag = extractOpenTag(tag);
-    const attributes = parseAttributes(openTag);
-    const identifier = attributes.identifier;
-    if (!identifier) {
-      throw new Error("Invalid assessment item: qti-simple-choice is missing identifier");
-    }
-    const innerXml = extractInnerXml(tag, "qti-simple-choice");
-    const text = stripTags(innerXml);
-    return { identifier, text };
-  });
-}
-
 export function parseAssessmentItem(itemPath: string, expectedIdentifier: string): ParsedAssessmentItem {
   const xml = fs.readFileSync(itemPath, "utf8");
-
-  const itemOpenTag = extractTagOpen(xml, "qti-assessment-item");
-  if (!itemOpenTag) {
-    throw new Error(`Invalid assessment item: qti-assessment-item not found in ${itemPath}`);
-  }
-  const itemAttributes = parseAttributes(itemOpenTag);
-  const identifier = itemAttributes.identifier;
-  const title = itemAttributes.title ?? expectedIdentifier;
-
-  if (!identifier) {
-    throw new Error(`Invalid assessment item: identifier missing in ${itemPath}`);
-  }
-  if (identifier !== expectedIdentifier) {
-    throw new Error(
-      `Assessment item identifier mismatch: expected ${expectedIdentifier} but found ${identifier}`,
-    );
-  }
-
-  const itemBodyBlock = findFirstTagBlock(xml, "qti-item-body");
-  if (!itemBodyBlock) {
-    throw new Error(`Invalid assessment item: qti-item-body not found for ${identifier}`);
-  }
-  const itemBodyXml = extractInnerXml(itemBodyBlock, "qti-item-body");
-
-  const rubricCriteria = extractRubricCriteria(itemBodyXml);
-  const itemMaxScore = rubricCriteria.reduce((sum, criterion) => sum + criterion.points, 0);
-  const itemBodyWithoutRubric = removeRubricBlocks(itemBodyXml);
-
-  const questionHtml = convertQtiXmlToHtml(itemBodyWithoutRubric);
-  const choices = extractChoices(itemBodyXml);
-
-  return {
-    identifier,
-    title,
-    questionHtml,
-    rubricCriteria,
-    itemMaxScore,
-    choices,
-  };
+  return renderQtiItemForReport(xml, expectedIdentifier, {
+    codeHighlighter: highlightCode,
+  });
 }

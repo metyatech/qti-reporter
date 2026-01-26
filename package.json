@@ -18,7 +18,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/metyatech/qti-reporter/issues"
   },
@@ -28,6 +28,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "highlight.js": "^11.11.1"
+    "highlight.js": "^11.11.1",
+    "qti-html-renderer": "git+https://github.com/metyatech/qti-html-renderer.git"
   }
 }

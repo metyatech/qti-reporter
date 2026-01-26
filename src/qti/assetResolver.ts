@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { decodeXmlEntities, parseAttributes } from "./xml";
+import { decodeXmlEntities, parseAttributes } from "./xml.js";
 
 export interface ResolvedAssetsResult {
   html: string;

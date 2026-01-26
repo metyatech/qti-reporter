@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { generateHtmlReportFromFiles, HtmlReportInputPaths } from "./report/htmlReport";
-import { generateCsvReportFromFiles } from "./report/csvReport";
+import { generateHtmlReportFromFiles, HtmlReportInputPaths } from "./report/htmlReport.js";
+import { generateCsvReportFromFiles } from "./report/csvReport.js";
 
 interface CliOptions extends HtmlReportInputPaths {}
 
@@ -135,6 +136,10 @@ function resolveCliPath(inputPath: string): string {
   return fs.existsSync(resolvedUnescapedPath) ? resolvedUnescapedPath : resolvedPath;
 }
 
-if (require.main === module) {
+const isDirectRun = process.argv[1]
+  ? path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+  : false;
+
+if (isDirectRun) {
   process.exitCode = runCli(process.argv.slice(2));
 }

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { extractOpenTag, parseAttributes } from "./xml";
+import { extractOpenTag, parseAttributes } from "./xml.js";
 
 export interface AssessmentItemRef {
   identifier: string;

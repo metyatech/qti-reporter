@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { runCli } from "../cli";
-import { generateHtmlReportFromFiles } from "../report/htmlReport";
+import { runCli } from "../cli.js";
+import { generateHtmlReportFromFiles } from "../report/htmlReport.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function getRepoRootFromDist(): string {
   return path.resolve(__dirname, "..", "..");

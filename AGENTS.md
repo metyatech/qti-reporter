@@ -3,6 +3,7 @@
 - Before starting any work, run `compose-agentsmd` from the project root.
 - To update shared rules, run `compose-agentsmd edit-rules`, edit the workspace rules, then run `compose-agentsmd apply-rules`.
 - Do not edit `AGENTS.md` directly; update the source rules and regenerate.
+- When updating rules, include a detailed summary of what changed (added/removed/modified items) in the final response.
 
 # AGENTS ルール運用（合成）
 
@@ -21,6 +22,7 @@
 - ユーザーから「ルールを更新して」と依頼された場合、特段の指示がない限り「適切なルールモジュールとルールセットを更新し、再生成する」ことを意味する。
 - ユーザーが「常にこうして下さい」など恒常運用の指示を明示した場合は、その指示自体をルールとして適切なモジュールに追記する。
 - ユーザーが「必ず」「つねに」などの強い必須指定を含む指示を出した場合は、その指示がグローバルかプロジェクト固有かを判断し、適切なモジュールに追記して再生成する。
+- When updating rules, infer the core intent; if it represents a global policy, record it in global rules rather than project-local rules.
 
 ## ルール修正時の注意点
 
@@ -35,10 +37,22 @@
 - 各プロジェクトのルートに `AGENTS.md` を置く。
 - サブツリーに別プロジェクトがある場合のみ、そのルートに `AGENTS.md` を置く（同一プロジェクト内で重複配置しない）。
 
+# CLI behavior standards
+
+- Provide `--help`/`-h` with clear usage, options, and examples.
+- Provide --version so automation can pin or verify installed versions.
+- Use -V for version and reserve -v for --verbose.
+- When the CLI reads or writes data, support stdin/stdout piping and allow output to be redirected (e.g., `--output` when files are created).
+- Offer a machine-readable output mode (e.g., `--json`) when the CLI emits structured data.
+- For actions that modify or delete data, provide a safe preview (`--dry-run`) and an explicit confirmation bypass (`--yes`/`--force`).
+- Provide controllable logging (`--quiet`, `--verbose`, or `--trace`) so users can diagnose failures without changing code.
+- Use deterministic exit codes (0 success, non-zero failure) and avoid silent fallbacks.
+
 ## コマンド実行
 
 - ユーザーが明示しない限り、コマンドにラッパーやパイプを付加しない。
 - ビルド/テスト/実行は、各リポジトリの標準スクリプト/手順（`package.json`、README等）を優先する。
+- When running git commands that could open an editor, avoid interactive prompts by using `--no-edit` where applicable or setting `GIT_EDITOR=true` for that command.
 
 # 配布と公開
 
@@ -67,6 +81,8 @@
 - GitHub Releases を作成し、本文は `CHANGELOG.md` の該当バージョンを基準に記述する。
 - バージョンは `package.json`（等の管理対象）と Git タグの間で不整合を起こさない。
 - When bumping a version, always create the GitHub Release and publish the package (e.g., npm) as part of the same update.
+- For npm publishing, ask the user to run `npm publish` instead of executing it directly.
+- Before publishing, run any required prep commands (e.g., `npm install`, `npm test`, `npm pack --dry-run`) and only attempt `npm publish` once the environment is ready. If authentication errors occur, ask the user to complete the publish step.
 
 ## 実装・技術選定
 
@@ -74,6 +90,7 @@
 - JavaScript は、ツール都合で必要な設定ファイル等に限定する。
 - 既存の言語/フレームワーク/依存関係の範囲で完結させる。新規依存追加は必要最小限にする。
 - 対象ツール/フレームワークに公式チュートリアルや推奨される標準手法がある場合は、それを第一優先で採用する（明確な理由がある場合を除く）。
+- Prefer existing internet-hosted tools/libraries for reusable functionality; if none exist, externalize the shared logic into a separate repository/module and reference it via remote dependency (never local filesystem paths).
 - 「既存に合わせる」よりも「理想的な状態（読みやすさ・保守性・一貫性・安全性）」を優先する。
 - ただし、目的と釣り合わない大改修や無関係な改善はしない。
 - 不明点や判断が分かれる点は、独断で進めず確認する。
@@ -95,6 +112,7 @@
 - 意図が分かる命名にする（曖昧な省略や「Utils」的な雑多化を避ける）。
 - ハードコードを避け、設定/定数/データへ寄せられるものは寄せる（変更点を1箇所に集約する）。
 - 変更により不要になったコード/ヘルパー/分岐/コメント/暫定対応は、指示がなくても削除する（残すか迷う場合は確認する）。
+- 未使用の関数/型/定数/ファイルは残さず削除する（意図的に残す場合は理由を明記する）。
 
 ## コーディング規約
 
@@ -149,6 +167,14 @@ Write final responses to the user in Japanese unless the user requests otherwise
 
 - 変更したリポジトリ内の手元検証を優先する（例: `npm run build`, `npm test`）。
 - 共通モジュール側の変更が利用側に影響しうる場合は、少なくとも1つの利用側リポジトリで動作確認（ビルド等）を行う。
+
+# Publication standards
+
+- Define a SemVer policy and document what counts as a breaking change.
+- Ensure release notes call out breaking changes and provide a migration path when needed.
+- Populate public package metadata (name, description, repository, issues, homepage, engines) for published artifacts.
+- Validate executable entrypoints and any required shebangs so published commands run after install.
+- Run dependency security checks appropriate to the ecosystem before release and address critical issues.
 
 # 品質（テスト・検証・エラーハンドリング）
 

@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { parseAssessmentItem, ParsedAssessmentItem } from "../qti/assessmentItem";
-import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult";
-import { parseAssessmentTest } from "../qti/assessmentTest";
+import { parseAssessmentItem, ParsedAssessmentItem } from "../qti/assessmentItem.js";
+import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult.js";
+import { parseAssessmentTest } from "../qti/assessmentTest.js";
 
 export interface CsvReportInputPaths {
   assessmentTestPath: string;
@@ -244,4 +244,3 @@ export function generateCsvReportFromFiles(paths: CsvReportInputPaths): Generate
     unusedItemResultIdentifiers,
   };
 }
-
