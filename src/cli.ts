@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 import { generateHtmlReportFromFiles, HtmlReportInputPaths } from "./report/htmlReport";
@@ -63,12 +64,22 @@ function parseCliOptions(argv: string[]): CliOptions {
     throw new Error("--assessment-result is required");
   }
 
+  const resolvedAssessmentTestPath = path.resolve(assessmentTestPath);
+  const resolvedAssessmentResultPath = path.resolve(assessmentResultPath);
   const resolvedOutputRootDir = path.resolve(outputRootDir ?? "out");
+  const resolvedStyleCssPath = styleCssPath ? path.resolve(styleCssPath) : undefined;
+
+  assertFileExists(resolvedAssessmentTestPath, "Assessment test");
+  assertFileExists(resolvedAssessmentResultPath, "Assessment result");
+  if (resolvedStyleCssPath) {
+    assertFileExists(resolvedStyleCssPath, "Style CSS");
+  }
+
   return {
-    assessmentTestPath: path.resolve(assessmentTestPath),
-    assessmentResultPath: path.resolve(assessmentResultPath),
+    assessmentTestPath: resolvedAssessmentTestPath,
+    assessmentResultPath: resolvedAssessmentResultPath,
     outputRootDir: resolvedOutputRootDir,
-    styleCssPath: styleCssPath ? path.resolve(styleCssPath) : undefined,
+    styleCssPath: resolvedStyleCssPath,
   };
 }
 
@@ -92,8 +103,22 @@ export function runCli(argv: string[], logger: CliLogger = console): number {
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error(`Failed to generate HTML report: ${message}`);
+    logger.error(`Failed to generate reports: ${message}`);
     return 1;
+  }
+}
+
+function assertFileExists(filePath: string, label: string): void {
+  try {
+    const stats = fs.statSync(filePath);
+    if (!stats.isFile()) {
+      throw new Error(`${label} must be a file: ${filePath}`);
+    }
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      throw new Error(`${label} file not found: ${filePath}`);
+    }
+    throw error;
   }
 }
 

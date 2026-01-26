@@ -1,0 +1,70 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+
+import { runCli } from "../cli";
+
+function getRepoRootFromDist(): string {
+  return path.resolve(__dirname, "..", "..");
+}
+
+function resolveFixturePath(fileName: string): string {
+  return path.join(getRepoRootFromDist(), "src", "test", "fixtures", fileName);
+}
+
+function ensureMissingPath(fileName: string): string {
+  const missingPath = path.join(getRepoRootFromDist(), "tmp", fileName);
+  fs.rmSync(missingPath, { force: true });
+  return missingPath;
+}
+
+test("reports missing assessment-test path with a clear error message", () => {
+  const missingPath = ensureMissingPath("missing-assessment-test.xml");
+  const errors: string[] = [];
+
+  const exitCode = runCli(
+    [
+      "--assessment-test",
+      missingPath,
+      "--assessment-result",
+      resolveFixturePath("assessment-result.xml"),
+      "--out-dir",
+      path.join(getRepoRootFromDist(), "tmp", "cli-missing-test"),
+    ],
+    {
+      log: () => undefined,
+      error: (message: string) => errors.push(message),
+    },
+  );
+
+  assert.equal(exitCode, 1);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /Assessment test file not found/i);
+  assert.ok(errors[0].includes(missingPath));
+});
+
+test("reports missing assessment-result path with a clear error message", () => {
+  const missingPath = ensureMissingPath("missing-assessment-result.xml");
+  const errors: string[] = [];
+
+  const exitCode = runCli(
+    [
+      "--assessment-test",
+      resolveFixturePath("assessment-test.qti.xml"),
+      "--assessment-result",
+      missingPath,
+      "--out-dir",
+      path.join(getRepoRootFromDist(), "tmp", "cli-missing-result"),
+    ],
+    {
+      log: () => undefined,
+      error: (message: string) => errors.push(message),
+    },
+  );
+
+  assert.equal(exitCode, 1);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /Assessment result file not found/i);
+  assert.ok(errors[0].includes(missingPath));
+});
