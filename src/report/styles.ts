@@ -126,7 +126,8 @@ body {
 }
 .cloze-input {
   display: inline-block;
-  width: 96px;
+  width: auto;
+  min-width: 96px;
   max-width: 100%;
   height: 32px;
   padding: 4px 8px;

@@ -145,6 +145,10 @@ External CSS may also rely on the following data attributes:
 - Line breaks in responses are preserved as entered.
 - The default renderer uses a whitespace-preserving block:
   `<pre class="response-text response-pre">...</pre>`
+- For cloze items (blank inputs), the candidate response section renders the
+  question HTML with input fields filled with the candidate responses.
+  Inputs use `.cloze-input` and `.qti-blank-input` and their `size` attribute
+  expands based on the response length.
 
 ### Item comment rendering
 - When `itemResult/outcomeVariable identifier="COMMENT"` exists, it is rendered
@@ -254,4 +258,3 @@ Columns are ordered as follows.
 - Required fields must not be silently defaulted.
 - If a required input is missing or invalid, the exporter must fail fast with a
   clear error message describing what to fix.
-

@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { JSDOM } from "jsdom";
+import { applyResponsesToPromptHtml } from "qti-html-renderer";
 import { parseAssessmentItem, ParsedAssessmentItem, RubricCriterion } from "../qti/assessmentItem.js";
 import { resolveItemAssets } from "../qti/assetResolver.js";
 import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult.js";
@@ -51,6 +53,9 @@ interface ResolvedStyle {
   externalStylePath: string | null;
 }
 
+const domParserFactory = new JSDOM("");
+const DOM_PARSER = new domParserFactory.window.DOMParser();
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -82,6 +87,16 @@ function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[
   });
   const joined = renderedResponses.join("\n");
   return `<pre class="response-text response-pre">${joined}</pre>`;
+}
+
+function formatClozeResponses(item: ParsedAssessmentItem, responses: string[]): string {
+  if (!item.questionHtml.includes("qti-blank-input")) {
+    return formatCandidateResponses(item, responses);
+  }
+  const filled = applyResponsesToPromptHtml(item.questionHtml, responses, {
+    domParser: DOM_PARSER,
+  });
+  return `<div class="candidate-response-html">${filled}</div>`;
 }
 
 function formatItemComment(comment: string | null): string | null {
@@ -241,7 +256,7 @@ function buildItemReportModel(item: ParsedAssessmentItem, itemResult: ParsedItem
   const itemMaxScore = item.itemMaxScore;
   const itemScore = computeItemScore(item, itemResult);
   const rubricRows = buildRubricRows(item, itemResult);
-  const candidateResponseHtml = formatCandidateResponses(item, itemResult.responses);
+  const candidateResponseHtml = formatClozeResponses(item, itemResult.responses);
   const commentHtml = formatItemComment(itemResult.comment);
   return {
     item,

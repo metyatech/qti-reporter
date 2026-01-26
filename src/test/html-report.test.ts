@@ -97,14 +97,16 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   assert.ok(html.includes("Uses clear wording"));
   assert.ok(html.includes("採点者コメント"));
   assert.ok(html.includes("表現をより簡潔にしてください"));
-  assert.match(html, /class(?:="[^"]*\bcloze-input\b"|=cloze-input\b)/);
+  assert.match(html, /class="[^"]*cloze-input/);
   assert.ok(html.includes("2回目以降にクリックしても「ON」のまま。"));
   assert.ok(html.includes("次のCSSの空欄を埋めなさい。"));
   assert.ok(html.includes("language-css"));
   assert.ok(!html.includes("</code><input"), "cloze input must not split code tags");
   assert.ok(item7Index >= 0, "item-7 block must exist");
   const item7Html = html.slice(item7Index);
-  assert.ok(item7Html.includes("<input class=cloze-input"), "cloze input must render in code blocks");
+  assert.ok(item7Html.includes("qti-blank-input"), "cloze input must include qti-blank-input class");
+  assert.ok(item7Html.includes("value=\"1\""), "cloze input must include candidate response value");
+  assert.ok(item7Html.includes("size=\"6\""), "cloze input size must expand with content");
   assert.ok(!item7Html.includes("&lt;input class=cloze-input"), "escaped cloze inputs must be restored");
   assert.ok(item8Index >= 0, "item-8 block must exist");
   const item8Html = html.slice(item8Index);

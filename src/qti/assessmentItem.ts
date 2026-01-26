@@ -70,6 +70,8 @@ function highlightCode(codeContent: string, explicitLanguage: string | null): { 
 export function parseAssessmentItem(itemPath: string, expectedIdentifier: string): ParsedAssessmentItem {
   const xml = fs.readFileSync(itemPath, "utf8");
   return renderQtiItemForReport(xml, expectedIdentifier, {
+    clozeInputHtml:
+      '<input class="cloze-input qti-blank-input" type="text" size="6" readonly aria-label="blank">',
     codeHighlighter: highlightCode,
   });
 }
