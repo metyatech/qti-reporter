@@ -2,10 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { generateHtmlReportFromFiles, HtmlReportInputPaths } from "./report/htmlReport.js";
+import { generateHtmlReportFromFiles } from "./report/htmlReport.js";
 import { generateCsvReportFromFiles } from "./report/csvReport.js";
 
-interface CliOptions extends HtmlReportInputPaths {}
+interface CliOptions {
+  assessmentTestPath: string;
+  assessmentResultPaths: string[];
+  outputRootDir: string;
+  styleCssPath?: string;
+}
 
 export interface CliLogger {
   log: (message: string) => void;
@@ -14,7 +19,7 @@ export interface CliLogger {
 
 function parseCliOptions(argv: string[]): CliOptions {
   let assessmentTestPath: string | null = null;
-  let assessmentResultPath: string | null = null;
+  const assessmentResultPaths: string[] = [];
   let outputRootDir: string | null = null;
   let styleCssPath: string | null = null;
 
@@ -34,7 +39,7 @@ function parseCliOptions(argv: string[]): CliOptions {
       if (!nextValue) {
         throw new Error("Missing value for --assessment-result");
       }
-      assessmentResultPath = nextValue;
+      assessmentResultPaths.push(nextValue);
       index += 1;
       continue;
     }
@@ -61,26 +66,28 @@ function parseCliOptions(argv: string[]): CliOptions {
   if (!assessmentTestPath) {
     throw new Error("--assessment-test is required");
   }
-  if (!assessmentResultPath) {
+  if (assessmentResultPaths.length === 0) {
     throw new Error("--assessment-result is required");
   }
 
   const resolvedAssessmentTestPath = resolveCliPath(assessmentTestPath);
-  const resolvedAssessmentResultPath = resolveCliPath(assessmentResultPath);
+  const resolvedAssessmentResultPaths = assessmentResultPaths.map(resolveCliPath);
   const resolvedOutputRootDir = path.resolve(outputRootDir ?? "out");
   const resolvedStyleCssPath = styleCssPath ? resolveCliPath(styleCssPath) : undefined;
 
   assertFileExists(resolvedAssessmentTestPath, "Assessment test");
-  assertFileExists(resolvedAssessmentResultPath, "Assessment result");
+  resolvedAssessmentResultPaths.forEach((resultPath) => {
+    assertFileExists(resultPath, "Assessment result");
+  });
   if (resolvedStyleCssPath) {
     assertFileExists(resolvedStyleCssPath, "Style CSS");
   }
 
   return {
     assessmentTestPath: resolvedAssessmentTestPath,
-    assessmentResultPath: resolvedAssessmentResultPath,
     outputRootDir: resolvedOutputRootDir,
     styleCssPath: resolvedStyleCssPath,
+    assessmentResultPaths: resolvedAssessmentResultPaths,
   };
 }
 
@@ -96,11 +103,20 @@ function logUnusedData(report: ReturnType<typeof generateHtmlReportFromFiles>, l
 export function runCli(argv: string[], logger: CliLogger = console): number {
   try {
     const options = parseCliOptions(argv);
-    const htmlReport = generateHtmlReportFromFiles(options);
-    const csvReport = generateCsvReportFromFiles(options);
-    logger.log(`Generated HTML: ${htmlReport.outputFilePath}`);
-    logger.log(`Generated CSV: ${csvReport.csvPath}`);
-    logUnusedData(htmlReport, logger);
+    for (const assessmentResultPath of options.assessmentResultPaths) {
+      const htmlReport = generateHtmlReportFromFiles({
+        ...options,
+        assessmentResultPath,
+      });
+      const csvReport = generateCsvReportFromFiles({
+        assessmentTestPath: options.assessmentTestPath,
+        assessmentResultPath,
+        outputRootDir: options.outputRootDir,
+      });
+      logger.log(`Generated HTML: ${htmlReport.outputFilePath}`);
+      logger.log(`Generated CSV: ${csvReport.csvPath}`);
+      logUnusedData(htmlReport, logger);
+    }
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

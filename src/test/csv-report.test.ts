@@ -87,3 +87,28 @@ test("appends rows without duplicating the header", () => {
 
   assert.equal(headerCount, 1, "header must appear exactly once");
 });
+
+test("generates CSV for multiple assessment results in a single run", () => {
+  const outputRootDir = createCleanOutputDir("csv-multi");
+
+  const exitCode = runCli([
+    "--assessment-test",
+    resolveFixturePath("assessment-test.qti.xml"),
+    "--assessment-result",
+    resolveFixturePath("assessment-result.xml"),
+    "--assessment-result",
+    resolveFixturePath("assessment-result-2.xml"),
+    "--out-dir",
+    outputRootDir,
+  ]);
+
+  assert.equal(exitCode, 0);
+
+  const csvPath = path.join(outputRootDir, "report.csv");
+  const { text } = readCsvWithoutBom(csvPath);
+  const header = text.split("\n")[0];
+  const headerCount = text.split(header).length - 1;
+  assert.equal(headerCount, 1, "header must appear exactly once");
+  assert.ok(text.includes("0007"), "first candidate must be included");
+  assert.ok(text.includes("0008"), "second candidate must be included");
+});

@@ -6,7 +6,7 @@ Detailed layouts and column definitions require confirmation.
 
 ## Required output targets
 - HTML report per respondent (one report per `assessmentResult` input).
-- CSV report aggregating all respondents.
+- CSV report aggregating all respondents processed in a single run.
 
 ## Available input data (for output composition)
 The reporter can draw from the following inputs:
@@ -182,6 +182,8 @@ External CSS may also rely on the following data attributes:
 - Output directory: the CLI `--out-dir` root directory.
 - File name: `report.csv`
 - Output path: `{outDir}/report.csv`
+  - When multiple `assessmentResult` inputs are provided, rows are appended for
+    each respondent in the order the inputs are processed.
 
 ### Append and overwrite rules
 - If `report.csv` does not exist, create it and write the header row first.

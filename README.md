@@ -16,16 +16,16 @@ npm install
 ```
 
 ## Usage (HTML Per Respondent)
-Run the CLI with both the assessment test and the assessment result.
+Run the CLI with both the assessment test and one or more assessment results.
 The `start` script builds the project before running the CLI.
 
 ```bash
-npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-result <path-to-assessment-result.xml> --out-dir <output-directory> [--style-css <path-to-style.css>]
+npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-result <path-to-assessment-result.xml> [--assessment-result <path-to-assessment-result.xml> ...] --out-dir <output-directory> [--style-css <path-to-style.css>]
 ```
 
 Arguments:
 - `--assessment-test`: Path to the `qti-assessment-test` XML file.
-- `--assessment-result`: Path to the `assessmentResult` XML file.
+- `--assessment-result`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run.
 - `--out-dir`: Output root directory. If omitted, `out` is used.
 - `--style-css`: Optional path to a CSS file. When omitted, the default style is embedded.
 
@@ -37,7 +37,7 @@ The output is written as:
 - Directory: `{candidateNumber} {candidateName}`
 - File: `{candidateNumber} {candidateName} {testTitle} 結果.html`
 - External style file (when `--style-css` is used): `report-style.css`
-- Aggregated CSV (at the output root): `report.csv` (UTF-8 with BOM)
+- Aggregated CSV (at the output root): `report.csv` (UTF-8 with BOM). When multiple results are provided, rows are appended for all respondents.
 
 Example using the repository fixtures:
 
