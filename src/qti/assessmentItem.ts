@@ -45,11 +45,72 @@ function normalizeLanguage(language: string): string {
   return normalized;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function stripClozeInputs(html: string): string {
+  return html.replace(/<input\b[^>]*>/gi, "");
+}
+
+function looksLikeCss(source: string): boolean {
+  const hasSelector = /(^|[\s,{])([.#][\w-]+|[a-zA-Z][\w-]*)\s*\{/.test(source);
+  const hasProperty = /[a-zA-Z-]+\s*:\s*[^;]+;/.test(source);
+  return hasSelector && hasProperty;
+}
+
+function inferLanguageForCloze(
+  decodedContent: string,
+  explicitLanguage: string | null,
+): string {
+  if (explicitLanguage && hljs.getLanguage(explicitLanguage)) {
+    return explicitLanguage;
+  }
+  const trimmed = stripClozeInputs(decodedContent).trim();
+  if (trimmed.length === 0) {
+    return explicitLanguage ?? "plain";
+  }
+  const auto = hljs.highlightAuto(trimmed, AUTO_DETECT_LANGUAGES);
+  const autoLanguage = auto.language ? normalizeLanguage(auto.language) : "plain";
+  if (autoLanguage === "plain" && looksLikeCss(trimmed)) {
+    return "css";
+  }
+  return autoLanguage;
+}
+
+function highlightClozeCode(
+  codeContent: string,
+  language: string,
+): string {
+  const segments = codeContent.split(/(<input\b[^>]*>)/gi);
+  return segments
+    .map((segment) => {
+      if (segment.toLowerCase().startsWith("<input")) {
+        return segment;
+      }
+      if (segment.trim().length === 0) {
+        return escapeHtml(segment);
+      }
+      if (language !== "plain" && hljs.getLanguage(language)) {
+        return hljs.highlight(segment, { language, ignoreIllegals: true }).value;
+      }
+      return escapeHtml(segment);
+    })
+    .join("");
+}
+
 function highlightCode(codeContent: string, explicitLanguage: string | null): { language: string; html: string } {
   const normalizedExplicit = explicitLanguage ? normalizeLanguage(explicitLanguage) : null;
   const decodedNumeric = codeContent.replace(/&#39;/g, "'").replace(/&#x27;/gi, "'");
   if (codeContent.includes("cloze-input")) {
-    return { language: normalizedExplicit ?? "plain", html: decodedNumeric };
+    const language = inferLanguageForCloze(decodedNumeric, normalizedExplicit);
+    const html = highlightClozeCode(decodedNumeric, language);
+    return { language, html };
   }
 
   const trimmed = decodedNumeric.trim();

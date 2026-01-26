@@ -112,6 +112,7 @@ test("renders item blocks in assessment-test order with rubric mapping", () => {
   const item8Html = html.slice(item8Index);
   assert.ok(!item8Html.includes("</code><input"), "multi-code cloze must not split code tags");
   assert.ok(!item8Html.includes("&lt;input class=cloze-input"), "multi-code cloze inputs must be restored");
+  assert.ok(item8Html.includes("data-code-lang=\"css\""), "cloze CSS blocks should resolve language");
 
   assert.ok(html.includes("Select the correct sum"));
   assert.ok(html.includes("Avoid common mistake"));
