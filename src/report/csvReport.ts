@@ -109,9 +109,6 @@ function formatRubricPoints(item: ParsedAssessmentItem): string {
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
-  if (itemResult.score !== null) {
-    return itemResult.score;
-  }
   if (item.rubricCriteria.length > 0) {
     return item.rubricCriteria.reduce((sum, criterion) => {
       const met = itemResult.rubricOutcomes.get(criterion.index);
@@ -121,13 +118,13 @@ function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResu
       return met ? sum + criterion.points : sum;
     }, 0);
   }
+  if (itemResult.score !== null) {
+    return itemResult.score;
+  }
   throw new Error(`Missing item score for ${item.identifier}`);
 }
 
 function computeTotalScore(assessmentResult: ParsedAssessmentResult, items: CsvItemModel[]): number {
-  if (assessmentResult.testScore !== null) {
-    return assessmentResult.testScore;
-  }
   return items.reduce((sum, item) => sum + item.itemScore, 0);
 }
 

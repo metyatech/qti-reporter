@@ -219,3 +219,17 @@ test("logs unused itemResult identifiers to standard output", () => {
   assert.equal(errors.length, 0);
   assert.ok(logs.some((line) => line.includes("item-extra")));
 });
+
+test("uses item score sum for total score when test score is stale", () => {
+  const outputRootDir = createCleanOutputDir("html-total-score");
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath("assessment-test.qti.xml"),
+    assessmentResultPath: resolveFixturePath("assessment-result-score-mismatch.xml"),
+    outputRootDir,
+  });
+
+  const match = report.html.match(/score-total[\s\S]*?<span class="score-value">(\d+)<\/span>/);
+  assert.ok(match, "total score block must be present");
+  assert.equal(match?.[1], "10");
+});

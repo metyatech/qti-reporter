@@ -108,10 +108,7 @@ function formatItemComment(comment: string | null): string | null {
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
-  if (itemResult.score !== null) {
-    return itemResult.score;
-  }
-  if (itemResult.rubricOutcomes.size > 0) {
+  if (item.rubricCriteria.length > 0) {
     return item.rubricCriteria.reduce((sum, criterion) => {
       const met = itemResult.rubricOutcomes.get(criterion.index);
       if (met === undefined) {
@@ -121,6 +118,9 @@ function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResu
       }
       return met ? sum + criterion.points : sum;
     }, 0);
+  }
+  if (itemResult.score !== null) {
+    return itemResult.score;
   }
   throw new Error(`Missing item score for ${item.identifier}`);
 }
@@ -270,9 +270,6 @@ function buildItemReportModel(item: ParsedAssessmentItem, itemResult: ParsedItem
 }
 
 function computeTotalScore(assessmentResult: ParsedAssessmentResult, items: ItemReportModel[]): number {
-  if (assessmentResult.testScore !== null) {
-    return assessmentResult.testScore;
-  }
   return items.reduce((sum, item) => sum + item.itemScore, 0);
 }
 

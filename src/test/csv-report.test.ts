@@ -112,3 +112,25 @@ test("generates CSV for multiple assessment results in a single run", () => {
   assert.ok(text.includes("0007"), "first candidate must be included");
   assert.ok(text.includes("0008"), "second candidate must be included");
 });
+
+test("computes total score from item scores even when test score is stale", () => {
+  const outputRootDir = createCleanOutputDir("csv-total-score");
+
+  const exitCode = runCli([
+    "--assessment-test",
+    resolveFixturePath("assessment-test.qti.xml"),
+    "--assessment-result",
+    resolveFixturePath("assessment-result-score-mismatch.xml"),
+    "--out-dir",
+    outputRootDir,
+  ]);
+
+  assert.equal(exitCode, 0);
+
+  const csvPath = path.join(outputRootDir, "report.csv");
+  const { text } = readCsvWithoutBom(csvPath);
+  const firstRow = text.split("\n")[1];
+  const columns = firstRow.split(",");
+  const totalScore = columns[3];
+  assert.equal(totalScore, "10");
+});
