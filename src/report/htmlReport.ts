@@ -207,6 +207,7 @@ function renderItemBlock(model: ItemReportModel): string {
 
 function renderHtmlDocument(
   assessmentResult: ParsedAssessmentResult,
+  testTitle: string,
   items: ItemReportModel[],
   totalScore: number,
   totalMaxScore: number,
@@ -218,13 +219,13 @@ function renderHtmlDocument(
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(assessmentResult.testTitle)} 結果</title>
+    <title>${escapeHtml(testTitle)} 結果</title>
     ${styleElement}
   </head>
   <body>
     <div class="report-root">
       <header class="report-header">
-        <h1 class="report-title">${escapeHtml(assessmentResult.testTitle)}</h1>
+        <h1 class="report-title">${escapeHtml(testTitle)}</h1>
         <div class="meta-grid">
           <div class="meta-row">
             <span class="meta-label">受験番号</span>
@@ -312,7 +313,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
     .sort();
 
   const directoryName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName}`;
-  const fileName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName} ${assessmentResult.testTitle} 結果.html`;
+  const fileName = `${assessmentResult.candidateNumber} ${assessmentResult.candidateName} ${assessmentTest.title} 結果.html`;
   const outputDirPath = path.join(paths.outputRootDir, directoryName);
   const outputFilePath = path.join(outputDirPath, fileName);
 
@@ -347,14 +348,21 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   }
 
   const resolvedStyle = resolveStyle(paths.styleCssPath, outputDirPath);
-  const html = renderHtmlDocument(assessmentResult, items, totalScore, totalMaxScore, resolvedStyle.styleElement);
+  const html = renderHtmlDocument(
+    assessmentResult,
+    assessmentTest.title,
+    items,
+    totalScore,
+    totalMaxScore,
+    resolvedStyle.styleElement,
+  );
 
   fs.writeFileSync(outputFilePath, html, "utf8");
 
   return {
     candidateNumber: assessmentResult.candidateNumber,
     candidateName: assessmentResult.candidateName,
-    testTitle: assessmentResult.testTitle,
+    testTitle: assessmentTest.title,
     directoryName,
     fileName,
     outputDirPath,

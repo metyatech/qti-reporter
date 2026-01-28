@@ -52,14 +52,14 @@ test("generates report.csv with UTF-8 BOM and deterministic rows", () => {
   const { text } = readCsvWithoutBom(csvPath);
   const expectedCsv = [
     "candidate_number,candidate_name,test_title,total_score,total_max_score,item_order,item_identifier,item_title,item_score,item_max_score,rubric_outcomes,rubric_points,response_values,response_labels,comment",
-    "0007,Yamada Taro,Physics Basics,10,12,1,item-2,Item 2,3,4,1:true;2:true;3:false,1:2;2:1;3:1,\"Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.\",\"Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.\",2点の観点は満たせていますが、表現をより簡潔にしてください。",
-    "0007,Yamada Taro,Physics Basics,10,12,2,item-1,Item 1,1,2,1:true;2:false,1:1;2:1,CHOICE_2,CHOICE_2: 2,",
-    "0007,Yamada Taro,Physics Basics,10,12,3,item-3,Item 3,1,1,1:true,1:1,6,6,",
-    "0007,Yamada Taro,Physics Basics,10,12,4,item-4,Item 4,1,1,1:true,1:1,HTML,HTML,",
-    "0007,Yamada Taro,Physics Basics,10,12,5,item-5,Item 5,1,1,1:true,1:1,Sample,Sample,",
-    "0007,Yamada Taro,Physics Basics,10,12,6,item-6,Item 6,1,1,1:true,1:1,ON,ON,",
-    "0007,Yamada Taro,Physics Basics,10,12,7,item-7,Item 7,1,1,1:true,1:1,1,1,",
-    "0007,Yamada Taro,Physics Basics,10,12,8,item-8,Item 8,1,1,1:true,1:1,\"0\n{\",\"0\n{\",",
+    "0007,Yamada Taro,Assessment Test,10,12,1,item-2,Item 2,3,4,1:true;2:true;3:false,1:2;2:1;3:1,\"Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.\",\"Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.\",2点の観点は満たせていますが、表現をより簡潔にしてください。",
+    "0007,Yamada Taro,Assessment Test,10,12,2,item-1,Item 1,1,2,1:true;2:false,1:1;2:1,CHOICE_2,CHOICE_2: 2,",
+    "0007,Yamada Taro,Assessment Test,10,12,3,item-3,Item 3,1,1,1:true,1:1,6,6,",
+    "0007,Yamada Taro,Assessment Test,10,12,4,item-4,Item 4,1,1,1:true,1:1,HTML,HTML,",
+    "0007,Yamada Taro,Assessment Test,10,12,5,item-5,Item 5,1,1,1:true,1:1,Sample,Sample,",
+    "0007,Yamada Taro,Assessment Test,10,12,6,item-6,Item 6,1,1,1:true,1:1,ON,ON,",
+    "0007,Yamada Taro,Assessment Test,10,12,7,item-7,Item 7,1,1,1:true,1:1,1,1,",
+    "0007,Yamada Taro,Assessment Test,10,12,8,item-8,Item 8,1,1,1:true,1:1,\"0\n{\",\"0\n{\",",
   ].join("\n");
 
   assert.equal(text, expectedCsv);

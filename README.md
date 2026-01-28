@@ -59,6 +59,12 @@ npm start -- --assessment-test src/test/fixtures/assessment-test.qti.xml --asses
 npm run build
 ```
 
+- Lint:
+
+```bash
+npm run lint
+```
+
 - Test:
 
 ```bash

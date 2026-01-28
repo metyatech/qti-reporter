@@ -124,10 +124,8 @@ Required attributes:
   - The first continuous digit sequence is used as the candidate number
     (leading zeros preserved).
 - `sessionIdentifier` (0..n): repeated identifiers using common `sourceID` keys
-  for class, candidate, and material metadata (for example `candidateName`,
-  `candidateId`, `materialTitle`).
+  for class and candidate metadata (for example `candidateName`, `candidateId`).
   - `sourceID=candidateName` is required (candidate display name).
-  - `sourceID=materialTitle` is required (test title).
 
 ### testResult
 Represents the assessment attempt.
@@ -202,6 +200,10 @@ by identifier equality:
 Ordering:
 - Report display order follows the `qti-assessment-item-ref` order in the
   assessment test.
+
+## Test title source
+The report title is sourced from the assessment test:
+- `qti-assessment-test@title` (required for reporting).
 
 ## TODO (needs confirmation)
 - Confirm whether multiple `testResult` blocks are expected in one run.

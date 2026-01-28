@@ -130,6 +130,7 @@ function computeTotalScore(assessmentResult: ParsedAssessmentResult, items: CsvI
 
 function buildCsvRow(
   assessmentResult: ParsedAssessmentResult,
+  testTitle: string,
   totalScore: number,
   totalMaxScore: number,
   model: CsvItemModel,
@@ -143,7 +144,7 @@ function buildCsvRow(
   const fields = [
     assessmentResult.candidateNumber,
     assessmentResult.candidateName,
-    assessmentResult.testTitle,
+    testTitle,
     String(totalScore),
     String(totalMaxScore),
     String(model.itemOrder),
@@ -229,13 +230,13 @@ export function generateCsvReportFromFiles(paths: CsvReportInputPaths): Generate
   const csvPath = path.join(paths.outputRootDir, CSV_FILE_NAME);
   fs.mkdirSync(paths.outputRootDir, { recursive: true });
 
-  const rows = items.map((item) => buildCsvRow(assessmentResult, totalScore, totalMaxScore, item));
+  const rows = items.map((item) => buildCsvRow(assessmentResult, assessmentTest.title, totalScore, totalMaxScore, item));
   writeCsv(csvPath, rows);
 
   return {
     candidateNumber: assessmentResult.candidateNumber,
     candidateName: assessmentResult.candidateName,
-    testTitle: assessmentResult.testTitle,
+    testTitle: assessmentTest.title,
     csvPath,
     rowCount: rows.length,
     unusedItemResultIdentifiers,

@@ -20,7 +20,6 @@ export interface ParsedItemResult {
 export interface ParsedAssessmentResult {
   candidateNumber: string;
   candidateName: string;
-  testTitle: string;
   testScore: number | null;
   itemResults: Map<string, ParsedItemResult>;
 }
@@ -218,11 +217,6 @@ export function parseAssessmentResult(assessmentResultPath: string): ParsedAsses
   if (!candidateName) {
     throw new Error("Invalid assessment result: candidateName sessionIdentifier is required");
   }
-  const testTitle = sessionIdentifiers.get("materialTitle");
-  if (!testTitle) {
-    throw new Error("Invalid assessment result: materialTitle sessionIdentifier is required");
-  }
-
   const testResultBlock = findFirstTagBlock(xml, "testResult");
   const testScore = testResultBlock ? parseOutcomeVariableNumber(testResultBlock, "SCORE") : null;
 
@@ -231,7 +225,6 @@ export function parseAssessmentResult(assessmentResultPath: string): ParsedAsses
   return {
     candidateNumber,
     candidateName,
-    testTitle,
     testScore,
     itemResults,
   };

@@ -12,12 +12,23 @@ export interface AssessmentItemRef {
 export interface ParsedAssessmentTest {
   assessmentTestPath: string;
   baseDir: string;
+  title: string;
   itemRefs: AssessmentItemRef[];
 }
 
 export function parseAssessmentTest(assessmentTestPath: string): ParsedAssessmentTest {
   const xml = fs.readFileSync(assessmentTestPath, "utf8");
   const baseDir = path.dirname(assessmentTestPath);
+
+  const assessmentTestTagMatch = xml.match(/<qti-assessment-test\b[^>]*>/);
+  if (!assessmentTestTagMatch) {
+    throw new Error("Invalid assessment test: qti-assessment-test not found");
+  }
+  const assessmentTestAttributes = parseAttributes(assessmentTestTagMatch[0]);
+  const title = assessmentTestAttributes.title;
+  if (!title) {
+    throw new Error("Invalid assessment test: qti-assessment-test is missing title");
+  }
 
   const itemRefPattern = /<qti-assessment-item-ref\b[^>]*(?:\/>|>[\s\S]*?<\/qti-assessment-item-ref>)/g;
   const itemRefTags = xml.match(itemRefPattern) ?? [];
@@ -46,6 +57,7 @@ export function parseAssessmentTest(assessmentTestPath: string): ParsedAssessmen
   return {
     assessmentTestPath,
     baseDir,
+    title,
     itemRefs,
   };
 }

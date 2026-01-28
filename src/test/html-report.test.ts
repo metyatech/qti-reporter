@@ -36,10 +36,10 @@ test("generates HTML report with required naming and ordering", () => {
 
   assert.equal(report.candidateNumber, "0007");
   assert.equal(report.candidateName, "Yamada Taro");
-  assert.equal(report.testTitle, "Physics Basics");
+  assert.equal(report.testTitle, "Assessment Test");
 
   assert.equal(report.directoryName, "0007 Yamada Taro");
-  assert.equal(report.fileName, "0007 Yamada Taro Physics Basics 結果.html");
+  assert.equal(report.fileName, "0007 Yamada Taro Assessment Test 結果.html");
 
   assert.equal(report.outputDirPath, path.join(outputRootDir, report.directoryName));
   assert.equal(report.outputFilePath, path.join(report.outputDirPath, report.fileName));
@@ -53,7 +53,7 @@ test("generates HTML report with required naming and ordering", () => {
   assert.ok(html.includes("meta-value"));
   assert.ok(report.unusedItemResultIdentifiers.includes("item-extra"));
 
-  const titleIndex = html.indexOf("Physics Basics");
+  const titleIndex = html.indexOf("Assessment Test");
   const numberIndex = html.indexOf("0007");
   const nameIndex = html.indexOf("Yamada Taro");
   const totalScoreIndex = html.lastIndexOf("score-total");
@@ -162,7 +162,7 @@ test("throws a clear error when candidate number cannot be extracted", () => {
   const outputRootDir = createCleanOutputDir("html-error");
 
   const invalidResultPath = path.join(repoRoot, "tmp", "invalid-result.xml");
-  const invalidResultContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><assessmentResult xmlns=\"http://www.imsglobal.org/xsd/imsqti_result_v3p0\"><context sourcedId=\"no-digits\"><sessionIdentifier sourceID=\"candidateName\" identifier=\"No Digits\" /><sessionIdentifier sourceID=\"materialTitle\" identifier=\"Title\" /></context></assessmentResult>";
+  const invalidResultContent = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><assessmentResult xmlns=\"http://www.imsglobal.org/xsd/imsqti_result_v3p0\"><context sourcedId=\"no-digits\"><sessionIdentifier sourceID=\"candidateName\" identifier=\"No Digits\" /></context></assessmentResult>";
   fs.writeFileSync(invalidResultPath, invalidResultContent, "utf8");
 
   assert.throws(

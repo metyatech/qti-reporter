@@ -35,7 +35,7 @@ Output must be arranged in the following order:
 5) Items (one block per item)
 
 ### Field sourcing
-- Test title: `context/sessionIdentifier` with `sourceID=materialTitle`.
+- Test title: `qti-assessment-test@title`.
 - Candidate number: extract the first continuous digit sequence from
   `context/@sourcedId`. Use the extracted string as-is (preserve leading zeros).
   If no digit sequence is present, treat as an error.
@@ -206,7 +206,7 @@ Columns are ordered as follows.
 | ------------------ | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `candidate_number` | string           | required | Extracted from `context@sourcedId` as the first continuous digit sequence (leading zeros preserved).                                                                 |
 | `candidate_name`   | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateName`.                                                                                               |
-| `test_title`       | string           | required | `context/sessionIdentifier@identifier` where `sourceID=materialTitle`.                                                                                               |
+| `test_title`       | string           | required | `qti-assessment-test@title`.                                                                                                                                        |
 | `total_score`      | number           | required | `testResult/outcomeVariable identifier="SCORE"` when present; otherwise the sum of item scores.                                                                      |
 | `total_max_score`  | number           | required | Sum of per-item maximum scores derived from scorer rubrics.                                                                                                          |
 | `item_order`       | number (integer) | required | 1-based index of the item in `qti-assessment-item-ref` order.                                                                                                        |
