@@ -27,7 +27,7 @@ Arguments:
 - `--assessment-test`: Path to the `qti-assessment-test` XML file.
 - `--assessment-result`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run.
 - `--assessment-result-dir`: Directory containing `assessmentResult` XML files. Files are discovered non-recursively and processed in filename order.
-- `--out-dir`: Output root directory. If omitted, `out` is used.
+- `--out-dir`: Output root directory. If omitted, the directory of the assessment-result input is used (or the assessment-result directory when using `--assessment-result-dir`).
 - `--style-css`: Optional path to a CSS file. When omitted, the default style is embedded.
 
 Styling behavior:

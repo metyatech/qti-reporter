@@ -143,3 +143,37 @@ test("accepts assessment-result directory inputs", () => {
   assert.ok(text.includes("0007"), "first candidate must be included");
   assert.ok(text.includes("0008"), "second candidate must be included");
 });
+
+test("defaults output directory to the assessment-result location", () => {
+  const repoRoot = getRepoRootFromDist();
+  const resultDir = path.join(repoRoot, "tmp", "cli-default-out");
+  const outDir = path.join(repoRoot, "out");
+  fs.rmSync(resultDir, { recursive: true, force: true });
+  fs.mkdirSync(resultDir, { recursive: true });
+  fs.rmSync(outDir, { recursive: true, force: true });
+
+  const resultPath = path.join(resultDir, "assessment-result.xml");
+  fs.copyFileSync(resolveFixturePath("assessment-result.xml"), resultPath);
+
+  try {
+    const exitCode = runCli(
+      [
+        "--assessment-test",
+        resolveFixturePath("assessment-test.qti.xml"),
+        "--assessment-result",
+        resultPath,
+      ],
+      {
+        log: () => undefined,
+        error: () => undefined,
+      },
+    );
+
+    assert.equal(exitCode, 0);
+    const csvPath = path.join(resultDir, "report.csv");
+    assert.equal(fs.existsSync(csvPath), true, "report.csv must be created in the result directory");
+  } finally {
+    fs.rmSync(resultDir, { recursive: true, force: true });
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }
+});

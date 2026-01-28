@@ -82,7 +82,9 @@ function parseCliOptions(argv: string[]): CliOptions {
   const resolvedAssessmentTestPath = resolveCliPath(assessmentTestPath);
   const resolvedAssessmentResultPaths = assessmentResultPaths.map(resolveCliPath);
   const resolvedAssessmentResultDirs = assessmentResultDirs.map(resolveCliPath);
-  const resolvedOutputRootDir = path.resolve(outputRootDir ?? "out");
+  const resolvedOutputRootDir = outputRootDir
+    ? path.resolve(outputRootDir)
+    : resolveDefaultOutputRootDir(resolvedAssessmentResultPaths, resolvedAssessmentResultDirs);
   const resolvedStyleCssPath = styleCssPath ? resolveCliPath(styleCssPath) : undefined;
 
   assertFileExists(resolvedAssessmentTestPath, "Assessment test");
@@ -109,6 +111,24 @@ function parseCliOptions(argv: string[]): CliOptions {
     styleCssPath: resolvedStyleCssPath,
     assessmentResultPaths: uniqueResults,
   };
+}
+
+function resolveDefaultOutputRootDir(
+  assessmentResultPaths: string[],
+  assessmentResultDirs: string[],
+): string {
+  const candidateDirs = new Set<string>();
+  assessmentResultDirs.forEach((dirPath) => {
+    candidateDirs.add(path.resolve(dirPath));
+  });
+  assessmentResultPaths.forEach((resultPath) => {
+    candidateDirs.add(path.dirname(path.resolve(resultPath)));
+  });
+
+  if (candidateDirs.size === 1) {
+    return Array.from(candidateDirs)[0];
+  }
+  throw new Error("Multiple assessment result locations detected. Use --out-dir to choose an output directory.");
 }
 
 function logUnusedData(report: ReturnType<typeof generateHtmlReportFromFiles>, logger: CliLogger): void {
