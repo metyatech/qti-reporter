@@ -27,12 +27,12 @@
   "homepage": "https://github.com/metyatech/qti-reporter#readme",
   "devDependencies": {
     "@types/node": "^25.0.10",
-    "@types/jsdom": "^21.1.6",
+    "@types/jsdom": "^27.0.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",
-    "jsdom": "^24.0.0",
+    "jsdom": "^27.4.0",
     "qti-html-renderer": "^0.1.0"
   }
 }
