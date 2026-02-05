@@ -239,4 +239,3 @@ The report title is sourced from the assessment test:
 
 - **Multiple `testResult` blocks**: Only the first `testResult` block in an XML file is processed.
 - **Multiple `responseVariable` entries**: All `responseVariable` entries within an `itemResult` are supported and aggregated.
-

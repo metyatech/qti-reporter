@@ -97,4 +97,3 @@ This project does not use environment variables.
 ## Deployment
 
 A CI pipeline is defined using GitHub Actions (`.github/workflows/ci.yml`) which runs lint, tests, and build on push to `main` and on pull requests.
-
