@@ -14,6 +14,8 @@ import {
 } from '../qti/assessmentResult.js';
 import { parseAssessmentTest } from '../qti/assessmentTest.js';
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
+import { applyResponsesToPromptHtmlSafely } from './cloze.js';
+import { escapeHtml } from './htmlEscape.js';
 
 export interface HtmlReportInputPaths {
   assessmentTestPath: string;
@@ -57,33 +59,6 @@ interface ResolvedStyle {
   styleMode: StyleMode;
   styleElement: string;
   externalStylePath: string | null;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function applyResponsesToPromptHtmlSafely(promptHtml: string, responses: string[]): string {
-  let responseIndex = 0;
-
-  return promptHtml.replace(/<input\b[^>]*\bqti-blank-input\b[^>]*>/gi, (match) => {
-    const response = responses[responseIndex] ?? '';
-    responseIndex += 1;
-
-    const escaped = escapeHtml(response);
-    if (/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i.test(match)) {
-      return match.replace(/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i, `value="${escaped}"`);
-    }
-    if (/\s*\/>$/.test(match)) {
-      return match.replace(/\s*\/>$/, ` value="${escaped}" />`);
-    }
-    return match.replace(/>$/, ` value="${escaped}">`);
-  });
 }
 
 function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {

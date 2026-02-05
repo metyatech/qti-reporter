@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { runCli } from '../cli.js';
 import { generateHtmlReportFromFiles } from '../report/htmlReport.js';
+import { applyResponsesToPromptHtmlSafely } from '../report/cloze.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -109,10 +110,6 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
     'cloze input must include qti-blank-input class'
   );
   assert.ok(item7Html.includes('value="1"'), 'cloze input must include candidate response value');
-  assert.ok(
-    !/<input\b[^>]*\/\s*value="/i.test(item7Html),
-    'cloze input must not insert value after self-closing slash'
-  );
   assert.ok(item7Html.includes('size="6"'), 'cloze input size must expand with content');
   assert.ok(
     !item7Html.includes('&lt;input class=cloze-input'),
@@ -148,6 +145,14 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
       'Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.'
     )
   );
+});
+
+test('inserts escaped values into self-closing cloze inputs', () => {
+  const promptHtml =
+    '<span><input class="qti-blank-input" type="text" /><input class="qti-blank-input" type="text" value="old"/></span>';
+  const filled = applyResponsesToPromptHtmlSafely(promptHtml, ['a"b', 'c']);
+  assert.match(filled, /<input\b[^>]*\bqti-blank-input\b[^>]*\bvalue="a&quot;b"[^>]*\/>/i);
+  assert.match(filled, /<input\b[^>]*\bqti-blank-input\b[^>]*\bvalue="c"[^>]*\/>/i);
 });
 
 test('does not allow encoded tags in cloze responses to become HTML elements', () => {
