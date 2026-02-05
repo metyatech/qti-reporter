@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "description": "qti-reporter generates human-readable HTML reports per respondent and an aggregated CSV report from QTI 3.0 assessment items and results.",
   "main": "dist/cli.js",
+  "bin": {
+    "qti-reporter": "dist/cli.js"
+  },
   "directories": {
     "doc": "docs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit && eslint .",
+    "format": "prettier --write .",
     "prepare": "npm run build",
     "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
     "start": "npm run build && node dist/cli.js"
@@ -18,7 +22,7 @@
     "url": "git+https://github.com/metyatech/qti-reporter.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "metyatech",
   "license": "ISC",
   "type": "module",
   "bugs": {
@@ -26,9 +30,15 @@
   },
   "homepage": "https://github.com/metyatech/qti-reporter#readme",
   "devDependencies": {
-    "@types/node": "^25.0.10",
     "@types/jsdom": "^27.0.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^25.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",

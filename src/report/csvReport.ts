@@ -1,9 +1,13 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { parseAssessmentItem, ParsedAssessmentItem } from "../qti/assessmentItem.js";
-import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult.js";
-import { parseAssessmentTest } from "../qti/assessmentTest.js";
+import { parseAssessmentItem, ParsedAssessmentItem } from '../qti/assessmentItem.js';
+import {
+  parseAssessmentResult,
+  ParsedAssessmentResult,
+  ParsedItemResult,
+} from '../qti/assessmentResult.js';
+import { parseAssessmentTest } from '../qti/assessmentTest.js';
 
 export interface CsvReportInputPaths {
   assessmentTestPath: string;
@@ -27,32 +31,32 @@ interface CsvItemModel {
   itemScore: number;
 }
 
-const CSV_FILE_NAME = "report.csv";
+const CSV_FILE_NAME = 'report.csv';
 
 const CSV_HEADER = [
-  "candidate_number",
-  "candidate_name",
-  "test_title",
-  "total_score",
-  "total_max_score",
-  "item_order",
-  "item_identifier",
-  "item_title",
-  "item_score",
-  "item_max_score",
-  "rubric_outcomes",
-  "rubric_points",
-  "response_values",
-  "response_labels",
-  "comment",
-].join(",");
+  'candidate_number',
+  'candidate_name',
+  'test_title',
+  'total_score',
+  'total_max_score',
+  'item_order',
+  'item_identifier',
+  'item_title',
+  'item_score',
+  'item_max_score',
+  'rubric_outcomes',
+  'rubric_points',
+  'response_values',
+  'response_labels',
+  'comment',
+].join(',');
 
 function escapeCsvField(value: string): string {
   const needsQuoting = /[",\n\r]/.test(value);
   if (!needsQuoting) {
     return value;
   }
-  const escapedQuotes = value.replace(/"/g, "\"\"");
+  const escapedQuotes = value.replace(/"/g, '""');
   return `"${escapedQuotes}"`;
 }
 
@@ -66,14 +70,14 @@ function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
 
 function formatResponseValues(responses: string[]): string {
   if (responses.length === 0) {
-    return "";
+    return '';
   }
-  return responses.join("\n");
+  return responses.join('\n');
 }
 
 function formatResponseLabels(item: ParsedAssessmentItem, responses: string[]): string {
   if (responses.length === 0) {
-    return "";
+    return '';
   }
   const choiceTextMap = buildChoiceTextMap(item);
   const rendered = responses.map((response) => {
@@ -83,29 +87,31 @@ function formatResponseLabels(item: ParsedAssessmentItem, responses: string[]): 
     }
     return `${response}: ${choiceText}`;
   });
-  return rendered.join("\n");
+  return rendered.join('\n');
 }
 
 function formatRubricOutcomes(item: ParsedAssessmentItem, itemResult: ParsedItemResult): string {
   if (item.rubricCriteria.length === 0) {
-    return "";
+    return '';
   }
   return item.rubricCriteria
     .map((criterion) => {
       const outcome = itemResult.rubricOutcomes.get(criterion.index);
       if (outcome === undefined) {
-        throw new Error(`Missing rubric outcome RUBRIC_${criterion.index}_MET for item ${item.identifier}`);
+        throw new Error(
+          `Missing rubric outcome RUBRIC_${criterion.index}_MET for item ${item.identifier}`
+        );
       }
-      return `${criterion.index}:${outcome ? "true" : "false"}`;
+      return `${criterion.index}:${outcome ? 'true' : 'false'}`;
     })
-    .join(";");
+    .join(';');
 }
 
 function formatRubricPoints(item: ParsedAssessmentItem): string {
   if (item.rubricCriteria.length === 0) {
-    return "";
+    return '';
   }
-  return item.rubricCriteria.map((criterion) => `${criterion.index}:${criterion.points}`).join(";");
+  return item.rubricCriteria.map((criterion) => `${criterion.index}:${criterion.points}`).join(';');
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
@@ -113,7 +119,9 @@ function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResu
     return item.rubricCriteria.reduce((sum, criterion) => {
       const met = itemResult.rubricOutcomes.get(criterion.index);
       if (met === undefined) {
-        throw new Error(`Missing rubric outcome RUBRIC_${criterion.index}_MET for item ${item.identifier}`);
+        throw new Error(
+          `Missing rubric outcome RUBRIC_${criterion.index}_MET for item ${item.identifier}`
+        );
       }
       return met ? sum + criterion.points : sum;
     }, 0);
@@ -124,7 +132,10 @@ function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResu
   throw new Error(`Missing item score for ${item.identifier}`);
 }
 
-function computeTotalScore(assessmentResult: ParsedAssessmentResult, items: CsvItemModel[]): number {
+function computeTotalScore(
+  assessmentResult: ParsedAssessmentResult,
+  items: CsvItemModel[]
+): number {
   return items.reduce((sum, item) => sum + item.itemScore, 0);
 }
 
@@ -133,13 +144,13 @@ function buildCsvRow(
   testTitle: string,
   totalScore: number,
   totalMaxScore: number,
-  model: CsvItemModel,
+  model: CsvItemModel
 ): string {
   const responseValues = formatResponseValues(model.itemResult.responses);
   const responseLabels = formatResponseLabels(model.item, model.itemResult.responses);
   const rubricOutcomes = formatRubricOutcomes(model.item, model.itemResult);
   const rubricPoints = formatRubricPoints(model.item);
-  const comment = model.itemResult.comment ?? "";
+  const comment = model.itemResult.comment ?? '';
 
   const fields = [
     assessmentResult.candidateNumber,
@@ -159,7 +170,7 @@ function buildCsvRow(
     comment,
   ];
 
-  return fields.map((field) => escapeCsvField(field)).join(",");
+  return fields.map((field) => escapeCsvField(field)).join(',');
 }
 
 function fileEndsWithLf(filePath: string): boolean {
@@ -167,7 +178,7 @@ function fileEndsWithLf(filePath: string): boolean {
   if (stats.size === 0) {
     return false;
   }
-  const fd = fs.openSync(filePath, "r");
+  const fd = fs.openSync(filePath, 'r');
   try {
     const buffer = Buffer.alloc(1);
     fs.readSync(fd, buffer, 0, 1, stats.size - 1);
@@ -178,13 +189,13 @@ function fileEndsWithLf(filePath: string): boolean {
 }
 
 function writeCsv(csvPath: string, rows: string[]): void {
-  const rowsText = rows.join("\n");
+  const rowsText = rows.join('\n');
   const fileExists = fs.existsSync(csvPath);
   const hasContent = fileExists && fs.statSync(csvPath).size > 0;
 
   if (!hasContent) {
     const initialContent = rowsText.length > 0 ? `${CSV_HEADER}\n${rowsText}` : CSV_HEADER;
-    fs.writeFileSync(csvPath, `\uFEFF${initialContent}`, "utf8");
+    fs.writeFileSync(csvPath, `\uFEFF${initialContent}`, 'utf8');
     return;
   }
 
@@ -193,15 +204,17 @@ function writeCsv(csvPath: string, rows: string[]): void {
   }
 
   const needsLeadingNewline = !fileEndsWithLf(csvPath);
-  const prefix = needsLeadingNewline ? "\n" : "";
-  fs.appendFileSync(csvPath, `${prefix}${rowsText}`, "utf8");
+  const prefix = needsLeadingNewline ? '\n' : '';
+  fs.appendFileSync(csvPath, `${prefix}${rowsText}`, 'utf8');
 }
 
 export function generateCsvReportFromFiles(paths: CsvReportInputPaths): GeneratedCsvReport {
   const assessmentTest = parseAssessmentTest(paths.assessmentTestPath);
   const assessmentResult = parseAssessmentResult(paths.assessmentResultPath);
 
-  const assessmentItemIdentifiers = new Set(assessmentTest.itemRefs.map((itemRef) => itemRef.identifier));
+  const assessmentItemIdentifiers = new Set(
+    assessmentTest.itemRefs.map((itemRef) => itemRef.identifier)
+  );
   const unusedItemResultIdentifiers = Array.from(assessmentResult.itemResults.keys())
     .filter((identifier) => !assessmentItemIdentifiers.has(identifier))
     .sort();
@@ -223,14 +236,16 @@ export function generateCsvReportFromFiles(paths: CsvReportInputPaths): Generate
 
   const totalMaxScore = items.reduce((sum, item) => sum + item.item.itemMaxScore, 0);
   if (totalMaxScore <= 0) {
-    throw new Error("Invalid maximum score: total maximum score must be greater than zero");
+    throw new Error('Invalid maximum score: total maximum score must be greater than zero');
   }
   const totalScore = computeTotalScore(assessmentResult, items);
 
   const csvPath = path.join(paths.outputRootDir, CSV_FILE_NAME);
   fs.mkdirSync(paths.outputRootDir, { recursive: true });
 
-  const rows = items.map((item) => buildCsvRow(assessmentResult, assessmentTest.title, totalScore, totalMaxScore, item));
+  const rows = items.map((item) =>
+    buildCsvRow(assessmentResult, assessmentTest.title, totalScore, totalMaxScore, item)
+  );
   writeCsv(csvPath, rows);
 
   return {

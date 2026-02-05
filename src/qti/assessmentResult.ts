@@ -1,4 +1,4 @@
-import fs from "node:fs";
+import fs from 'node:fs';
 
 import {
   extractInnerXml,
@@ -7,7 +7,7 @@ import {
   parseAttributes,
   stripTags,
   stripTagsPreserveWhitespace,
-} from "./xml.js";
+} from './xml.js';
 
 export interface ParsedItemResult {
   identifier: string;
@@ -26,22 +26,23 @@ export interface ParsedAssessmentResult {
 
 function extractCandidateNumber(sourcedId: string | undefined): string {
   if (!sourcedId) {
-    throw new Error("Invalid assessment result: context sourcedId is required");
+    throw new Error('Invalid assessment result: context sourcedId is required');
   }
   const match = sourcedId.match(/\d+/);
   if (!match) {
-    throw new Error("Failed to extract candidate number from sourcedId");
+    throw new Error('Failed to extract candidate number from sourcedId');
   }
   return match[0];
 }
 
 function parseSessionIdentifiers(contextXml: string): Map<string, string> {
-  const sessionIdentifierPattern = /<sessionIdentifier\b[^>]*(?:\/>|>[\s\S]*?<\/sessionIdentifier>)/g;
+  const sessionIdentifierPattern =
+    /<sessionIdentifier\b[^>]*(?:\/>|>[\s\S]*?<\/sessionIdentifier>)/g;
   const sessionIdentifierTags = contextXml.match(sessionIdentifierPattern) ?? [];
   const identifiers = new Map<string, string>();
 
   sessionIdentifierTags.forEach((tag) => {
-    const openTag = tag.endsWith("/>") ? tag : extractOpenTag(tag);
+    const openTag = tag.endsWith('/>') ? tag : extractOpenTag(tag);
     const attributes = parseAttributes(openTag);
     const sourceId = attributes.sourceID;
     const identifier = attributes.identifier;
@@ -64,14 +65,14 @@ function parseValueFromVariableBlock(blockXml: string): string | null {
 
 function parseOutcomeVariableNumber(xml: string, identifier: string): number | null {
   const pattern = new RegExp(
-    `<outcomeVariable\\b[^>]*identifier="${identifier}"[^>]*>[\\s\\S]*?<\\/outcomeVariable>`,
+    `<outcomeVariable\\b[^>]*identifier="${identifier}"[^>]*>[\\s\\S]*?<\\/outcomeVariable>`
   );
   const match = xml.match(pattern);
   if (!match) {
     return null;
   }
   const rawValue = parseValueFromVariableBlock(match[0]);
-  if (rawValue === null || rawValue === "") {
+  if (rawValue === null || rawValue === '') {
     return null;
   }
   const value = Number.parseFloat(rawValue);
@@ -83,7 +84,7 @@ function parseOutcomeVariableNumber(xml: string, identifier: string): number | n
 
 function parseOutcomeVariableString(xml: string, identifier: string): string | null {
   const pattern = new RegExp(
-    `<outcomeVariable\\b[^>]*identifier="${identifier}"[^>]*>[\\s\\S]*?<\\/outcomeVariable>`,
+    `<outcomeVariable\\b[^>]*identifier="${identifier}"[^>]*>[\\s\\S]*?<\\/outcomeVariable>`
   );
   const match = xml.match(pattern);
   if (!match) {
@@ -94,7 +95,7 @@ function parseOutcomeVariableString(xml: string, identifier: string): string | n
   if (!valueMatch) {
     return null;
   }
-  const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, "\n").trim();
+  const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, '\n').trim();
   return preserved.length > 0 ? preserved : null;
 }
 
@@ -106,12 +107,12 @@ function parseCandidateResponses(itemXml: string): string[] {
   for (const responseVariable of responseVariables) {
     const openTag = extractOpenTag(responseVariable);
     const attributes = parseAttributes(openTag);
-    const identifier = attributes.identifier ?? "";
-    if (!identifier.startsWith("RESPONSE")) {
+    const identifier = attributes.identifier ?? '';
+    if (!identifier.startsWith('RESPONSE')) {
       continue;
     }
     const candidateResponseMatch = responseVariable.match(
-      /<candidateResponse\b[^>]*>([\s\S]*?)<\/candidateResponse>/,
+      /<candidateResponse\b[^>]*>([\s\S]*?)<\/candidateResponse>/
     );
     if (!candidateResponseMatch) {
       continue;
@@ -121,7 +122,7 @@ function parseCandidateResponses(itemXml: string): string[] {
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
     const values: string[] = [];
     while (valueMatch) {
-      const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, "\n");
+      const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, '\n');
       values.push(preserved);
       valueMatch = valuePattern.exec(candidateResponseXml);
     }
@@ -129,7 +130,7 @@ function parseCandidateResponses(itemXml: string): string[] {
       continue;
     }
 
-    if (identifier === "RESPONSE") {
+    if (identifier === 'RESPONSE') {
       values.forEach((value, idx) => orderedResponses.push({ index: idx, value }));
       continue;
     }
@@ -145,14 +146,13 @@ function parseCandidateResponses(itemXml: string): string[] {
     values.forEach((value, offset) => orderedResponses.push({ index: index + offset, value }));
   }
 
-  return orderedResponses
-    .sort((a, b) => a.index - b.index)
-    .map((entry) => entry.value);
+  return orderedResponses.sort((a, b) => a.index - b.index).map((entry) => entry.value);
 }
 
 function parseRubricOutcomes(itemXml: string): Map<number, boolean> {
   const rubricOutcomes = new Map<number, boolean>();
-  const rubricPattern = /<outcomeVariable\b[^>]*identifier="RUBRIC_(\d+)_MET"[^>]*>[\s\S]*?<\/outcomeVariable>/g;
+  const rubricPattern =
+    /<outcomeVariable\b[^>]*identifier="RUBRIC_(\d+)_MET"[^>]*>[\s\S]*?<\/outcomeVariable>/g;
   let match: RegExpExecArray | null = rubricPattern.exec(itemXml);
   while (match) {
     const index = Number.parseInt(match[1], 10);
@@ -161,10 +161,10 @@ function parseRubricOutcomes(itemXml: string): Map<number, boolean> {
       throw new Error(`Invalid rubric outcome: RUBRIC_${index}_MET has no value`);
     }
     const normalized = rawValue.toLowerCase();
-    if (normalized !== "true" && normalized !== "false") {
+    if (normalized !== 'true' && normalized !== 'false') {
       throw new Error(`Invalid rubric outcome value for RUBRIC_${index}_MET: ${rawValue}`);
     }
-    rubricOutcomes.set(index, normalized === "true");
+    rubricOutcomes.set(index, normalized === 'true');
     match = rubricPattern.exec(itemXml);
   }
   return rubricOutcomes;
@@ -180,12 +180,12 @@ function parseItemResults(xml: string): Map<string, ParsedItemResult> {
     const attributes = parseAttributes(openTag);
     const identifier = attributes.identifier;
     if (!identifier) {
-      throw new Error("Invalid assessment result: itemResult identifier is required");
+      throw new Error('Invalid assessment result: itemResult identifier is required');
     }
-    const score = parseOutcomeVariableNumber(tag, "SCORE");
+    const score = parseOutcomeVariableNumber(tag, 'SCORE');
     const responses = parseCandidateResponses(tag);
     const rubricOutcomes = parseRubricOutcomes(tag);
-    const comment = parseOutcomeVariableString(tag, "COMMENT");
+    const comment = parseOutcomeVariableString(tag, 'COMMENT');
 
     itemResults.set(identifier, {
       identifier,
@@ -200,25 +200,25 @@ function parseItemResults(xml: string): Map<string, ParsedItemResult> {
 }
 
 export function parseAssessmentResult(assessmentResultPath: string): ParsedAssessmentResult {
-  const xml = fs.readFileSync(assessmentResultPath, "utf8");
+  const xml = fs.readFileSync(assessmentResultPath, 'utf8');
 
-  const contextBlock = findFirstTagBlock(xml, "context");
+  const contextBlock = findFirstTagBlock(xml, 'context');
   if (!contextBlock) {
-    throw new Error("Invalid assessment result: context not found");
+    throw new Error('Invalid assessment result: context not found');
   }
   const contextOpenTag = extractOpenTag(contextBlock);
   const contextAttributes = parseAttributes(contextOpenTag);
 
   const candidateNumber = extractCandidateNumber(contextAttributes.sourcedId);
-  const contextXml = extractInnerXml(contextBlock, "context");
+  const contextXml = extractInnerXml(contextBlock, 'context');
   const sessionIdentifiers = parseSessionIdentifiers(contextXml);
 
-  const candidateName = sessionIdentifiers.get("candidateName");
+  const candidateName = sessionIdentifiers.get('candidateName');
   if (!candidateName) {
-    throw new Error("Invalid assessment result: candidateName sessionIdentifier is required");
+    throw new Error('Invalid assessment result: candidateName sessionIdentifier is required');
   }
-  const testResultBlock = findFirstTagBlock(xml, "testResult");
-  const testScore = testResultBlock ? parseOutcomeVariableNumber(testResultBlock, "SCORE") : null;
+  const testResultBlock = findFirstTagBlock(xml, 'testResult');
+  const testScore = testResultBlock ? parseOutcomeVariableNumber(testResultBlock, 'SCORE') : null;
 
   const itemResults = parseItemResults(xml);
 
