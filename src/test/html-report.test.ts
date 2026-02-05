@@ -170,6 +170,33 @@ test('does not allow encoded tags in cloze responses to become HTML elements', (
   assert.ok(report.html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
 });
 
+test('escapes additional XSS vectors in cloze responses', () => {
+  const outputRootDir = createCleanOutputDir('html-xss-vectors');
+  const repoRoot = getRepoRootFromDist();
+
+  const baseResultXml = fs.readFileSync(resolveFixturePath('assessment-result.xml'), 'utf8');
+  const patchedResultXml = baseResultXml.replace(
+    /(<itemResult\b[^>]*identifier="item-7"[\s\S]*?<candidateResponse>[\s\S]*?<value\b[^>]*>)([\s\S]*?)(<\/value>)/,
+    (_full, prefix: string, _value: string, suffix: string) =>
+      `${prefix}&lt;img src=x onerror=alert(1)&gt;${suffix}`
+  );
+
+  const maliciousResultPath = path.join(repoRoot, 'tmp', 'assessment-result-xss-vectors.xml');
+  fs.writeFileSync(maliciousResultPath, patchedResultXml, 'utf8');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: maliciousResultPath,
+    outputRootDir,
+  });
+
+  assert.ok(
+    !report.html.includes('<img src=x onerror=alert(1)>'),
+    'report HTML must not contain injected raw img tags'
+  );
+  assert.ok(report.html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+});
+
 test('copies image assets and rewrites img src to output-relative paths', () => {
   const outputRootDir = createCleanOutputDir('html-images');
 

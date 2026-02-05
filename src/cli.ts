@@ -138,13 +138,39 @@ function parseCliOptions(argv: string[]): CliOptions {
 
 function printHelp(logger: CliLogger): void {
   logger.log(
-    `Usage: qti-reporter [options]\n\nOptions:\n  --assessment-test <path>      Path to the assessment test XML file (required)\n  --assessment-result <path>    Path to an assessment result XML file (repeatable)\n  --assessment-result-dir <dir> Directory containing assessment result XML files\n  --out-dir <dir>               Output directory\n  --style-css <path>            Path to an external CSS file\n  -V, --version                 Output the version number\n  -h, --help                    Display help for command`
+    `Usage: qti-reporter [options]
+
+Options:
+  --assessment-test <path>      Path to the assessment test XML file (required)
+  --assessment-result <path>    Path to an assessment result XML file (repeatable)
+  --assessment-result-dir <dir> Directory containing assessment result XML files
+  --out-dir <dir>               Output directory
+  --style-css <path>            Path to an external CSS file
+  -V, --version                 Output the version number
+  -h, --help                    Display help for command`
   );
 }
 
+function findNearestPackageJsonPath(startDir: string): string {
+  let currentDir = startDir;
+  while (true) {
+    const candidate = path.join(currentDir, 'package.json');
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      throw new Error('Unable to locate package.json for version information.');
+    }
+
+    currentDir = parentDir;
+  }
+}
+
 function printVersion(logger: CliLogger): void {
-  const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-  const packageJsonPath = path.join(repoRoot, 'package.json');
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const packageJsonPath = findNearestPackageJsonPath(currentDir);
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   logger.log(packageJson.version);
 }

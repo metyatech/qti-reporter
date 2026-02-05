@@ -230,3 +230,16 @@ test('outputs version number when --version or -V is provided', () => {
   );
   assert.match(logsShort[0], /^\d+\.\d+\.\d+/);
 });
+
+test('preserves shebang in the compiled CLI entrypoint', () => {
+  const repoRoot = getRepoRootFromDist();
+  const cliPath = path.join(repoRoot, 'dist', 'cli.js');
+  assert.equal(fs.existsSync(cliPath), true, 'dist/cli.js must exist');
+
+  const firstLine = fs.readFileSync(cliPath, 'utf8').split('\n')[0]?.trim();
+  assert.equal(firstLine, '#!/usr/bin/env node');
+
+  const packageJsonPath = path.join(repoRoot, 'package.json');
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  assert.equal(packageJson.bin?.['qti-reporter'], 'dist/cli.js');
+});

@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Total score computation now prefers `testScore` from the result XML over the sum of item scores. This may be a breaking change for consumers relying on the previous behavior.
+- Total score computation now prefers `testScore` from the result XML over the sum of item scores. This is a breaking change for cases where the test-level score differs from the sum of item scores. To detect affected cases, compare `testScore` to the sum of item scores; if they differ, the total score output will no longer match the behavior of previous versions.
 
 ## [1.0.0] - 2026-02-05
 
