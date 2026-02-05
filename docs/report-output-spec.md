@@ -273,6 +273,7 @@ Columns are ordered as follows.
 - `total_score` is sourced in the following order:
   - Use `testResult/outcomeVariable identifier="SCORE"` when present.
   - Otherwise compute as the sum of `item_score`.
+- If `testResult/outcomeVariable identifier="SCORE"` is present but differs from the sum of `item_score`, the reporter still uses the test-level score. Treat mismatches as an upstream data issue.
 
 ### Item coverage rules
 

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project metadata files (LICENSE, CHANGELOG, etc.).
 - CI workflow for GitHub Actions.
 
+### Changed
+
+- Total score computation now prefers `testScore` from the result XML over the sum of item scores. This may be a breaking change for consumers relying on the previous behavior.
+
 ## [1.0.0] - 2026-02-05
 
 ### Added
