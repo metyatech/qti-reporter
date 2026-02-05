@@ -33,7 +33,6 @@ npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-re
 ```
 
 Arguments:
-... (skipped for brevity in replace call, I'll use a better replace)
 
 - `--assessment-test`: Path to the `qti-assessment-test` XML file.
 - `--assessment-result`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run.
