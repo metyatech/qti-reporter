@@ -182,8 +182,52 @@ test('defaults output directory to the assessment-result location', () => {
       true,
       'report.csv must be created in the result directory'
     );
-  } finally {
-    fs.rmSync(resultDir, { recursive: true, force: true });
-    fs.rmSync(outDir, { recursive: true, force: true });
-  }
-});
+      } finally {
+      fs.rmSync(resultDir, { recursive: true, force: true });
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+  
+  test('displays help message when --help or -h is provided', () => {
+    const logs: string[] = [];
+    const exitCode = runCli(['--help'], {
+      log: (msg) => logs.push(msg),
+      error: () => undefined,
+    });
+  
+    assert.equal(exitCode, 0);
+    assert.ok(logs.join('\n').includes('Usage: qti-reporter'));
+    assert.ok(logs.join('\n').includes('--assessment-test'));
+  
+    const logsShort: string[] = [];
+    assert.equal(
+      runCli(['-h'], {
+        log: (msg) => logsShort.push(msg),
+        error: () => undefined,
+      }),
+      0
+    );
+    assert.ok(logsShort.join('\n').includes('Usage: qti-reporter'));
+  });
+  
+  test('outputs version number when --version or -V is provided', () => {
+    const logs: string[] = [];
+    const exitCode = runCli(['--version'], {
+      log: (msg) => logs.push(msg),
+      error: () => undefined,
+    });
+  
+    assert.equal(exitCode, 0);
+    assert.match(logs[0], /^\d+\.\d+\.\d+/);
+  
+    const logsShort: string[] = [];
+    assert.equal(
+      runCli(['-V'], {
+        log: (msg) => logsShort.push(msg),
+        error: () => undefined,
+      }),
+      0
+    );
+    assert.match(logsShort[0], /^\d+\.\d+\.\d+/);
+  });
+  
