@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "npm run build",
-    "test": "npm run build && node --test \"dist/test/*.test.js\"",
+    "test": "npm run build && node --test dist/test/suite.test.js",
     "start": "npm run build && node dist/cli.js"
   },
   "repository": {
