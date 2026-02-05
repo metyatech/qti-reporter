@@ -75,7 +75,12 @@ function applyResponsesToPromptHtmlSafely(promptHtml: string, responses: string[
     const response = responses[responseIndex] ?? '';
     responseIndex += 1;
 
-    const escaped = escapeHtml(response);
+    const escaped = response
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
     if (/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i.test(match)) {
       return match.replace(/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i, `value="${escaped}"`);
     }
