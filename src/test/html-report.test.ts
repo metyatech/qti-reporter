@@ -109,6 +109,10 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
     'cloze input must include qti-blank-input class'
   );
   assert.ok(item7Html.includes('value="1"'), 'cloze input must include candidate response value');
+  assert.ok(
+    !/<input\b[^>]*\/\s*value="/i.test(item7Html),
+    'cloze input must not insert value after self-closing slash'
+  );
   assert.ok(item7Html.includes('size="6"'), 'cloze input size must expand with content');
   assert.ok(
     !item7Html.includes('&lt;input class=cloze-input'),

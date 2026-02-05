@@ -79,6 +79,9 @@ function applyResponsesToPromptHtmlSafely(promptHtml: string, responses: string[
     if (/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i.test(match)) {
       return match.replace(/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i, `value="${escaped}"`);
     }
+    if (/\s*\/>$/.test(match)) {
+      return match.replace(/\s*\/>$/, ` value="${escaped}" />`);
+    }
     return match.replace(/>$/, ` value="${escaped}">`);
   });
 }
