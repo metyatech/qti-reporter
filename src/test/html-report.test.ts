@@ -146,6 +146,30 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
   );
 });
 
+test('does not allow encoded tags in cloze responses to become HTML elements', () => {
+  const outputRootDir = createCleanOutputDir('html-xss');
+  const repoRoot = getRepoRootFromDist();
+
+  const baseResultXml = fs.readFileSync(resolveFixturePath('assessment-result.xml'), 'utf8');
+  const patchedResultXml = baseResultXml.replace(
+    /(<itemResult\b[^>]*identifier="item-7"[\s\S]*?<candidateResponse>[\s\S]*?<value\b[^>]*>)([\s\S]*?)(<\/value>)/,
+    (_full, prefix: string, _value: string, suffix: string) =>
+      `${prefix}&lt;script&gt;alert(1)&lt;/script&gt;${suffix}`
+  );
+
+  const maliciousResultPath = path.join(repoRoot, 'tmp', 'assessment-result-xss.xml');
+  fs.writeFileSync(maliciousResultPath, patchedResultXml, 'utf8');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: maliciousResultPath,
+    outputRootDir,
+  });
+
+  assert.ok(!report.html.includes('<script'), 'report HTML must not contain raw script tags');
+  assert.ok(report.html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+});
+
 test('copies image assets and rewrites img src to output-relative paths', () => {
   const outputRootDir = createCleanOutputDir('html-images');
 

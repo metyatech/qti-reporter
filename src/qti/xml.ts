@@ -23,22 +23,15 @@ export function decodeXmlEntities(value: string): string {
     .replace(/&apos;/g, "'");
 }
 
-function decodeXmlEntitiesPreservingAngleBrackets(value: string): string {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'");
-}
-
 export function stripTags(xmlFragment: string): string {
   const withoutTags = xmlFragment.replace(/<[^>]+>/g, ' ');
   const normalizedWhitespace = withoutTags.replace(/\s+/g, ' ').trim();
-  return decodeXmlEntitiesPreservingAngleBrackets(normalizedWhitespace);
+  return decodeXmlEntities(normalizedWhitespace);
 }
 
 export function stripTagsPreserveWhitespace(xmlFragment: string): string {
   const withoutTags = xmlFragment.replace(/<[^>]+>/g, '');
-  return decodeXmlEntitiesPreservingAngleBrackets(withoutTags);
+  return decodeXmlEntities(withoutTags);
 }
 
 export function findFirstTagBlock(xml: string, tagName: string): string | null {

@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { JSDOM } from 'jsdom';
-import { applyResponsesToPromptHtml } from 'qti-html-renderer';
 import {
   parseAssessmentItem,
   ParsedAssessmentItem,
@@ -61,9 +59,6 @@ interface ResolvedStyle {
   externalStylePath: string | null;
 }
 
-const domParserFactory = new JSDOM('');
-const DOM_PARSER = new domParserFactory.window.DOMParser();
-
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -71,6 +66,21 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function applyResponsesToPromptHtmlSafely(promptHtml: string, responses: string[]): string {
+  let responseIndex = 0;
+
+  return promptHtml.replace(/<input\b[^>]*\bqti-blank-input\b[^>]*>/gi, (match) => {
+    const response = responses[responseIndex] ?? '';
+    responseIndex += 1;
+
+    const escaped = escapeHtml(response);
+    if (/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i.test(match)) {
+      return match.replace(/\bvalue\s*=\s*(?:"[^"]*"|'[^']*')/i, `value="${escaped}"`);
+    }
+    return match.replace(/>$/, ` value="${escaped}">`);
+  });
 }
 
 function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
@@ -101,9 +111,7 @@ function formatClozeResponses(item: ParsedAssessmentItem, responses: string[]): 
   if (!item.questionHtml.includes('qti-blank-input')) {
     return formatCandidateResponses(item, responses);
   }
-  const filled = applyResponsesToPromptHtml(item.questionHtml, responses, {
-    domParser: DOM_PARSER,
-  });
+  const filled = applyResponsesToPromptHtmlSafely(item.questionHtml, responses);
   return `<div class="candidate-response-html">${filled}</div>`;
 }
 
@@ -355,12 +363,9 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       parsedItem.identifier,
       outputDirPath
     );
-    const filledQuestionHtml = applyResponsesToPromptHtml(
+    const filledQuestionHtml = applyResponsesToPromptHtmlSafely(
       resolvedAssets.html,
-      itemResult.responses,
-      {
-        domParser: DOM_PARSER,
-      }
+      itemResult.responses
     );
     const item: ParsedAssessmentItem = {
       ...parsedItem,
