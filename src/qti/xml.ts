@@ -26,12 +26,14 @@ export function decodeXmlEntities(value: string): string {
 export function stripTags(xmlFragment: string): string {
   const withoutTags = xmlFragment.replace(/<[^>]+>/g, ' ');
   const normalizedWhitespace = withoutTags.replace(/\s+/g, ' ').trim();
-  return decodeXmlEntities(normalizedWhitespace);
+  const decoded = decodeXmlEntities(normalizedWhitespace);
+  return decoded.replace(/</g, '＜').replace(/>/g, '＞');
 }
 
 export function stripTagsPreserveWhitespace(xmlFragment: string): string {
   const withoutTags = xmlFragment.replace(/<[^>]+>/g, '');
-  return decodeXmlEntities(withoutTags);
+  const decoded = decodeXmlEntities(withoutTags);
+  return decoded.replace(/</g, '＜').replace(/>/g, '＞');
 }
 
 export function findFirstTagBlock(xml: string, tagName: string): string | null {
