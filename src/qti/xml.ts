@@ -1,3 +1,5 @@
+import { JSDOM } from 'jsdom';
+
 export interface XmlAttributes {
   [key: string]: string;
 }
@@ -24,14 +26,14 @@ export function decodeXmlEntities(value: string): string {
 }
 
 export function stripTags(xmlFragment: string): string {
-  const withoutTags = xmlFragment.replace(/<[^>]+>/g, ' ');
-  const normalizedWhitespace = withoutTags.replace(/\s+/g, ' ').trim();
-  return decodeXmlEntities(normalizedWhitespace).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const fragment = JSDOM.fragment(xmlFragment);
+  const text = fragment.textContent ?? '';
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 export function stripTagsPreserveWhitespace(xmlFragment: string): string {
-  const withoutTags = xmlFragment.replace(/<[^>]+>/g, '');
-  return decodeXmlEntities(withoutTags).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const fragment = JSDOM.fragment(xmlFragment);
+  return fragment.textContent ?? '';
 }
 
 export function findFirstTagBlock(xml: string, tagName: string): string | null {

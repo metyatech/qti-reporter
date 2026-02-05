@@ -167,7 +167,7 @@ test('does not allow encoded tags in cloze responses to become HTML elements', (
   });
 
   assert.ok(!report.html.includes('<script'), 'report HTML must not contain raw script tags');
-  assert.ok(report.html.includes('&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;'));
+  assert.ok(report.html.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
 });
 
 test('copies image assets and rewrites img src to output-relative paths', () => {
