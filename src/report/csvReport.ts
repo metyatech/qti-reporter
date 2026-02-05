@@ -136,6 +136,9 @@ function computeTotalScore(
   assessmentResult: ParsedAssessmentResult,
   items: CsvItemModel[]
 ): number {
+  if (assessmentResult.testScore !== null) {
+    return assessmentResult.testScore;
+  }
   return items.reduce((sum, item) => sum + item.itemScore, 0);
 }
 

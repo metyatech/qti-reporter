@@ -1,4 +1,4 @@
-# QTI Input Data Specification (Draft)
+# QTI Input Data Specification
 
 ## Scope
 
@@ -235,7 +235,8 @@ The report title is sourced from the assessment test:
 
 - `qti-assessment-test@title` (required for reporting).
 
-## TODO (needs confirmation)
+## Implementation constraints
 
-- Confirm whether multiple `testResult` blocks are expected in one run.
-- Confirm whether multiple `responseVariable` entries per item are supported.
+- **Multiple `testResult` blocks**: Only the first `testResult` block in an XML file is processed.
+- **Multiple `responseVariable` entries**: All `responseVariable` entries within an `itemResult` are supported and aggregated.
+

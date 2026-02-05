@@ -1,9 +1,8 @@
-# Reporter Output Formats (Draft)
+# Reporter Output Formats
 
 ## Scope
 
 This document defines the required output targets for qti-reporter.
-Detailed layouts and column definitions require confirmation.
 
 ## Required output targets
 

@@ -113,7 +113,7 @@ test('generates CSV for multiple assessment results in a single run', () => {
   assert.ok(text.includes('0008'), 'second candidate must be included');
 });
 
-test('computes total score from item scores even when test score is stale', () => {
+test('uses test score from result XML even when it differs from item sum', () => {
   const outputRootDir = createCleanOutputDir('csv-total-score');
 
   const exitCode = runCli([
@@ -132,5 +132,5 @@ test('computes total score from item scores even when test score is stale', () =
   const firstRow = text.split('\n')[1];
   const columns = firstRow.split(',');
   const totalScore = columns[3];
-  assert.equal(totalScore, '10');
+  assert.equal(totalScore, '0');
 });

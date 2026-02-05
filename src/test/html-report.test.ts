@@ -225,7 +225,7 @@ test('logs unused itemResult identifiers to standard output', () => {
   assert.ok(logs.some((line) => line.includes('item-extra')));
 });
 
-test('uses item score sum for total score when test score is stale', () => {
+test('uses test score from result XML even when it differs from item sum', () => {
   const outputRootDir = createCleanOutputDir('html-total-score');
 
   const report = generateHtmlReportFromFiles({
@@ -236,5 +236,5 @@ test('uses item score sum for total score when test score is stale', () => {
 
   const match = report.html.match(/score-total[\s\S]*?<span class="score-value">(\d+)<\/span>/);
   assert.ok(match, 'total score block must be present');
-  assert.equal(match?.[1], '10');
+  assert.equal(match?.[1], '0');
 });

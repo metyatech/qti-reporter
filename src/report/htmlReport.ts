@@ -290,6 +290,9 @@ function computeTotalScore(
   assessmentResult: ParsedAssessmentResult,
   items: ItemReportModel[]
 ): number {
+  if (assessmentResult.testScore !== null) {
+    return assessmentResult.testScore;
+  }
   return items.reduce((sum, item) => sum + item.itemScore, 0);
 }
 
