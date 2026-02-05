@@ -29,6 +29,9 @@
     "url": "https://github.com/metyatech/qti-reporter/issues"
   },
   "homepage": "https://github.com/metyatech/qti-reporter#readme",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "devDependencies": {
     "@types/jsdom": "^27.0.0",
     "@types/node": "^25.0.10",
