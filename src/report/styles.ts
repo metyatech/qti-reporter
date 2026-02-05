@@ -343,4 +343,4 @@ tr[data-criterion-status="false"] .criterion-status {
 
 export const DEFAULT_STYLE_ELEMENT = `<style data-qti-reporter-style="default">${DEFAULT_REPORT_CSS}</style>`;
 
-export const EXTERNAL_STYLE_FILE_NAME = "report-style.css";
+export const EXTERNAL_STYLE_FILE_NAME = 'report-style.css';

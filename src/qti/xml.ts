@@ -1,14 +1,15 @@
+import { JSDOM } from 'jsdom';
+
 export interface XmlAttributes {
   [key: string]: string;
 }
 
 export function parseAttributes(tagOpen: string): XmlAttributes {
   const attributes: XmlAttributes = {};
-  const attributePattern =
-    /([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
+  const attributePattern = /([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
   let match: RegExpExecArray | null = attributePattern.exec(tagOpen);
   while (match) {
-    const value = match[2] ?? match[3] ?? "";
+    const value = match[2] ?? match[3] ?? '';
     attributes[match[1]] = value;
     match = attributePattern.exec(tagOpen);
   }
@@ -17,22 +18,22 @@ export function parseAttributes(tagOpen: string): XmlAttributes {
 
 export function decodeXmlEntities(value: string): string {
   return value
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, "\"")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'");
 }
 
 export function stripTags(xmlFragment: string): string {
-  const withoutTags = xmlFragment.replace(/<[^>]+>/g, " ");
-  const normalizedWhitespace = withoutTags.replace(/\s+/g, " ").trim();
-  return decodeXmlEntities(normalizedWhitespace);
+  const fragment = JSDOM.fragment(xmlFragment);
+  const text = fragment.textContent ?? '';
+  return text.replace(/\s+/g, ' ').trim();
 }
 
 export function stripTagsPreserveWhitespace(xmlFragment: string): string {
-  const withoutTags = xmlFragment.replace(/<[^>]+>/g, "");
-  return decodeXmlEntities(withoutTags);
+  const fragment = JSDOM.fragment(xmlFragment);
+  return fragment.textContent ?? '';
 }
 
 export function findFirstTagBlock(xml: string, tagName: string): string | null {
@@ -44,7 +45,7 @@ export function findFirstTagBlock(xml: string, tagName: string): string | null {
 export function extractOpenTag(tagBlock: string): string {
   const openTagMatch = tagBlock.match(/^<[^>]+>/);
   if (!openTagMatch) {
-    throw new Error("Invalid XML: missing open tag");
+    throw new Error('Invalid XML: missing open tag');
   }
   return openTagMatch[0];
 }

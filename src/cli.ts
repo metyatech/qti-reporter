@@ -1,15 +1,18 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { generateHtmlReportFromFiles } from "./report/htmlReport.js";
-import { generateCsvReportFromFiles } from "./report/csvReport.js";
+import { generateHtmlReportFromFiles } from './report/htmlReport.js';
+import { generateCsvReportFromFiles } from './report/csvReport.js';
 
 interface CliOptions {
   assessmentTestPath: string;
   assessmentResultPaths: string[];
   outputRootDir: string;
   styleCssPath?: string;
+  showHelp?: boolean;
+  showVersion?: boolean;
 }
 
 export interface CliLogger {
@@ -23,46 +26,56 @@ function parseCliOptions(argv: string[]): CliOptions {
   const assessmentResultDirs: string[] = [];
   let outputRootDir: string | null = null;
   let styleCssPath: string | null = null;
+  let showHelp = false;
+  let showVersion = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     const nextValue = argv[index + 1];
 
-    if (arg === "--assessment-test") {
+    if (arg === '--help' || arg === '-h') {
+      showHelp = true;
+      continue;
+    }
+    if (arg === '--version' || arg === '-V') {
+      showVersion = true;
+      continue;
+    }
+    if (arg === '--assessment-test') {
       if (!nextValue) {
-        throw new Error("Missing value for --assessment-test");
+        throw new Error('Missing value for --assessment-test');
       }
       assessmentTestPath = nextValue;
       index += 1;
       continue;
     }
-    if (arg === "--assessment-result") {
+    if (arg === '--assessment-result') {
       if (!nextValue) {
-        throw new Error("Missing value for --assessment-result");
+        throw new Error('Missing value for --assessment-result');
       }
       assessmentResultPaths.push(nextValue);
       index += 1;
       continue;
     }
-    if (arg === "--assessment-result-dir") {
+    if (arg === '--assessment-result-dir') {
       if (!nextValue) {
-        throw new Error("Missing value for --assessment-result-dir");
+        throw new Error('Missing value for --assessment-result-dir');
       }
       assessmentResultDirs.push(nextValue);
       index += 1;
       continue;
     }
-    if (arg === "--out-dir") {
+    if (arg === '--out-dir') {
       if (!nextValue) {
-        throw new Error("Missing value for --out-dir");
+        throw new Error('Missing value for --out-dir');
       }
       outputRootDir = nextValue;
       index += 1;
       continue;
     }
-    if (arg === "--style-css") {
+    if (arg === '--style-css') {
       if (!nextValue) {
-        throw new Error("Missing value for --style-css");
+        throw new Error('Missing value for --style-css');
       }
       styleCssPath = nextValue;
       index += 1;
@@ -72,11 +85,21 @@ function parseCliOptions(argv: string[]): CliOptions {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
+  if (showHelp || showVersion) {
+    return {
+      assessmentTestPath: '',
+      outputRootDir: '',
+      assessmentResultPaths: [],
+      showHelp,
+      showVersion,
+    };
+  }
+
   if (!assessmentTestPath) {
-    throw new Error("--assessment-test is required");
+    throw new Error('--assessment-test is required');
   }
   if (assessmentResultPaths.length === 0 && assessmentResultDirs.length === 0) {
-    throw new Error("--assessment-result is required");
+    throw new Error('--assessment-result is required');
   }
 
   const resolvedAssessmentTestPath = resolveCliPath(assessmentTestPath);
@@ -87,22 +110,22 @@ function parseCliOptions(argv: string[]): CliOptions {
     : resolveDefaultOutputRootDir(resolvedAssessmentResultPaths, resolvedAssessmentResultDirs);
   const resolvedStyleCssPath = styleCssPath ? resolveCliPath(styleCssPath) : undefined;
 
-  assertFileExists(resolvedAssessmentTestPath, "Assessment test");
+  assertFileExists(resolvedAssessmentTestPath, 'Assessment test');
   resolvedAssessmentResultPaths.forEach((resultPath) => {
-    assertFileExists(resultPath, "Assessment result");
+    assertFileExists(resultPath, 'Assessment result');
   });
   resolvedAssessmentResultDirs.forEach((dirPath) => {
-    assertDirectoryExists(dirPath, "Assessment result directory");
+    assertDirectoryExists(dirPath, 'Assessment result directory');
   });
   if (resolvedStyleCssPath) {
-    assertFileExists(resolvedStyleCssPath, "Style CSS");
+    assertFileExists(resolvedStyleCssPath, 'Style CSS');
   }
 
   const dirResults = resolvedAssessmentResultDirs.flatMap(readResultsFromDir);
   const combinedResults = [...resolvedAssessmentResultPaths, ...dirResults];
   const uniqueResults = Array.from(new Set(combinedResults));
   if (uniqueResults.length === 0) {
-    throw new Error("No assessment result files found");
+    throw new Error('No assessment result files found');
   }
 
   return {
@@ -113,9 +136,48 @@ function parseCliOptions(argv: string[]): CliOptions {
   };
 }
 
+function printHelp(logger: CliLogger): void {
+  logger.log(
+    `Usage: qti-reporter [options]
+
+Options:
+  --assessment-test <path>      Path to the assessment test XML file (required)
+  --assessment-result <path>    Path to an assessment result XML file (repeatable)
+  --assessment-result-dir <dir> Directory containing assessment result XML files
+  --out-dir <dir>               Output directory
+  --style-css <path>            Path to an external CSS file
+  -V, --version                 Output the version number
+  -h, --help                    Display help for command`
+  );
+}
+
+function findNearestPackageJsonPath(startDir: string): string {
+  let currentDir = startDir;
+  while (true) {
+    const candidate = path.join(currentDir, 'package.json');
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      throw new Error('Unable to locate package.json for version information.');
+    }
+
+    currentDir = parentDir;
+  }
+}
+
+function printVersion(logger: CliLogger): void {
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const packageJsonPath = findNearestPackageJsonPath(currentDir);
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  logger.log(packageJson.version);
+}
+
 function resolveDefaultOutputRootDir(
   assessmentResultPaths: string[],
-  assessmentResultDirs: string[],
+  assessmentResultDirs: string[]
 ): string {
   const candidateDirs = new Set<string>();
   assessmentResultDirs.forEach((dirPath) => {
@@ -128,21 +190,32 @@ function resolveDefaultOutputRootDir(
   if (candidateDirs.size === 1) {
     return Array.from(candidateDirs)[0];
   }
-  throw new Error("Multiple assessment result locations detected. Use --out-dir to choose an output directory.");
+  throw new Error(
+    'Multiple assessment result locations detected. Use --out-dir to choose an output directory.'
+  );
 }
 
-function logUnusedData(report: ReturnType<typeof generateHtmlReportFromFiles>, logger: CliLogger): void {
+function logUnusedData(
+  report: ReturnType<typeof generateHtmlReportFromFiles>,
+  logger: CliLogger
+): void {
   if (report.unusedItemResultIdentifiers.length === 0) {
     return;
   }
-  logger.log(
-    `Unused itemResult identifiers: ${report.unusedItemResultIdentifiers.join(", ")}`,
-  );
+  logger.log(`Unused itemResult identifiers: ${report.unusedItemResultIdentifiers.join(', ')}`);
 }
 
 export function runCli(argv: string[], logger: CliLogger = console): number {
   try {
     const options = parseCliOptions(argv);
+    if (options.showHelp) {
+      printHelp(logger);
+      return 0;
+    }
+    if (options.showVersion) {
+      printVersion(logger);
+      return 0;
+    }
     for (const assessmentResultPath of options.assessmentResultPaths) {
       const htmlReport = generateHtmlReportFromFiles({
         ...options,
@@ -172,7 +245,7 @@ function assertFileExists(filePath: string, label: string): void {
       throw new Error(`${label} must be a file: ${filePath}`);
     }
   } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
       throw new Error(`${label} file not found: ${filePath}`);
     }
     throw error;
@@ -186,7 +259,7 @@ function assertDirectoryExists(dirPath: string, label: string): void {
       throw new Error(`${label} must be a directory: ${dirPath}`);
     }
   } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
       throw new Error(`${label} not found: ${dirPath}`);
     }
     throw error;
@@ -196,7 +269,7 @@ function assertDirectoryExists(dirPath: string, label: string): void {
 function readResultsFromDir(dirPath: string): string[] {
   const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   return entries
-    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".xml"))
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.xml'))
     .map((entry) => path.join(dirPath, entry.name))
     .sort((a, b) => a.localeCompare(b));
 }
@@ -206,10 +279,10 @@ function resolveCliPath(inputPath: string): string {
   if (fs.existsSync(resolvedPath)) {
     return resolvedPath;
   }
-  if (!inputPath.includes("^")) {
+  if (!inputPath.includes('^')) {
     return resolvedPath;
   }
-  const unescapedPath = inputPath.replaceAll("^", "");
+  const unescapedPath = inputPath.replaceAll('^', '');
   const resolvedUnescapedPath = path.resolve(unescapedPath);
   return fs.existsSync(resolvedUnescapedPath) ? resolvedUnescapedPath : resolvedPath;
 }
