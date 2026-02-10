@@ -90,6 +90,12 @@ npm run format
 npm test
 ```
 
+- Verify (runs all checks):
+
+```bash
+npm run verify
+```
+
 ## Environment Variables
 
 This project does not use environment variables.

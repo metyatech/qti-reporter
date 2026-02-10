@@ -246,7 +246,7 @@ function assertFileExists(filePath: string, label: string): void {
     }
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-      throw new Error(`${label} file not found: ${filePath}`);
+      throw new Error(`${label} file not found: ${filePath}`, { cause: error });
     }
     throw error;
   }
@@ -260,7 +260,7 @@ function assertDirectoryExists(dirPath: string, label: string): void {
     }
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-      throw new Error(`${label} not found: ${dirPath}`);
+      throw new Error(`${label} not found: ${dirPath}`, { cause: error });
     }
     throw error;
   }
