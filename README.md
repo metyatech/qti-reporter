@@ -1,14 +1,17 @@
 # qti-reporter
 
 ## Overview
+
 qti-reporter generates human-readable HTML reports per respondent and an
 aggregated CSV report from QTI 3.0 assessment items and results.
 
 ## Specifications
+
 - Input QTI spec: `docs/input-qti-spec.md`
 - Output report spec: `docs/report-output-spec.md`
 
 ## Setup
+
 1. Install dependencies.
 
 ```bash
@@ -16,6 +19,7 @@ npm install
 ```
 
 ## Usage (HTML Per Respondent)
+
 Run the CLI with both the assessment test and one or more assessment results.
 The `start` script builds the project before running the CLI.
 
@@ -24,6 +28,7 @@ npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-re
 ```
 
 Arguments:
+
 - `--assessment-test`: Path to the `qti-assessment-test` XML file.
 - `--assessment-result`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run.
 - `--assessment-result-dir`: Directory containing `assessmentResult` XML files. Files are discovered non-recursively and processed in filename order.
@@ -31,10 +36,12 @@ Arguments:
 - `--style-css`: Optional path to a CSS file. When omitted, the default style is embedded.
 
 Styling behavior:
+
 - Default: embeds `<style data-qti-reporter-style="default">...</style>`
 - External: copies the specified CSS to `report-style.css` and links `<link rel="stylesheet" href="./report-style.css" data-qti-reporter-style="external" />`
 
 The output is written as:
+
 - Directory: `{candidateNumber} {candidateName}`
 - File: `{candidateNumber} {candidateName} {testTitle} 結果.html`
 - External style file (when `--style-css` is used): `report-style.css`
@@ -53,31 +60,55 @@ npm start -- --assessment-test src/test/fixtures/assessment-test.qti.xml --asses
 ```
 
 ## Development Commands
+
 - Build:
 
 ```bash
+
 npm run build
+
+```
+
+- Format:
+
+```bash
+
+npm run format
+
 ```
 
 - Lint:
 
 ```bash
+
 npm run lint
+
 ```
 
 - Test:
 
 ```bash
+
 npm test
+
 ```
 
-## Environment Variables
-This project does not use environment variables.
-
-## Deployment
-No deployment pipeline is defined. Build and run the generated CLI:
+- Verify (runs all checks):
 
 ```bash
-npm run build
-node dist/cli.js --assessment-test <path-to-assessment-test.qti.xml> --assessment-result <path-to-assessment-result.xml>
+
+npm run verify
+
 ```
+
+## Contributing
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+## License
+
+This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.

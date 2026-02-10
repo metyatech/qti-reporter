@@ -1,61 +1,61 @@
-import fs from "node:fs";
-import hljs from "highlight.js/lib/core";
-import xmlLang from "highlight.js/lib/languages/xml";
-import javascriptLang from "highlight.js/lib/languages/javascript";
-import typescriptLang from "highlight.js/lib/languages/typescript";
-import jsonLang from "highlight.js/lib/languages/json";
-import cssLang from "highlight.js/lib/languages/css";
-import sqlLang from "highlight.js/lib/languages/sql";
-import bashLang from "highlight.js/lib/languages/bash";
-import plaintextLang from "highlight.js/lib/languages/plaintext";
+import fs from 'node:fs';
+import hljs from 'highlight.js/lib/core';
+import xmlLang from 'highlight.js/lib/languages/xml';
+import javascriptLang from 'highlight.js/lib/languages/javascript';
+import typescriptLang from 'highlight.js/lib/languages/typescript';
+import jsonLang from 'highlight.js/lib/languages/json';
+import cssLang from 'highlight.js/lib/languages/css';
+import sqlLang from 'highlight.js/lib/languages/sql';
+import bashLang from 'highlight.js/lib/languages/bash';
+import plaintextLang from 'highlight.js/lib/languages/plaintext';
 import {
   renderQtiItemForReport,
   type ChoiceOption,
   type ParsedItemForReport,
   type RubricCriterion,
-} from "qti-html-renderer";
+} from 'qti-html-renderer';
 
-hljs.registerLanguage("xml", xmlLang);
-hljs.registerLanguage("html", xmlLang);
-hljs.registerLanguage("javascript", javascriptLang);
-hljs.registerLanguage("js", javascriptLang);
-hljs.registerLanguage("typescript", typescriptLang);
-hljs.registerLanguage("ts", typescriptLang);
-hljs.registerLanguage("json", jsonLang);
-hljs.registerLanguage("css", cssLang);
-hljs.registerLanguage("sql", sqlLang);
-hljs.registerLanguage("bash", bashLang);
-hljs.registerLanguage("sh", bashLang);
-hljs.registerLanguage("plaintext", plaintextLang);
-hljs.registerLanguage("plain", plaintextLang);
+hljs.registerLanguage('xml', xmlLang);
+hljs.registerLanguage('html', xmlLang);
+hljs.registerLanguage('javascript', javascriptLang);
+hljs.registerLanguage('js', javascriptLang);
+hljs.registerLanguage('typescript', typescriptLang);
+hljs.registerLanguage('ts', typescriptLang);
+hljs.registerLanguage('json', jsonLang);
+hljs.registerLanguage('css', cssLang);
+hljs.registerLanguage('sql', sqlLang);
+hljs.registerLanguage('bash', bashLang);
+hljs.registerLanguage('sh', bashLang);
+hljs.registerLanguage('plaintext', plaintextLang);
+hljs.registerLanguage('plain', plaintextLang);
 
-const AUTO_DETECT_LANGUAGES = ["html", "xml", "ts", "js", "json", "css", "sql", "bash", "plain"];
+const AUTO_DETECT_LANGUAGES = ['html', 'xml', 'ts', 'js', 'json', 'css', 'sql', 'bash', 'plain'];
 
 export type ParsedAssessmentItem = ParsedItemForReport;
 export type { ChoiceOption, RubricCriterion };
 
 function normalizeLanguage(language: string): string {
   const normalized = language.toLowerCase();
-  if (normalized === "xml") {
-    return "html";
+  if (normalized === 'xml') {
+    return 'html';
   }
-  if (normalized === "plaintext") {
-    return "plain";
+  if (normalized === 'plaintext') {
+    return 'plain';
   }
   return normalized;
 }
 
 function escapeHtml(value: string): string {
   return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function stripClozeInputs(html: string): string {
-  return html.replace(/<input\b[^>]*>/gi, "");
+  return html.replace(/<input\b[^>]*>/gi, '');
 }
 
 function looksLikeCss(source: string): boolean {
@@ -64,50 +64,47 @@ function looksLikeCss(source: string): boolean {
   return hasSelector && hasProperty;
 }
 
-function inferLanguageForCloze(
-  decodedContent: string,
-  explicitLanguage: string | null,
-): string {
+function inferLanguageForCloze(decodedContent: string, explicitLanguage: string | null): string {
   if (explicitLanguage && hljs.getLanguage(explicitLanguage)) {
     return explicitLanguage;
   }
   const trimmed = stripClozeInputs(decodedContent).trim();
   if (trimmed.length === 0) {
-    return explicitLanguage ?? "plain";
+    return explicitLanguage ?? 'plain';
   }
   const auto = hljs.highlightAuto(trimmed, AUTO_DETECT_LANGUAGES);
-  const autoLanguage = auto.language ? normalizeLanguage(auto.language) : "plain";
-  if (autoLanguage === "plain" && looksLikeCss(trimmed)) {
-    return "css";
+  const autoLanguage = auto.language ? normalizeLanguage(auto.language) : 'plain';
+  if (autoLanguage === 'plain' && looksLikeCss(trimmed)) {
+    return 'css';
   }
   return autoLanguage;
 }
 
-function highlightClozeCode(
-  codeContent: string,
-  language: string,
-): string {
+function highlightClozeCode(codeContent: string, language: string): string {
   const segments = codeContent.split(/(<input\b[^>]*>)/gi);
   return segments
     .map((segment) => {
-      if (segment.toLowerCase().startsWith("<input")) {
+      if (segment.toLowerCase().startsWith('<input')) {
         return segment;
       }
       if (segment.trim().length === 0) {
         return escapeHtml(segment);
       }
-      if (language !== "plain" && hljs.getLanguage(language)) {
+      if (language !== 'plain' && hljs.getLanguage(language)) {
         return hljs.highlight(segment, { language, ignoreIllegals: true }).value;
       }
       return escapeHtml(segment);
     })
-    .join("");
+    .join('');
 }
 
-function highlightCode(codeContent: string, explicitLanguage: string | null): { language: string; html: string } {
+function highlightCode(
+  codeContent: string,
+  explicitLanguage: string | null,
+): { language: string; html: string } {
   const normalizedExplicit = explicitLanguage ? normalizeLanguage(explicitLanguage) : null;
   const decodedNumeric = codeContent.replace(/&#39;/g, "'").replace(/&#x27;/gi, "'");
-  if (codeContent.includes("cloze-input")) {
+  if (codeContent.includes('cloze-input')) {
     const language = inferLanguageForCloze(decodedNumeric, normalizedExplicit);
     const html = highlightClozeCode(decodedNumeric, language);
     return { language, html };
@@ -115,21 +112,34 @@ function highlightCode(codeContent: string, explicitLanguage: string | null): { 
 
   const trimmed = decodedNumeric.trim();
   if (trimmed.length === 0) {
-    return { language: "plain", html: "" };
+    return { language: 'plain', html: '' };
   }
 
-  if (normalizedExplicit && normalizedExplicit !== "plain" && hljs.getLanguage(normalizedExplicit)) {
-    const highlighted = hljs.highlight(trimmed, { language: normalizedExplicit, ignoreIllegals: true });
-    return { language: normalizeLanguage(highlighted.language ?? normalizedExplicit), html: highlighted.value };
+  if (
+    normalizedExplicit &&
+    normalizedExplicit !== 'plain' &&
+    hljs.getLanguage(normalizedExplicit)
+  ) {
+    const highlighted = hljs.highlight(trimmed, {
+      language: normalizedExplicit,
+      ignoreIllegals: true,
+    });
+    return {
+      language: normalizeLanguage(highlighted.language ?? normalizedExplicit),
+      html: highlighted.value,
+    };
   }
 
   const auto = hljs.highlightAuto(trimmed, AUTO_DETECT_LANGUAGES);
-  const autoLanguage = auto.language ? normalizeLanguage(auto.language) : "plain";
+  const autoLanguage = auto.language ? normalizeLanguage(auto.language) : 'plain';
   return { language: autoLanguage, html: auto.value };
 }
 
-export function parseAssessmentItem(itemPath: string, expectedIdentifier: string): ParsedAssessmentItem {
-  const xml = fs.readFileSync(itemPath, "utf8");
+export function parseAssessmentItem(
+  itemPath: string,
+  expectedIdentifier: string,
+): ParsedAssessmentItem {
+  const xml = fs.readFileSync(itemPath, 'utf8');
   return renderQtiItemForReport(xml, expectedIdentifier, {
     clozeInputHtml:
       '<input class="cloze-input qti-blank-input" type="text" size="6" readonly aria-label="blank">',

@@ -1,14 +1,17 @@
 # Reporter Output Formats (Draft)
 
 ## Scope
+
 This document defines the required output targets for qti-reporter.
 Detailed layouts and column definitions require confirmation.
 
 ## Required output targets
+
 - HTML report per respondent (one report per `assessmentResult` input).
 - CSV report aggregating all respondents processed in a single run.
 
 ## Available input data (for output composition)
+
 The reporter can draw from the following inputs:
 
 - Candidate/session metadata from `assessmentResult/context`:
@@ -26,15 +29,17 @@ The reporter can draw from the following inputs:
 ## HTML report format (per respondent)
 
 ### Required sections and ordering
+
 Output must be arranged in the following order:
 
-1) Test title
-2) Candidate number
-3) Candidate name
-4) Total score / maximum score
-5) Items (one block per item)
+1. Test title
+2. Candidate number
+3. Candidate name
+4. Total score / maximum score
+5. Items (one block per item)
 
 ### Field sourcing
+
 - Test title: `qti-assessment-test@title`.
 - Candidate number: extract the first continuous digit sequence from
   `context/@sourcedId`. Use the extracted string as-is (preserve leading zeros).
@@ -42,12 +47,14 @@ Output must be arranged in the following order:
 - Candidate name: `context/sessionIdentifier` with `sourceID=candidateName`.
 
 ### Item matching and order
+
 - Items are matched by identifier equality:
   - `itemResult@identifier` == `qti-assessment-item@identifier`
 - Display order follows the `qti-assessment-item-ref` order in the
   assessment test.
 
 ### Per-criterion correctness sourcing
+
 - Use item-level rubric outcomes:
   - `itemResult/outcomeVariable@identifier = RUBRIC_{index}_MET`
   - `baseType=boolean`, value is `true/false`
@@ -55,6 +62,7 @@ Output must be arranged in the following order:
   `qti-rubric-block view="scorer"`.
 
 ### Item block content
+
 Each item block must include:
 
 - Question text
@@ -64,15 +72,18 @@ Each item block must include:
 Do not display any other fields.
 
 ### Interaction requirements
+
 - Each item block is collapsible (toggle).
 - The toggle label must show: `item score / item maximum score`.
 - Inside each item block, the candidate response section is also collapsible.
 
 ### Rendering guidance
+
 - Present content in a readable layout suitable for on-screen review.
 - Rendering style is up to the implementation, but must prioritize clarity.
 
 ### Output path and naming
+
 - Create a directory named: `{candidateNumber} {candidateName}`
 - Save the HTML file as:
   `{candidateNumber} {candidateName} {testTitle} 結果.html`
@@ -82,6 +93,7 @@ Do not display any other fields.
     - File: `0001 Yamada Taro Algebra Test 結果.html`
 
 ### Unused data reporting (standard output)
+
 - If `assessmentResult/itemResult@identifier` exists but is not referenced by
   `qti-assessment-item-ref@identifier`, it is treated as unused data.
 - Unused identifiers are reported to standard output as:
@@ -90,6 +102,7 @@ Do not display any other fields.
 ## HTML styling specification (problem + response)
 
 ### Style selection
+
 - If no external style is specified, the report embeds the default style:
   `<style data-qti-reporter-style="default">...</style>`
 - If an external style is specified, the tool copies it and links it:
@@ -97,6 +110,7 @@ Do not display any other fields.
 - When external style is used, the default style is not embedded.
 
 ### External style input and output contract
+
 - External style is provided via CLI option: `--style-css <path-to-css>`
 - The specified CSS file must exist and must not be empty.
 - The tool copies the CSS into the candidate output directory using the fixed
@@ -105,6 +119,7 @@ Do not display any other fields.
   `./report-style.css`
 
 ### Styling DOM contract (stable selectors)
+
 The following structure and class names are part of the styling contract and
 must be treated as stable for external CSS.
 
@@ -123,6 +138,7 @@ must be treated as stable for external CSS.
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
 
 ### Styling data attributes
+
 External CSS may also rely on the following data attributes:
 
 - Report style mode: `data-qti-reporter-style="default"`, `data-qti-reporter-style="external"`
@@ -131,6 +147,7 @@ External CSS may also rely on the following data attributes:
 - Code language attribute: `data-code-lang="<language>"`
 
 ### Image asset handling
+
 - Local image paths in `img@src` are resolved relative to the referenced
   assessment item file.
 - Local images are copied into the candidate output directory under:
@@ -141,6 +158,7 @@ External CSS may also rely on the following data attributes:
   are left unchanged.
 
 ### Candidate response rendering
+
 - Candidate responses are rendered without collapsing whitespace.
 - Line breaks in responses are preserved as entered.
 - The default renderer uses a whitespace-preserving block:
@@ -151,6 +169,7 @@ External CSS may also rely on the following data attributes:
   expands based on the response length.
 
 ### Item comment rendering
+
 - When `itemResult/outcomeVariable identifier="COMMENT"` exists, it is rendered
   inside the item block as a dedicated section.
 - Comment text preserves line breaks and whitespace.
@@ -158,6 +177,7 @@ External CSS may also rely on the following data attributes:
   `<pre class="comment-text comment-pre">...</pre>`
 
 ### Code language inference (no JavaScript)
+
 - If the language is explicitly specified on `code` (for example
   `class="language-ts"` or `data-lang="ts"`), that value is used when supported.
 - If the explicit language is missing or is `plain`, the tool infers the
@@ -168,17 +188,20 @@ External CSS may also rely on the following data attributes:
 ## CSV report format (aggregated across respondents)
 
 ### Purpose
+
 - Provide a single, machine-readable export that aggregates all respondents.
 - Ensure that one CSV contains enough information to analyze results without
   opening the HTML reports.
 
 ### Row granularity
+
 - One row represents one respondent-item pair.
 - A single respondent therefore produces `N` rows, where `N` is the number of
   items referenced by the assessment test.
 - Item order is the canonical order from `qti-assessment-item-ref`.
 
 ### Output location and naming
+
 - Output directory: the CLI `--out-dir` root directory.
 - File name: `report.csv`
 - Output path: `{outDir}/report.csv`
@@ -186,11 +209,13 @@ External CSS may also rely on the following data attributes:
     each respondent in the order the inputs are processed.
 
 ### Append and overwrite rules
+
 - If `report.csv` does not exist, create it and write the header row first.
 - If `report.csv` already exists, append only data rows.
 - The header row must appear exactly once at the top of the file.
 
 ### Encoding, delimiter, and line endings
+
 - Encoding: UTF-8 with BOM.
 - Delimiter: comma (`,`).
 - Line endings: LF (`\n`).
@@ -200,13 +225,14 @@ External CSS may also rely on the following data attributes:
   - Double quotes inside a quoted field must be escaped by doubling them.
 
 ### Column definitions and ordering
+
 Columns are ordered as follows.
 
 | Column name        | Type             | Required | Description / source                                                                                                                                                 |
 | ------------------ | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `candidate_number` | string           | required | Extracted from `context@sourcedId` as the first continuous digit sequence (leading zeros preserved).                                                                 |
 | `candidate_name`   | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateName`.                                                                                               |
-| `test_title`       | string           | required | `qti-assessment-test@title`.                                                                                                                                        |
+| `test_title`       | string           | required | `qti-assessment-test@title`.                                                                                                                                         |
 | `total_score`      | number           | required | `testResult/outcomeVariable identifier="SCORE"` when present; otherwise the sum of item scores.                                                                      |
 | `total_max_score`  | number           | required | Sum of per-item maximum scores derived from scorer rubrics.                                                                                                          |
 | `item_order`       | number (integer) | required | 1-based index of the item in `qti-assessment-item-ref` order.                                                                                                        |
@@ -221,6 +247,7 @@ Columns are ordered as follows.
 | `comment`          | string           | required | `itemResult/outcomeVariable identifier="COMMENT"` when present; otherwise empty.                                                                                     |
 
 ### Rubric encoding details
+
 - Criterion order is the order of `qti-p` elements inside
   `qti-rubric-block view="scorer"`.
 - Each criterion index is 1-based.
@@ -230,6 +257,7 @@ Columns are ordered as follows.
 - Missing rubric outcomes are treated as an error (do not emit partial data).
 
 ### Response encoding details
+
 - The exporter targets `responseVariable identifier="RESPONSE"`.
 - Multiple `<value>` elements are supported and are emitted in order.
 - Line breaks inside responses are preserved as LF (`\n`) within the CSV cell.
@@ -237,6 +265,7 @@ Columns are ordered as follows.
 - The literal `（無回答）` is not used in CSV; it is HTML-only presentation.
 
 ### Score computation rules
+
 - `item_max_score` is computed as the sum of rubric criterion points.
 - `item_score` is sourced in the following order:
   - Use `itemResult/outcomeVariable identifier="SCORE"` when present.
@@ -247,6 +276,7 @@ Columns are ordered as follows.
   - Otherwise compute as the sum of `item_score`.
 
 ### Item coverage rules
+
 - Items must be emitted strictly in assessment test order.
 - If an assessment test item is missing a corresponding `itemResult`, treat as
   an error.
@@ -257,6 +287,7 @@ Columns are ordered as follows.
     report: `Unused itemResult identifiers: <id1>, <id2>, ...`.
 
 ### Missing and invalid data handling
+
 - Required fields must not be silently defaulted.
 - If a required input is missing or invalid, the exporter must fail fast with a
   clear error message describing what to fix.

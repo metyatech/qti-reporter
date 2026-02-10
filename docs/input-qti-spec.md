@@ -1,6 +1,7 @@
 # QTI Input Data Specification (Draft)
 
 ## Scope
+
 This document defines the QTI input formats consumed by qti-reporter.
 There are two input categories:
 
@@ -10,6 +11,7 @@ There are two input categories:
 ## Input 1: Question data (assessment test)
 
 ### Required structure
+
 - Root element: `qti-assessment-test`
   - `identifier="assessment-test"` (fixed)
   - `title="Assessment Test"` (fixed)
@@ -26,16 +28,19 @@ There are two input categories:
   - `href`: `<identifier>.qti.xml` (relative path)
 
 Ordering:
+
 - The order of `qti-assessment-item-ref` defines the canonical item order for
   reporting.
 
 Resolution of referenced items:
+
 - Each `qti-assessment-item-ref@href` is resolved relative to the
   `qti-assessment-test` file location.
 - The referenced `qti-assessment-item` documents are required inputs, but are
   discovered via the assessment test rather than being passed directly.
 
 ### Referenced assessment items
+
 Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 
 - `identifier`: matches the `qti-assessment-item-ref@identifier`.
@@ -53,6 +58,7 @@ Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 | Cloze (fill-in-the-blank) | `base-type="string"`, `cardinality="single"`     | `qti-text-entry-interaction`                                              | `qti-correct-response` contains the answer   |
 
 ### Cloze inside code blocks
+
 `qti-text-entry-interaction` may appear inside code-oriented flow content.
 In particular, the following structure is treated as valid input:
 
@@ -70,16 +76,19 @@ Example pattern:
 ```
 
 Renderer expectations:
+
 - The full `qti-pre` block is normalized into a single `<pre><code>...</code></pre>`
   before syntax highlighting.
 - Any `qti-text-entry-interaction` within the block is rendered as a cloze
   textbox and must not break the surrounding `<code>` structure.
 
 ### Explanation output
+
 If item-level post-response feedback is provided, it is emitted using
 `qti-modal-feedback` (outside `qti-item-body`).
 
 Expected elements:
+
 - `qti-outcome-declaration identifier="FEEDBACK"`
   - `cardinality="single"`, `base-type="identifier"`
 - `qti-response-processing`
@@ -89,6 +98,7 @@ Expected elements:
   - Contains a `qti-content-body` with the rendered explanation flow content
 
 ### Scoring rubric blocks
+
 - `## Scoring` maps to `qti-rubric-block view="scorer"` with one `qti-p` per criterion.
 
 Scoring rubric line format:
@@ -103,20 +113,24 @@ is the criterion text.
 ## Input 2: Response data (assessmentResult)
 
 ### Namespaces
+
 - Default namespace: `http://www.imsglobal.org/xsd/imsqti_result_v3p0`
 - XML Schema instance namespace: `http://www.w3.org/2001/XMLSchema-instance`
 - Recommended `xsi:schemaLocation`:
   `http://www.imsglobal.org/xsd/imsqti_result_v3p0 http://www.imsglobal.org/xsd/imsqti_result_v3p0.xsd`
 
 ### Root element
+
 The root element is `assessmentResult` in the QTI Results Reporting namespace.
 
 Required attributes:
+
 - `xmlns`
 - `xmlns:xsi`
 - `xsi:schemaLocation` (recommended)
 
 ### context
+
 `context` provides identifiers for the session and learner.
 
 - `@sourcedId` (required): unique candidate identifier (account).
@@ -128,20 +142,25 @@ Required attributes:
   - `sourceID=candidateName` is required (candidate display name).
 
 ### testResult
+
 Represents the assessment attempt.
 
 Required attributes:
+
 - `identifier`: test/material identifier.
 - `datestamp`: attempt end time in ISO 8601.
 
 Child elements:
+
 - `responseVariable` (0..n)
 - `outcomeVariable` (0..n)
 
 ### itemResult
+
 Emitted per question.
 
 Attributes:
+
 - `identifier`: the assessment test item identifier
   (matches `qti-assessment-item-ref@identifier`)
 - `sequenceIndex`: assessment test order index (optional)
@@ -149,10 +168,12 @@ Attributes:
 - `sessionStatus`: `final`
 
 Child elements:
+
 - `responseVariable` (1..n)
 - `outcomeVariable` (0..n)
 
 ### Standard variable usage
+
 - `completionStatus` (outcomeVariable)
   - `baseType="identifier"`
   - Values: `completed`, `incomplete`, `not_attempted`, `unknown`
@@ -166,31 +187,37 @@ Child elements:
 
 ### ResponseVariable mapping by question type
 
-1) Free-response (descriptive)
+1. Free-response (descriptive)
+
 - `baseType="string"`, `cardinality="single"`
 - `correctResponse` omitted.
 - `candidateResponse`: free-text response.
 
-2) Choice
+2. Choice
+
 - `baseType="identifier"`, `cardinality="single"`
 - `correctResponse`: `CHOICE_{index}`
 - `candidateResponse`: `CHOICE_{index}`
 
-3) Fill-in-the-blank
+3. Fill-in-the-blank
+
 - `baseType="string"`, `cardinality="ordered"`
 - `correctResponse`: ordered values.
 - `candidateResponse`: ordered values.
 
 ### Missing values
+
 - Do not apply fallbacks.
 - If an optional input field is empty, omit the corresponding attribute or variable.
 - If a required attribute cannot be emitted, the input is considered invalid.
 
 ### Timestamp handling
+
 - Output timestamps include a timezone offset.
 - Timezone handling is defined by the producer of the results report.
 
 ## Linking results to items
+
 `itemResult@identifier` is the assessment item identifier, so items are linked
 by identifier equality:
 
@@ -198,13 +225,17 @@ by identifier equality:
 - The identifier should also appear in `qti-assessment-item-ref@identifier`
 
 Ordering:
+
 - Report display order follows the `qti-assessment-item-ref` order in the
   assessment test.
 
 ## Test title source
+
 The report title is sourced from the assessment test:
+
 - `qti-assessment-test@title` (required for reporting).
 
 ## TODO (needs confirmation)
+
 - Confirm whether multiple `testResult` blocks are expected in one run.
 - Confirm whether multiple `responseVariable` entries per item are supported.

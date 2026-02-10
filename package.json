@@ -8,7 +8,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "format": "prettier --write .",
+    "lint": "eslint . && tsc -p tsconfig.json --noEmit",
+    "verify": "npm run format && npm run lint && npm test && npm run build",
     "prepare": "npm run build",
     "test": "npm run build && node --test \"dist/test/**/*.test.js\"",
     "start": "npm run build && node dist/cli.js"
@@ -17,8 +19,15 @@
     "type": "git",
     "url": "git+https://github.com/metyatech/qti-reporter.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "qti",
+    "qti3",
+    "assessment",
+    "report",
+    "html",
+    "csv"
+  ],
+  "author": "metyatech",
   "license": "ISC",
   "type": "module",
   "bugs": {
@@ -26,9 +35,16 @@
   },
   "homepage": "https://github.com/metyatech/qti-reporter#readme",
   "devDependencies": {
-    "@types/node": "^25.0.10",
+    "@eslint/js": "^10.0.1",
     "@types/jsdom": "^27.0.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^25.0.10",
+    "@typescript-eslint/eslint-plugin": "^8.55.0",
+    "@typescript-eslint/parser": "^8.55.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.55.0"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",

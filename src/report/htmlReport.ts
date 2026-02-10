@@ -1,13 +1,21 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { JSDOM } from "jsdom";
-import { applyResponsesToPromptHtml } from "qti-html-renderer";
-import { parseAssessmentItem, ParsedAssessmentItem, RubricCriterion } from "../qti/assessmentItem.js";
-import { resolveItemAssets } from "../qti/assetResolver.js";
-import { parseAssessmentResult, ParsedAssessmentResult, ParsedItemResult } from "../qti/assessmentResult.js";
-import { parseAssessmentTest } from "../qti/assessmentTest.js";
-import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from "./styles.js";
+import { JSDOM } from 'jsdom';
+import { applyResponsesToPromptHtml } from 'qti-html-renderer';
+import {
+  parseAssessmentItem,
+  ParsedAssessmentItem,
+  RubricCriterion,
+} from '../qti/assessmentItem.js';
+import { resolveItemAssets } from '../qti/assetResolver.js';
+import {
+  parseAssessmentResult,
+  ParsedAssessmentResult,
+  ParsedItemResult,
+} from '../qti/assessmentResult.js';
+import { parseAssessmentTest } from '../qti/assessmentTest.js';
+import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
 
 export interface HtmlReportInputPaths {
   assessmentTestPath: string;
@@ -16,7 +24,7 @@ export interface HtmlReportInputPaths {
   styleCssPath?: string;
 }
 
-export type StyleMode = "default" | "external";
+export type StyleMode = 'default' | 'external';
 
 export interface GeneratedHtmlReport {
   candidateNumber: string;
@@ -53,16 +61,16 @@ interface ResolvedStyle {
   externalStylePath: string | null;
 }
 
-const domParserFactory = new JSDOM("");
+const domParserFactory = new JSDOM('');
 const DOM_PARSER = new domParserFactory.window.DOMParser();
 
 function escapeHtml(value: string): string {
   return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
@@ -75,7 +83,7 @@ function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
 
 function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[]): string {
   if (responses.length === 0) {
-    return "<p class=\"response-empty\">（無回答）</p>";
+    return '<p class="response-empty">（無回答）</p>';
   }
   const choiceTextMap = buildChoiceTextMap(item);
   const renderedResponses = responses.map((response) => {
@@ -85,12 +93,12 @@ function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[
     }
     return escapeHtml(response);
   });
-  const joined = renderedResponses.join("\n");
+  const joined = renderedResponses.join('\n');
   return `<pre class="response-text response-pre">${joined}</pre>`;
 }
 
 function formatClozeResponses(item: ParsedAssessmentItem, responses: string[]): string {
-  if (!item.questionHtml.includes("qti-blank-input")) {
+  if (!item.questionHtml.includes('qti-blank-input')) {
     return formatCandidateResponses(item, responses);
   }
   const filled = applyResponsesToPromptHtml(item.questionHtml, responses, {
@@ -125,11 +133,16 @@ function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResu
   throw new Error(`Missing item score for ${item.identifier}`);
 }
 
-function buildRubricRows(item: ParsedAssessmentItem, itemResult: ParsedItemResult): RubricRowModel[] {
+function buildRubricRows(
+  item: ParsedAssessmentItem,
+  itemResult: ParsedItemResult,
+): RubricRowModel[] {
   return item.rubricCriteria.map((criterion) => {
     const status = itemResult.rubricOutcomes.get(criterion.index);
     if (status === undefined) {
-      throw new Error(`Missing rubric outcome RUBRIC_${criterion.index}_MET for item ${item.identifier}`);
+      throw new Error(
+        `Missing rubric outcome RUBRIC_${criterion.index}_MET for item ${item.identifier}`,
+      );
     }
     return { criterion, status };
   });
@@ -137,11 +150,11 @@ function buildRubricRows(item: ParsedAssessmentItem, itemResult: ParsedItemResul
 
 function renderRubricTable(rubricRows: RubricRowModel[]): string {
   if (rubricRows.length === 0) {
-    return "";
+    return '';
   }
   const rowsHtml = rubricRows
     .map((row) => {
-      const statusText = row.status ? "true" : "false";
+      const statusText = row.status ? 'true' : 'false';
       return `
         <tr data-criterion-index="${row.criterion.index}" data-criterion-status="${statusText}">
           <td class="criterion-text">${escapeHtml(row.criterion.text)}</td>
@@ -149,7 +162,7 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
           <td class="criterion-status">${statusText}</td>
         </tr>`;
     })
-    .join("");
+    .join('');
   return `
     <section class="rubric-section">
       <h3 class="section-title">観点別の達成状況</h3>
@@ -177,7 +190,7 @@ function renderItemBlock(model: ItemReportModel): string {
             ${model.commentHtml}
           </div>
         </section>`
-    : "";
+    : '';
   return `
     <details class="item-block" data-item-identifier="${escapeHtml(model.item.identifier)}">
       <summary class="item-summary">
@@ -213,7 +226,7 @@ function renderHtmlDocument(
   totalMaxScore: number,
   styleElement: string,
 ): string {
-  const itemsHtml = items.map((item) => renderItemBlock(item)).join("\n");
+  const itemsHtml = items.map((item) => renderItemBlock(item)).join('\n');
   return `<!DOCTYPE html>
 <html lang="ja">
   <head>
@@ -253,7 +266,10 @@ function renderHtmlDocument(
 </html>`;
 }
 
-function buildItemReportModel(item: ParsedAssessmentItem, itemResult: ParsedItemResult): ItemReportModel {
+function buildItemReportModel(
+  item: ParsedAssessmentItem,
+  itemResult: ParsedItemResult,
+): ItemReportModel {
   const itemMaxScore = item.itemMaxScore;
   const itemScore = computeItemScore(item, itemResult);
   const rubricRows = buildRubricRows(item, itemResult);
@@ -270,14 +286,17 @@ function buildItemReportModel(item: ParsedAssessmentItem, itemResult: ParsedItem
   };
 }
 
-function computeTotalScore(assessmentResult: ParsedAssessmentResult, items: ItemReportModel[]): number {
+function computeTotalScore(
+  assessmentResult: ParsedAssessmentResult,
+  items: ItemReportModel[],
+): number {
   return items.reduce((sum, item) => sum + item.itemScore, 0);
 }
 
 function resolveStyle(styleCssPath: string | undefined, outputDirPath: string): ResolvedStyle {
   if (!styleCssPath) {
     return {
-      styleMode: "default",
+      styleMode: 'default',
       styleElement: DEFAULT_STYLE_ELEMENT,
       externalStylePath: null,
     };
@@ -286,18 +305,18 @@ function resolveStyle(styleCssPath: string | undefined, outputDirPath: string): 
   if (!fs.existsSync(styleCssPath)) {
     throw new Error(`Style CSS file not found: ${styleCssPath}`);
   }
-  const cssContent = fs.readFileSync(styleCssPath, "utf8");
+  const cssContent = fs.readFileSync(styleCssPath, 'utf8');
   if (cssContent.trim().length === 0) {
-    throw new Error("Style CSS file is empty");
+    throw new Error('Style CSS file is empty');
   }
 
   const externalStylePath = path.join(outputDirPath, EXTERNAL_STYLE_FILE_NAME);
-  fs.writeFileSync(externalStylePath, cssContent, "utf8");
+  fs.writeFileSync(externalStylePath, cssContent, 'utf8');
 
   const styleElement = `<link rel="stylesheet" href="./${EXTERNAL_STYLE_FILE_NAME}" data-qti-reporter-style="external" />`;
 
   return {
-    styleMode: "external",
+    styleMode: 'external',
     styleElement,
     externalStylePath,
   };
@@ -307,7 +326,9 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   const assessmentTest = parseAssessmentTest(paths.assessmentTestPath);
   const assessmentResult = parseAssessmentResult(paths.assessmentResultPath);
 
-  const assessmentItemIdentifiers = new Set(assessmentTest.itemRefs.map((itemRef) => itemRef.identifier));
+  const assessmentItemIdentifiers = new Set(
+    assessmentTest.itemRefs.map((itemRef) => itemRef.identifier),
+  );
   const unusedItemResultIdentifiers = Array.from(assessmentResult.itemResults.keys())
     .filter((identifier) => !assessmentItemIdentifiers.has(identifier))
     .sort();
@@ -331,9 +352,13 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       parsedItem.identifier,
       outputDirPath,
     );
-    const filledQuestionHtml = applyResponsesToPromptHtml(resolvedAssets.html, itemResult.responses, {
-      domParser: DOM_PARSER,
-    });
+    const filledQuestionHtml = applyResponsesToPromptHtml(
+      resolvedAssets.html,
+      itemResult.responses,
+      {
+        domParser: DOM_PARSER,
+      },
+    );
     const item: ParsedAssessmentItem = {
       ...parsedItem,
       questionHtml: filledQuestionHtml,
@@ -344,7 +369,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   const totalScore = computeTotalScore(assessmentResult, items);
   const totalMaxScore = items.reduce((sum, item) => sum + item.itemMaxScore, 0);
   if (totalMaxScore <= 0) {
-    throw new Error("Invalid maximum score: total maximum score must be greater than zero");
+    throw new Error('Invalid maximum score: total maximum score must be greater than zero');
   }
 
   const resolvedStyle = resolveStyle(paths.styleCssPath, outputDirPath);
@@ -357,7 +382,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
     resolvedStyle.styleElement,
   );
 
-  fs.writeFileSync(outputFilePath, html, "utf8");
+  fs.writeFileSync(outputFilePath, html, 'utf8');
 
   return {
     candidateNumber: assessmentResult.candidateNumber,

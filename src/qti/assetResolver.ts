@@ -1,28 +1,28 @@
-import fs from "node:fs";
-import path from "node:path";
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { decodeXmlEntities, parseAttributes } from "./xml.js";
+import { decodeXmlEntities, parseAttributes } from './xml.js';
 
 export interface ResolvedAssetsResult {
   html: string;
   copiedAssetPaths: string[];
 }
 
-const ASSETS_DIR_NAME = "assets";
+const ASSETS_DIR_NAME = 'assets';
 
 function isExternalSource(src: string): boolean {
   const normalized = src.trim().toLowerCase();
   return (
-    normalized.startsWith("http://") ||
-    normalized.startsWith("https://") ||
-    normalized.startsWith("data:") ||
-    normalized.startsWith("//") ||
-    normalized.startsWith("/")
+    normalized.startsWith('http://') ||
+    normalized.startsWith('https://') ||
+    normalized.startsWith('data:') ||
+    normalized.startsWith('//') ||
+    normalized.startsWith('/')
   );
 }
 
 function sanitizePathSegment(segment: string): string {
-  return segment.replace(/[^A-Za-z0-9._-]/g, "_");
+  return segment.replace(/[^A-Za-z0-9._-]/g, '_');
 }
 
 function resolveLocalAssetPath(itemPath: string, src: string): string {
@@ -76,8 +76,8 @@ function rewriteImgTag(
     const quote = quoteMatch ? quoteMatch[1] : '"';
     const current = classAttr.slice(classAttr.indexOf(quote) + 1, classAttr.lastIndexOf(quote));
     const classes = new Set(current.split(/\s+/).filter((token) => token.length > 0));
-    classes.add("report-image");
-    const merged = Array.from(classes).join(" ");
+    classes.add('report-image');
+    const merged = Array.from(classes).join(' ');
     return ` class=${quote}${merged}${quote}`;
   });
   return rewritten;
