@@ -14,6 +14,7 @@
     "lint": "tsc -p tsconfig.json --noEmit && eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "verify": "npm run format && npm run lint && npm test && npm run build",
     "prepare": "npm run build",
     "test": "npm run build && node --test dist/test/suite.test.js",
     "start": "npm run build && node dist/cli.js"
