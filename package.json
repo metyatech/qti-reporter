@@ -49,5 +49,8 @@
     "highlight.js": "^11.11.1",
     "jsdom": "^27.4.0",
     "qti-html-renderer": "^0.1.0"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1"
   }
 }
