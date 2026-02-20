@@ -66,6 +66,12 @@ npm start -- --assessment-test src/test/fixtures/assessment-test.qti.xml --asses
 
 ## Development Commands
 
+- Verify (Lint + Test):
+
+```bash
+npm run verify
+```
+
 - Build:
 
 ```bash
