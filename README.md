@@ -64,6 +64,15 @@ Example with external CSS:
 npm start -- --assessment-test src/test/fixtures/assessment-test.qti.xml --assessment-result src/test/fixtures/assessment-result.xml --out-dir tmp/manual-run --style-css src/test/fixtures/custom-style.css
 ```
 
+## Scoring Behavior
+
+The total score in the reports is determined as follows:
+
+1. If the input `assessmentResult` XML contains a `testResult` block with a `SCORE` variable, that value is used as the total score.
+2. If the `testResult` score is not available, the total score is computed as the sum of all individual item scores.
+
+Note: When the `testResult` score is explicitly provided in the XML, it takes precedence even if it differs from the sum of item scores.
+
 ## Development Commands
 
 - Build:
@@ -103,3 +112,11 @@ This project does not use environment variables.
 ## Deployment
 
 A CI pipeline is defined using GitHub Actions (`.github/workflows/ci.yml`) which runs lint, tests, and build on push to `main` and on pull requests.
+
+## Documentation
+
+- [LICENSE](./LICENSE)
+- [CHANGELOG](./CHANGELOG.md)
+- [SECURITY](./SECURITY.md)
+- [CONTRIBUTING](./CONTRIBUTING.md)
+- [CODE_OF_CONDUCT](./CODE_OF_CONDUCT.md)
