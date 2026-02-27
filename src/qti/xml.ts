@@ -5,14 +5,26 @@ export interface XmlAttributes {
 }
 
 export function parseAttributes(tagOpen: string): XmlAttributes {
-  const attributes: XmlAttributes = {};
-  const attributePattern = /([A-Za-z_:][A-Za-z0-9_.:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-  let match: RegExpExecArray | null = attributePattern.exec(tagOpen);
-  while (match) {
-    const value = match[2] ?? match[3] ?? '';
-    attributes[match[1]] = value;
-    match = attributePattern.exec(tagOpen);
+  // Ensure the tag is well-formed for XML parsing by closing it if necessary
+  let wellFormed = tagOpen;
+  if (!tagOpen.endsWith('/>') && !tagOpen.endsWith('/ >')) {
+    const tagNameMatch = tagOpen.match(/^<([A-Za-z0-9_.:-]+)/);
+    if (tagNameMatch) {
+      wellFormed = `${tagOpen}</${tagNameMatch[1]}>`;
+    }
   }
+
+  const dom = new JSDOM(wellFormed, { contentType: 'text/xml' });
+  const el = dom.window.document.documentElement;
+  const attributes: XmlAttributes = {};
+
+  if (el) {
+    for (let i = 0; i < el.attributes.length; i++) {
+      const attr = el.attributes[i];
+      attributes[attr.name] = attr.value;
+    }
+  }
+
   return attributes;
 }
 

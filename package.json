@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "verify": "npm run format && npm run lint && npm test && npm run build",
-    "prepare": "npm run build",
+    "prepare": "husky",
     "test": "npm run build && node --test dist/test/suite.test.js",
     "start": "npm run build && node dist/cli.js"
   },
@@ -41,6 +41,8 @@
     "@typescript-eslint/parser": "^8.54.0",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"
@@ -49,5 +51,18 @@
     "highlight.js": "^11.11.1",
     "jsdom": "^27.4.0",
     "qti-html-renderer": "^0.1.0"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1",
+    "ajv": "^6.14.0"
+  },
+  "lint-staged": {
+    "**/*.ts": [
+      "prettier --check",
+      "eslint"
+    ],
+    "*.{json,md}": [
+      "prettier --check"
+    ]
   }
 }
