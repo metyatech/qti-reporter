@@ -18,7 +18,7 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/agent-rules-composition.m
 
 - AGENTS.md is self-contained; place at project root. Shared rules centrally; project-local only for truly local policies.
 - Before work in a repo with `agent-ruleset.json`, run `compose-agentsmd` to refresh AGENTS.md.
-- Pre-commit hooks run `compose-agentsmd --compose` and auto-stage. Do not fail commits on drift or add freshness checks to CI.
+- Pre-commit hooks must run the repo's full verification suite, then `compose-agentsmd --compose`, then `git add AGENTS.md`. Do not fail commits on drift or add freshness checks to CI.
 
 ## Update and editing
 
@@ -26,6 +26,8 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/agent-rules-composition.m
 - Persistent user instructions → encode in appropriate module (global vs local) in the same change set.
 - New repos must meet all global rules (AGENTS.md, CI, linting, community health, docs, scanning) before reporting complete.
 - Update rulesets for missing domain rules before proceeding. Omit AGENTS.md diffs unless asked.
+- Treat AGENTS.md diffs produced by compose-agentsmd as intentional updates: do not discard/revert them unless the requester explicitly asks to drop them.
+- When the repository is git-managed, stage those intentional AGENTS.md updates normally (git add) unless the requester explicitly says to exclude them.
 - Infer core intent; prefer global over project-local. Keep rules MECE, concise, non-redundant, action-oriented ("do X", "never Z"). No hedging or numeric filename prefixes.
 - Placement: based on where needed. Any-workspace → global; domain only for opt-in repos.
 
@@ -41,17 +43,24 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/autonomous-operations.md
 - Optimize for minimal human effort; default to automation over manual steps.
 - Drive work from the desired outcome: choose the highest-quality safe path and execute end-to-end.
 - Correctness, safety, robustness, verifiability > speed unless requester explicitly approves the tradeoff.
+- Default to long-term maintainability and operational cost over short-term local optimization.
 - End-to-end repo autonomy (issues, PRs, pushes, merges, releases, admin) within user-controlled repos; third-party repos require explicit request.
 - No backward compatibility unless requested; no legacy aliases or shims.
+- Do not introduce temporary compatibility/fallback behavior unless explicitly requested; if unavoidable, require an explicit removal condition and deadline.
 - Proactively fix rule gaps, redundancy, or misplacement; regenerate AGENTS.md without waiting.
 - Self-evaluate continuously; fix rule/skill gaps immediately on discovery. In delegated mode, include improvement suggestions in the task result.
 - On user-reported failures: treat as systemic — fix, update rules, check for same pattern elsewhere, in one action.
 - Persistent workflow promises → propose rule update immediately (blocking gate). In delegated mode, follow that module's restricted-operations guidance.
-- Session memory resets; use rule files as persistent memory. Always reference current AGENTS.md, never from memory.
+- Session memory resets; use rule files as persistent memory. Always reference current AGENTS.md, never from memory. Never write to platform-specific local memory files (e.g., Claude Code auto-memory); all persistent behavioral knowledge MUST live in agent rules to ensure consistency across all environments, operating systems, and agent platforms.
 - Rules are source of truth; update conflicting repos to comply or encode the exception.
 - When the `manager` skill is invoked, maintain that role for the session unless user explicitly stops it.
 - Investigate unclear items before proceeding; no assumptions without approval. Make scope/risk/cost/irreversibility decisions explicit.
 - Prefer async control channels (GitHub Issues/PR comments). Design high-volume workflows with queuing and throttling.
+
+## PR review response protocol
+
+- After addressing PR review feedback, resolve the corresponding conversation thread.
+- After all feedback is addressed, re-request review from the agent or person who raised it.
 
 ## GitHub notifications
 
@@ -81,6 +90,11 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/command-execution.md
 - Keep changes scoped to affected repositories; when shared modules change, update consumers and verify at least one.
 - If no branch is specified, work on the current branch; direct commits to main/master are allowed.
 - Do not assume agent platform capabilities beyond what is available; fail explicitly when unavailable.
+
+## Codex-only: Commands blocked by policy (PowerShell)
+
+- Blocked by policy under Codex: `Remove-Item` (aliases: `rm`, `ri`, `del`, `erase`) -> Use: `if ([IO.File]::Exists($p)) { [IO.File]::SetAttributes($p,[IO.FileAttributes]::Normal); [IO.File]::Delete($p) }`
+- Blocked by policy under Codex: `Remove-Item -Recurse` (aliases: `rmdir`, `rd`) -> Use: `if ([IO.Directory]::Exists($d)) { [IO.File]::SetAttributes($d,[IO.FileAttributes]::Normal); foreach ($e in [IO.Directory]::EnumerateFileSystemEntries($d,'*',[IO.SearchOption]::AllDirectories)) { [IO.File]::SetAttributes($e,[IO.FileAttributes]::Normal) }; [IO.Directory]::Delete($d,$true) }`
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/delivery-hard-gates.md
 
@@ -139,6 +153,7 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/implementation-and-coding
 - Do not assume machine-specific environments; use repo-relative paths and explicit configuration.
 - Agent temp files MUST stay under OS temp unless requester approves.
 - For agent-facing tools/services, design for cross-agent compatibility via standard interfaces (CLI, HTTP, stdin/stdout, MCP).
+- Lifecycle install hooks (`prepare`/`preinstall`/`postinstall`) must succeed on a clean machine with no global tool assumptions; invoke required CLIs through project-local dependencies or package-manager executors (for npm, prefer `npm exec`).
 - After manifest changes, regenerate and commit corresponding lock files in the same commit.
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/linting-formatting-and-static-analysis.md
@@ -162,6 +177,8 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/model-inventory.md
 - Before spawning sub-agents, run `ai-quota` to check availability.
 - Always explicitly specify `model` and `effort` from the model inventory when spawning agents; never rely on defaults.
 - The full model inventory with agent tables, routing principles, and quota fallback logic is maintained in the `manager` skill.
+- **Orchestrator model**: When spawning an orchestrator (manager/autonomous-orchestrator role), default to `claude-sonnet-4-6` with `medium` effort; use `claude-opus-4-6` with `medium` effort when strict rule compliance is required. Research shows higher effort degrades instruction-following on multi-constraint rule sets (arXiv:2505.11423). Use `high`/`max` effort only for complex reasoning tasks, not for rule compliance.
+- **Gemini sub-agent reliability**: Do NOT use Gemini (`gemini` agent type) for sub-agent delegation. Even single Gemini agents hit 429 "No capacity available" server errors frequently, making them unreliable for unattended tasks. Use Claude or Copilot instead. Gemini CLI may be used interactively by the user but not as a spawned sub-agent.
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/multi-agent-delegation.md
 
@@ -185,6 +202,16 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/multi-agent-delegation.md
 
 - Do not run concurrent agents that modify the same repository/files; different repositories may run in parallel.
 - When conflict risk is unclear, run sequentially.
+
+## Execution patience and switching discipline
+
+- Do not rapidly switch or respawn sub-agents for the same task while one is actively running without errors.
+- Status checks should prioritize non-blocking monitoring and user responsiveness, but must not be used as justification for premature agent replacement.
+
+## agents-mcp dispatch
+
+- Always set `mode: 'edit'` when spawning implementation agents; default `mode: 'plan'` is read-only and wastes the agent call.
+- `agents-mcp wait` and `Status(wait=true)` both poll until agents complete or timeout; either may be used for completion checks.
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/planning-and-approval-gate.md
 
@@ -323,6 +350,8 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/task-lifecycle-tracking.m
 - At the start of any session that may involve state-changing work, run `task-tracker check` and report findings before starting new work.
 - When reporting a task as complete, state the lifecycle stage explicitly (committed/pushed/released/etc.); never claim "done" when downstream stages remain incomplete.
 - If `task-tracker` is not installed, install it via `npm install -g @metyatech/task-tracker` before proceeding.
+- CLI: `task-tracker add "desc"` / `check` / `list` / `done <id>` / `remove <id>` / `update <id> --stage <stage>` — use `--stage`, NOT `--status`.
+- Valid stages: `pending`, `in-progress`, `committed`, `pushed`, `released`, `done`.
 - The task-tracker state file (`.tasks.jsonl`) must be committed to version control; do not add it to `.gitignore`.
 
 Source: github:metyatech/agent-rules@HEAD/rules/global/thread-inbox.md
@@ -334,6 +363,7 @@ Source: github:metyatech/agent-rules@HEAD/rules/global/thread-inbox.md
 - Store `.threads.jsonl` in the workspace root directory (use `--dir <workspace-root>`). Do not commit it to version control.
 - At session start, run `thread-inbox inbox` and `thread-inbox list --status waiting` to find threads needing attention; report findings before starting new work.
 - Do not create threads for tasks already tracked by `task-tracker`; threads are for context and decisions, not work items.
+- CLI: `thread-inbox new "title" --dir <dir>` (must create before adding messages) / `add <id> --from user|ai "msg" --dir <dir>` / `inbox --dir <dir>` / `list --status <status> --dir <dir>`.
 - If a thread captures a persistent behavioral preference, encode it as a rule and resolve the thread.
 - Detailed usage procedures (status model, when to create/add messages, lifecycle) are in the `manager` skill.
 
