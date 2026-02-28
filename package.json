@@ -1,8 +1,17 @@
 {
-  "name": "qti-reporter",
+  "name": "@metyatech/qti-reporter",
   "version": "1.0.0",
   "description": "qti-reporter generates human-readable HTML reports per respondent and an aggregated CSV report from QTI 3.0 assessment items and results.",
   "main": "dist/cli.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "qti-reporter": "dist/cli.js"
   },
@@ -14,7 +23,7 @@
     "lint": "tsc -p tsconfig.json --noEmit && eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run format && npm run lint && npm test && npm run build",
+    "verify": "npm run format:check && npm run lint && npm test && npm run build",
     "prepare": "husky",
     "test": "npm run build && node --test dist/test/suite.test.js",
     "start": "npm run build && node dist/cli.js"
