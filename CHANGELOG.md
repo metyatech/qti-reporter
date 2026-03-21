@@ -12,10 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ESLint and Prettier configuration.
 - Project metadata files (LICENSE, CHANGELOG, etc.).
 - CI workflow for GitHub Actions.
+- Dependabot configuration for npm and GitHub Actions.
 
 ### Changed
 
 - Total score computation now prefers `testScore` from the result XML over the sum of item scores. This is a breaking change for cases where the test-level score differs from the sum of item scores. To detect affected cases, compare `testScore` to the sum of item scores; if they differ, the total score output will no longer match the behavior of previous versions.
+
+### Documentation
+
+- Improved CLI documentation with per-argument examples in `README.md`.
+- Added "Supported Environments" section to `README.md`.
+- Updated `CONTRIBUTING.md` to include the full verification command.
 
 ## [1.0.0] - 2026-02-05
 

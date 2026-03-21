@@ -5,6 +5,10 @@
 qti-reporter generates human-readable HTML reports per respondent and an
 aggregated CSV report from QTI 3.0 assessment items and results.
 
+## Supported Environments
+
+- Node.js >= 20.0.0
+
 ## Specifications
 
 - Input QTI spec: `docs/input-qti-spec.md`
@@ -34,11 +38,20 @@ npm start -- --assessment-test <path-to-assessment-test.qti.xml> --assessment-re
 
 Arguments:
 
-- `--assessment-test`: Path to the `qti-assessment-test` XML file.
-- `--assessment-result`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run.
-- `--assessment-result-dir`: Directory containing `assessmentResult` XML files. Files are discovered non-recursively and processed in filename order.
-- `--out-dir`: Output root directory. If omitted, the directory of the assessment-result input is used (or the assessment-result directory when using `--assessment-result-dir`).
-- `--style-css`: Optional path to a CSS file. When omitted, the default style is embedded.
+- `--assessment-test <path>`: Path to the `qti-assessment-test` XML file. (Required)
+  - Example: `--assessment-test src/test/fixtures/assessment-test.qti.xml`
+- `--assessment-result <path>`: Path to the `assessmentResult` XML file. Repeat this option to process multiple results in one run. (Required if `--assessment-result-dir` is not provided)
+  - Example: `--assessment-result src/test/fixtures/assessment-result.xml`
+- `--assessment-result-dir <dir>`: Directory containing `assessmentResult` XML files. Files are discovered non-recursively and processed in filename order. (Required if `--assessment-result` is not provided)
+  - Example: `--assessment-result-dir src/test/fixtures`
+- `--out-dir <dir>`: Output root directory. If omitted, the directory of the assessment-result input is used (or the assessment-result directory when using `--assessment-result-dir`).
+  - Example: `--out-dir tmp/manual-run`
+- `--style-css <path>`: Optional path to a CSS file. When omitted, the default style is embedded.
+  - Example: `--style-css src/test/fixtures/custom-style.css`
+- `-V`, `--version`: Output the version number.
+  - Example: `qti-reporter --version`
+- `-h`, `--help`: Display help for command.
+  - Example: `qti-reporter --help`
 
 Styling behavior:
 
