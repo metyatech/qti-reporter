@@ -11,9 +11,11 @@ Thank you for your interest in contributing!
 5. Lint code: `npm run lint`
 6. Format code: `npm run format`
 7. Check formatting: `npm run format:check`
+8. Run the full verification suite: `npm run verify`
 
 ## Pull Request Process
 
+- Ensure the full verification suite passes (`npm run verify`).
 - Ensure all tests pass (`npm test`).
 - Ensure the code passes linting (`npm run lint`).
 - Ensure the code is properly formatted (`npm run format:check`).
