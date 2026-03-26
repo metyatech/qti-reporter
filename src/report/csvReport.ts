@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { parseAssessmentItem, ParsedAssessmentItem } from '../qti/assessmentItem.js';
+import {
+  parseAssessmentItem,
+  ParsedAssessmentItem,
+  RubricCriterion,
+} from '../qti/assessmentItem.js';
 import {
   parseAssessmentResult,
   ParsedAssessmentResult,
@@ -62,7 +66,7 @@ function escapeCsvField(value: string): string {
 
 function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
   const map = new Map<string, string>();
-  item.choices.forEach((choice) => {
+  item.choices.forEach((choice: ParsedAssessmentItem['choices'][number]) => {
     map.set(choice.identifier, choice.text);
   });
   return map;
@@ -95,7 +99,7 @@ function formatRubricOutcomes(item: ParsedAssessmentItem, itemResult: ParsedItem
     return '';
   }
   return item.rubricCriteria
-    .map((criterion) => {
+    .map((criterion: RubricCriterion) => {
       const outcome = itemResult.rubricOutcomes.get(criterion.index);
       if (outcome === undefined) {
         throw new Error(
@@ -111,12 +115,14 @@ function formatRubricPoints(item: ParsedAssessmentItem): string {
   if (item.rubricCriteria.length === 0) {
     return '';
   }
-  return item.rubricCriteria.map((criterion) => `${criterion.index}:${criterion.points}`).join(';');
+  return item.rubricCriteria
+    .map((criterion: RubricCriterion) => `${criterion.index}:${criterion.points}`)
+    .join(';');
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
   if (item.rubricCriteria.length > 0) {
-    return item.rubricCriteria.reduce((sum, criterion) => {
+    return item.rubricCriteria.reduce((sum: number, criterion: RubricCriterion) => {
       const met = itemResult.rubricOutcomes.get(criterion.index);
       if (met === undefined) {
         throw new Error(
@@ -139,7 +145,7 @@ function computeTotalScore(
   if (assessmentResult.testScore !== null) {
     return assessmentResult.testScore;
   }
-  return items.reduce((sum, item) => sum + item.itemScore, 0);
+  return items.reduce((sum: number, item: CsvItemModel) => sum + item.itemScore, 0);
 }
 
 function buildCsvRow(

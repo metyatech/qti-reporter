@@ -1,6 +1,6 @@
 export const DEFAULT_REPORT_CSS = `
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
   font-family: "Segoe UI", Arial, sans-serif;
   --page-bg: #f8fafc;
   --card-bg: #ffffff;
@@ -8,7 +8,33 @@ export const DEFAULT_REPORT_CSS = `
   --muted: #475569;
   --border: #e2e8f0;
   --accent: #2563eb;
+  --item-summary-bg: #f1f5f9;
+  --item-summary-hover: #e2e8f0;
+  --comment-bg: #eff6ff;
+  --comment-border: #bfdbfe;
+  --rubric-head-bg: #f8fafc;
+  --code-inline-bg: #e2e8f0;
+  --code-inline-border: #cbd5e1;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: #0f172a;
+    --card-bg: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --border: #334155;
+    --accent: #3b82f6;
+    --item-summary-bg: #334155;
+    --item-summary-hover: #475569;
+    --comment-bg: #1e3a8a;
+    --comment-border: #2563eb;
+    --rubric-head-bg: #334155;
+    --code-inline-bg: #334155;
+    --code-inline-border: #475569;
+  }
+}
+
 body {
   margin: 0;
   background: var(--page-bg);
@@ -103,7 +129,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #f1f5f9;
+  background: var(--item-summary-bg);
   font-weight: 700;
   border-bottom: 1px solid var(--border);
 }
@@ -112,7 +138,7 @@ body {
   display: none;
 }
 .item-block[open] .item-summary {
-  background: #e2e8f0;
+  background: var(--item-summary-hover);
 }
 .item-content {
   padding: 18px;
@@ -161,7 +187,7 @@ body {
   vertical-align: top;
 }
 .rubric-table thead {
-  background: #f8fafc;
+  background: var(--rubric-head-bg);
 }
 .criterion-status {
   font-weight: 700;
@@ -177,7 +203,7 @@ tr[data-criterion-status="false"] .criterion-status {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: var(--page-bg);
 }
 .candidate-response-block > summary {
   cursor: pointer;
@@ -195,8 +221,8 @@ tr[data-criterion-status="false"] .criterion-status {
 }
 .comment-content {
   margin-top: 8px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: var(--comment-bg);
+  border: 1px solid var(--comment-border);
   border-radius: 8px;
   padding: 12px;
 }
@@ -237,8 +263,8 @@ tr[data-criterion-status="false"] .criterion-status {
 }
 .code-inline {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  background: #e2e8f0;
-  border: 1px solid #cbd5e1;
+  background: var(--code-inline-bg);
+  border: 1px solid var(--code-inline-border);
   border-radius: 6px;
   padding: 0.1em 0.4em;
   font-size: 0.95em;
