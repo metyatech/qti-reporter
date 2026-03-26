@@ -5,6 +5,17 @@
 qti-reporter generates human-readable HTML reports per respondent and an
 aggregated CSV report from QTI 3.0 assessment items and results.
 
+## Features
+
+- **QTI 3.0 Support**: Fully compliant with QTI 3.0 assessment items and results reporting.
+- **Respondent HTML Reports**: Generates detailed, interactive HTML reports for each respondent.
+- **Aggregated CSV Export**: Aggregates all respondent results into a single, machine-readable CSV file.
+- **Multiple Results Processing**: Process multiple assessment results or entire directories in one run.
+- **Customizable Aesthetics**: Support for external CSS to customize HTML report styling.
+- **Dark Mode Support**: Built-in support for system dark mode in default HTML reports.
+- **Syntax Highlighting**: Automatic syntax highlighting for code blocks within assessment items.
+- **Cloze Support**: Intelligent rendering of fill-in-the-blank (cloze) responses.
+
 ## Specifications
 
 - Input QTI spec: `docs/input-qti-spec.md`
@@ -103,3 +114,9 @@ This project does not use environment variables.
 ## Deployment
 
 A CI pipeline is defined using GitHub Actions (`.github/workflows/ci.yml`) which runs lint, tests, and build on push to `main` and on pull requests.
+
+## Acknowledgements
+
+- Built with [qti-html-renderer](https://github.com/metyatech/qti-html-renderer) for item rendering.
+- Code syntax highlighting powered by [highlight.js](https://highlightjs.org/).
+- Powered by [jsdom](https://github.com/jsdom/jsdom) for XML and HTML processing.

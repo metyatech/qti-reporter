@@ -63,7 +63,7 @@ interface ResolvedStyle {
 
 function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
   const map = new Map<string, string>();
-  item.choices.forEach((choice) => {
+  item.choices.forEach((choice: ParsedAssessmentItem['choices'][number]) => {
     map.set(choice.identifier, choice.text);
   });
   return map;
@@ -103,7 +103,7 @@ function formatItemComment(comment: string | null): string | null {
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
   if (item.rubricCriteria.length > 0) {
-    return item.rubricCriteria.reduce((sum, criterion) => {
+    return item.rubricCriteria.reduce((sum: number, criterion: RubricCriterion) => {
       const met = itemResult.rubricOutcomes.get(criterion.index);
       if (met === undefined) {
         throw new Error(
@@ -123,7 +123,7 @@ function buildRubricRows(
   item: ParsedAssessmentItem,
   itemResult: ParsedItemResult
 ): RubricRowModel[] {
-  return item.rubricCriteria.map((criterion) => {
+  return item.rubricCriteria.map((criterion: RubricCriterion) => {
     const status = itemResult.rubricOutcomes.get(criterion.index);
     if (status === undefined) {
       throw new Error(

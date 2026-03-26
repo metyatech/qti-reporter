@@ -23,7 +23,16 @@
     "type": "git",
     "url": "git+https://github.com/metyatech/qti-reporter.git"
   },
-  "keywords": [],
+  "keywords": [
+    "qti",
+    "reporter",
+    "assessment",
+    "education",
+    "html",
+    "csv",
+    "cli",
+    "metyatech"
+  ],
   "author": "metyatech",
   "license": "ISC",
   "type": "module",
