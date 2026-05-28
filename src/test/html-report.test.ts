@@ -65,6 +65,23 @@ test('generates HTML report with required naming and ordering', () => {
   assert.ok(totalScoreIndex > nameIndex, 'total score must appear after candidate name');
 });
 
+test('generates HTML report for new QTI package fixture with test time limit', () => {
+  const outputRootDir = createCleanOutputDir('html-new-package');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test-new-package.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result-new-package.xml'),
+    outputRootDir,
+  });
+
+  assert.equal(report.testTitle, 'New Package Compatibility');
+  assert.ok(report.html.includes('data-item-identifier="new-choice"'));
+  assert.ok(report.html.includes('data-item-identifier="new-cloze"'));
+  assert.ok(report.html.includes('data-item-identifier="new-descriptive"'));
+  assert.ok(report.html.includes('制限時間'));
+  assert.ok(report.html.includes('45分'));
+});
+
 test('renders item blocks in assessment-test order with rubric mapping', () => {
   const outputRootDir = createCleanOutputDir('html-order');
 

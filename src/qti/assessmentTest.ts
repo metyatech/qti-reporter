@@ -9,11 +9,34 @@ export interface AssessmentItemRef {
   itemPath: string;
 }
 
+export interface AssessmentTimeLimit {
+  maxTime: string;
+}
+
 export interface ParsedAssessmentTest {
   assessmentTestPath: string;
   baseDir: string;
   title: string;
+  timeLimit: AssessmentTimeLimit | null;
   itemRefs: AssessmentItemRef[];
+}
+
+function parseTimeLimit(xml: string): AssessmentTimeLimit | null {
+  const timeLimitTagMatch = xml.match(
+    /<qti-time-limits\b[^>]*(?:\/>|>[\s\S]*?<\/qti-time-limits>)/
+  );
+  if (!timeLimitTagMatch) {
+    return null;
+  }
+  const openTag = timeLimitTagMatch[0].endsWith('/>')
+    ? timeLimitTagMatch[0]
+    : extractOpenTag(timeLimitTagMatch[0]);
+  const attributes = parseAttributes(openTag);
+  const maxTime = attributes['max-time'];
+  if (!maxTime) {
+    return null;
+  }
+  return { maxTime };
 }
 
 export function parseAssessmentTest(assessmentTestPath: string): ParsedAssessmentTest {
@@ -59,6 +82,7 @@ export function parseAssessmentTest(assessmentTestPath: string): ParsedAssessmen
     assessmentTestPath,
     baseDir,
     title,
+    timeLimit: parseTimeLimit(xml),
     itemRefs,
   };
 }

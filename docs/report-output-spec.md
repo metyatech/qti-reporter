@@ -17,6 +17,8 @@ The reporter can draw from the following inputs:
   `sourcedId`, `sessionIdentifier` values (class, trainee, material metadata).
 - Test-level variables from `assessmentResult/testResult`:
   `completionStatus`, `SCORE`, `duration`, `numAttempts`.
+- Test-level time limit from `qti-assessment-test` or `qti-test-part`
+  `qti-time-limits@max-time`, when present.
 - Item-level variables from `assessmentResult/itemResult`:
   `RESPONSE`, per-item `SCORE`, rubric outcome variables
   (`RUBRIC_{index}_MET`).
@@ -35,7 +37,8 @@ Output must be arranged in the following order:
 2. Candidate number
 3. Candidate name
 4. Total score / maximum score
-5. Items (one block per item)
+5. Test time limit, when present
+6. Items (one block per item)
 
 ### Field sourcing
 
@@ -44,6 +47,8 @@ Output must be arranged in the following order:
   `context/@sourcedId`. Use the extracted string as-is (preserve leading zeros).
   If no digit sequence is present, treat as an error.
 - Candidate name: `context/sessionIdentifier` with `sourceID=candidateName`.
+- Test time limit: `qti-time-limits@max-time`, rendered as a test-level display
+  value. Item `time-dependent` attributes are not displayed as time limits.
 
 ### Item matching and order
 

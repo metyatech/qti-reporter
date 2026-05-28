@@ -5,6 +5,11 @@
 qti-reporter generates human-readable HTML reports per respondent and an
 aggregated CSV report from QTI 3.0 assessment items and results.
 
+qti-reporter does not read Markdown source files. When Markdown authoring is
+used, `markdown-to-qti` must first generate a QTI package; qti-reporter then
+reads the package `assessment-test.qti.xml`, referenced QTI item XML files, and
+QTI assessmentResult XML files to produce the HTML reports and `report.csv`.
+
 ## Specifications
 
 - Input QTI spec: `docs/input-qti-spec.md`
