@@ -65,6 +65,30 @@ test('generates report.csv with UTF-8 BOM and deterministic rows', () => {
   assert.equal(text, expectedCsv);
 });
 
+test('generates report.csv for new QTI package fixture', () => {
+  const outputRootDir = createCleanOutputDir('csv-new-package');
+
+  const exitCode = runCli([
+    '--assessment-test',
+    resolveFixturePath('assessment-test-new-package.qti.xml'),
+    '--assessment-result',
+    resolveFixturePath('assessment-result-new-package.xml'),
+    '--out-dir',
+    outputRootDir,
+  ]);
+
+  assert.equal(exitCode, 0);
+
+  const csvPath = path.join(outputRootDir, 'report.csv');
+  const { text } = readCsvWithoutBom(csvPath);
+  const rows = text.split('\n');
+
+  assert.equal(rows.length, 4);
+  assert.ok(text.includes('0009,Sato Hanako,New Package Compatibility,3,3,1,new-choice'));
+  assert.ok(text.includes('0009,Sato Hanako,New Package Compatibility,3,3,2,new-cloze'));
+  assert.ok(text.includes('0009,Sato Hanako,New Package Compatibility,3,3,3,new-descriptive'));
+});
+
 test('appends rows without duplicating the header', () => {
   const outputRootDir = createCleanOutputDir('csv-append');
 

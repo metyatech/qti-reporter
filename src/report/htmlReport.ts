@@ -12,7 +12,7 @@ import {
   ParsedAssessmentResult,
   ParsedItemResult,
 } from '../qti/assessmentResult.js';
-import { parseAssessmentTest } from '../qti/assessmentTest.js';
+import { AssessmentTimeLimit, parseAssessmentTest } from '../qti/assessmentTest.js';
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
 import { applyResponsesToPromptHtmlSafely } from './cloze.js';
 import { escapeHtml } from './htmlEscape.js';
@@ -99,6 +99,40 @@ function formatItemComment(comment: string | null): string | null {
   }
   const escaped = escapeHtml(comment);
   return `<pre class="comment-text comment-pre">${escaped}</pre>`;
+}
+
+function formatIsoDuration(duration: string): string {
+  const match = duration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+  if (!match) {
+    return duration;
+  }
+
+  const [, days, hours, minutes, seconds] = match;
+  const parts: string[] = [];
+  if (days) {
+    parts.push(`${days}日`);
+  }
+  if (hours) {
+    parts.push(`${hours}時間`);
+  }
+  if (minutes) {
+    parts.push(`${minutes}分`);
+  }
+  if (seconds) {
+    parts.push(`${seconds}秒`);
+  }
+  return parts.length > 0 ? parts.join('') : duration;
+}
+
+function renderTimeLimitMetaRow(timeLimit: AssessmentTimeLimit | null): string {
+  if (!timeLimit) {
+    return '';
+  }
+  return `
+          <div class="meta-row">
+            <span class="meta-label">制限時間</span>
+            <span class="meta-value">${escapeHtml(formatIsoDuration(timeLimit.maxTime))}</span>
+          </div>`;
 }
 
 function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResult): number {
@@ -207,12 +241,14 @@ function renderItemBlock(model: ItemReportModel): string {
 function renderHtmlDocument(
   assessmentResult: ParsedAssessmentResult,
   testTitle: string,
+  timeLimit: AssessmentTimeLimit | null,
   items: ItemReportModel[],
   totalScore: number,
   totalMaxScore: number,
   styleElement: string
 ): string {
   const itemsHtml = items.map((item) => renderItemBlock(item)).join('\n');
+  const timeLimitMetaRow = renderTimeLimitMetaRow(timeLimit);
   return `<!DOCTYPE html>
 <html lang="ja">
   <head>
@@ -242,6 +278,7 @@ function renderHtmlDocument(
               <span class="score-max">${totalMaxScore}</span>
             </span>
           </div>
+          ${timeLimitMetaRow}
         </div>
       </header>
       <main class="items-section">
@@ -362,6 +399,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
   const html = renderHtmlDocument(
     assessmentResult,
     assessmentTest.title,
+    assessmentTest.timeLimit,
     items,
     totalScore,
     totalMaxScore,

@@ -8,6 +8,9 @@ There are two input categories:
 - Question data: QTI 3.0 assessment test (and referenced items).
 - Response data: QTI 3.0 results reporting (candidate responses).
 
+qti-reporter does not consume Markdown. Markdown plus manifest inputs must be
+converted to a QTI package before qti-reporter runs.
+
 ## Input 1: Question data (assessment test)
 
 ### Required structure
@@ -19,6 +22,7 @@ There are two input categories:
   - `identifier="part-1"` (fixed)
   - `navigation-mode="linear"` (fixed)
   - `submission-mode="individual"` (fixed)
+  - May contain `qti-time-limits max-time="<ISO 8601 duration>"`.
 - `qti-assessment-section`
   - `identifier="section-1"` (fixed)
   - `title="Section 1"` (fixed)
@@ -38,6 +42,14 @@ Resolution of referenced items:
   `qti-assessment-test` file location.
 - The referenced `qti-assessment-item` documents are required inputs, but are
   discovered via the assessment test rather than being passed directly.
+
+Time limits:
+
+- `qti-time-limits@max-time` is optional.
+- When present in the assessment test or test part, qti-reporter treats it as a
+  test-level display value for the student HTML report.
+- Item `time-dependent` attributes describe scoring-time behavior and are not
+  used as report time limits.
 
 ### Referenced assessment items
 
