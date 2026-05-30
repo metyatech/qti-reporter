@@ -101,27 +101,45 @@ function formatItemComment(comment: string | null): string | null {
   return `<pre class="comment-text comment-pre">${escaped}</pre>`;
 }
 
-function formatIsoDuration(duration: string): string {
-  const match = duration.match(/^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
-  if (!match) {
-    return duration;
+function formatSeconds(seconds: number): string {
+  const parts: string[] = [];
+  const wholeDays = Math.floor(seconds / 86400);
+  const wholeHours = Math.floor((seconds % 86400) / 3600);
+  const wholeMinutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (wholeDays > 0) {
+    parts.push(`${wholeDays}日`);
+  }
+  if (wholeHours > 0) {
+    parts.push(`${wholeHours}時間`);
+  }
+  if (wholeMinutes > 0) {
+    parts.push(`${wholeMinutes}分`);
+  }
+  if (remainingSeconds > 0) {
+    parts.push(`${Number(remainingSeconds.toFixed(3))}秒`);
+  }
+  return parts.length > 0 ? parts.join('') : '0秒';
+}
+
+function formatTimeLimit(maxTime: string): string {
+  const trimmedMaxTime = maxTime.trim();
+  if (/^\d+(?:\.\d+)?$/.test(trimmedMaxTime)) {
+    return formatSeconds(Number(trimmedMaxTime));
   }
 
-  const [, days, hours, minutes, seconds] = match;
-  const parts: string[] = [];
-  if (days) {
-    parts.push(`${days}日`);
+  const match = trimmedMaxTime.match(
+    /^P(?=.)(?:(\d+(?:\.\d+)?)D)?(?:T(?=.)(?:(\d+(?:\.\d+)?)H)?(?:(\d+(?:\.\d+)?)M)?(?:(\d+(?:\.\d+)?)S)?)?$/
+  );
+  if (!match) {
+    return maxTime;
   }
-  if (hours) {
-    parts.push(`${hours}時間`);
-  }
-  if (minutes) {
-    parts.push(`${minutes}分`);
-  }
-  if (seconds) {
-    parts.push(`${seconds}秒`);
-  }
-  return parts.length > 0 ? parts.join('') : duration;
+
+  const [, days = '0', hours = '0', minutes = '0', seconds = '0'] = match;
+  const totalSeconds =
+    Number(days) * 86400 + Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds);
+  return formatSeconds(totalSeconds);
 }
 
 function renderTimeLimitMetaRow(timeLimit: AssessmentTimeLimit | null): string {
@@ -131,7 +149,7 @@ function renderTimeLimitMetaRow(timeLimit: AssessmentTimeLimit | null): string {
   return `
           <div class="meta-row">
             <span class="meta-label">制限時間</span>
-            <span class="meta-value">${escapeHtml(formatIsoDuration(timeLimit.maxTime))}</span>
+            <span class="meta-value">${escapeHtml(formatTimeLimit(timeLimit.maxTime))}</span>
           </div>`;
 }
 
