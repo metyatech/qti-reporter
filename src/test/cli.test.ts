@@ -150,6 +150,36 @@ test('accepts assessment-result directory inputs', () => {
   assert.ok(text.includes('0008'), 'second candidate must be included');
 });
 
+test('generates reports from markdown-to-qti style package fixtures', () => {
+  const outputRootDir = createCleanOutputDir('cli-markdown-to-qti-package');
+  const logs: string[] = [];
+  const errors: string[] = [];
+
+  const exitCode = runCli(
+    [
+      '--assessment-test',
+      resolveFixturePath('markdown-to-qti-assessment-test.qti.xml'),
+      '--assessment-result',
+      resolveFixturePath('markdown-to-qti-assessment-result.xml'),
+      '--out-dir',
+      outputRootDir,
+    ],
+    {
+      log: (message) => logs.push(message),
+      error: (message) => errors.push(message),
+    }
+  );
+
+  assert.equal(exitCode, 0, errors.join('\n'));
+  assert.equal(errors.length, 0);
+  assert.ok(logs.some((line) => line.includes('Generated HTML')));
+  assert.equal(fs.existsSync(path.join(outputRootDir, 'report.csv')), true);
+  const csv = fs.readFileSync(path.join(outputRootDir, 'report.csv'), 'utf8');
+  assert.ok(csv.includes('Markdown QTI Smoke'));
+  assert.ok(csv.includes('q1'));
+  assert.ok(csv.includes('q2'));
+});
+
 test('defaults output directory to the assessment-result location', () => {
   const repoRoot = getRepoRootFromDist();
   const resultDir = path.join(repoRoot, 'tmp', 'cli-default-out');

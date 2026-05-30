@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
+  <context sourcedId="user-0001-smoke">
+    <sessionIdentifier sourceID="candidateName" identifier="Smoke Candidate" />
+    <sessionIdentifier sourceID="materialTitle" identifier="Markdown QTI Smoke" />
+  </context>
+  <testResult identifier="assessment-test" datestamp="2026-05-29T00:00:00+09:00">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>2</value>
+    </outcomeVariable>
+  </testResult>
+  <itemResult identifier="q1" datestamp="2026-05-29T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_1</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="q2" datestamp="2026-05-29T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>answer</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+</assessmentResult>
