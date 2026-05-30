@@ -34,6 +34,14 @@
   "engines": {
     "node": ">=20.0.0"
   },
+  "files": [
+    "dist/cli.js",
+    "dist/qti",
+    "dist/report",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
   "devDependencies": {
     "@types/jsdom": "^27.0.0",
     "@types/node": "^25.0.10",
