@@ -9,6 +9,9 @@ qti-reporter does not read Markdown source files. When Markdown authoring is
 used, `markdown-to-qti` must first generate a QTI package; qti-reporter then
 reads the package `assessment-test.qti.xml`, referenced QTI item XML files, and
 QTI assessmentResult XML files to produce the HTML reports and `report.csv`.
+When the QTI package includes `qti-time-limits@max-time`, qti-reporter only
+formats that QTI test-level time limit for display in the HTML report. It does
+not parse Markdown time-limit notation and does not use time limits for scoring.
 
 ## Specifications
 

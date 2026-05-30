@@ -32,7 +32,7 @@ function parseTimeLimit(xml: string): AssessmentTimeLimit | null {
     ? timeLimitTagMatch[0]
     : extractOpenTag(timeLimitTagMatch[0]);
   const attributes = parseAttributes(openTag);
-  const maxTime = attributes['max-time'];
+  const maxTime = attributes['max-time'] ?? attributes.maxTime;
   if (!maxTime) {
     return null;
   }

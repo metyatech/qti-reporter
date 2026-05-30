@@ -26,6 +26,55 @@ function createCleanOutputDir(dirName: string): string {
   return outputDir;
 }
 
+function writeAssessmentTestFixture(dirName: string, timeLimitAttributes: string | null): string {
+  const outputDir = createCleanOutputDir(dirName);
+  const timeLimitElement = timeLimitAttributes
+    ? `    <qti-time-limits ${timeLimitAttributes} />\n`
+    : '';
+  const assessmentTestPath = path.join(outputDir, 'assessment-test.qti.xml');
+  const itemRefs = [
+    ['item-2', 'item-2.qti.xml'],
+    ['item-1', 'item-1.qti.xml'],
+    ['item-3', 'item-3.qti.xml'],
+    ['item-4', 'item-4.qti.xml'],
+    ['item-5', 'item-5.qti.xml'],
+    ['item-6', 'item-6.qti.xml'],
+    ['item-7', 'item-7.qti.xml'],
+    ['item-8', 'item-8.qti.xml'],
+  ]
+    .map(([identifier, fileName]) => {
+      const itemPath = resolveFixturePath(fileName);
+      return `      <qti-assessment-item-ref identifier="${identifier}" href="${itemPath}" />`;
+    })
+    .join('\n');
+  fs.writeFileSync(
+    assessmentTestPath,
+    `<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test identifier="assessment-test" title="Assessment Test" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+${timeLimitElement}    <qti-assessment-section identifier="section-1" title="Section 1" visible="true">
+${itemRefs}
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>
+`
+  );
+  return assessmentTestPath;
+}
+
+function generateHtmlReportWithTimeLimit(
+  timeLimitAttributes: string | null,
+  dirName: string
+): string {
+  const outputRootDir = createCleanOutputDir(`${dirName}-out`);
+
+  return generateHtmlReportFromFiles({
+    assessmentTestPath: writeAssessmentTestFixture(`${dirName}-test`, timeLimitAttributes),
+    assessmentResultPath: resolveFixturePath('assessment-result.xml'),
+    outputRootDir,
+  }).html;
+}
+
 test('generates HTML report with required naming and ordering', () => {
   const outputRootDir = createCleanOutputDir('html-report');
 
@@ -80,6 +129,67 @@ test('generates HTML report for new QTI package fixture with test time limit', (
   assert.ok(report.html.includes('data-item-identifier="new-descriptive"'));
   assert.ok(report.html.includes('制限時間'));
   assert.ok(report.html.includes('45分'));
+});
+
+test('renders numeric seconds time limits in Japanese', () => {
+  const cases = [
+    ['120', '2分'],
+    ['1200', '20分'],
+    ['90', '1分30秒'],
+    ['45', '45秒'],
+    ['3600', '1時間'],
+  ];
+
+  for (const [maxTime, expected] of cases) {
+    const html = generateHtmlReportWithTimeLimit(
+      `max-time="${maxTime}"`,
+      `html-time-limit-${maxTime}`
+    );
+
+    assert.ok(html.includes('制限時間'));
+    assert.ok(html.includes(expected));
+    assert.ok(!html.includes(`>${maxTime}<`));
+  }
+});
+
+test('renders ISO seconds time limit in Japanese', () => {
+  const html = generateHtmlReportWithTimeLimit('max-time="PT120S"', 'html-time-limit-iso-seconds');
+
+  assert.ok(html.includes('制限時間'));
+  assert.ok(html.includes('2分'));
+  assert.ok(!html.includes('PT120S'));
+});
+
+test('renders ISO minutes time limit in Japanese', () => {
+  const html = generateHtmlReportWithTimeLimit('max-time="PT20M"', 'html-time-limit-iso-minutes');
+
+  assert.ok(html.includes('制限時間'));
+  assert.ok(html.includes('20分'));
+  assert.ok(!html.includes('PT20M'));
+});
+
+test('renders compound ISO time limits in Japanese', () => {
+  const cases = [
+    ['PT1H30M', '1時間30分'],
+    ['P1DT2H', '1日2時間'],
+  ];
+
+  for (const [maxTime, expected] of cases) {
+    const html = generateHtmlReportWithTimeLimit(
+      `max-time="${maxTime}"`,
+      `html-time-limit-${maxTime}`
+    );
+
+    assert.ok(html.includes('制限時間'));
+    assert.ok(html.includes(expected));
+    assert.ok(!html.includes(maxTime));
+  }
+});
+
+test('does not render time limit metadata when qti-time-limits is absent', () => {
+  const html = generateHtmlReportWithTimeLimit(null, 'html-time-limit-absent');
+
+  assert.ok(!html.includes('制限時間'));
 });
 
 test('renders item blocks in assessment-test order with rubric mapping', () => {
