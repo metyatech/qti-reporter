@@ -111,8 +111,10 @@ function parseCliOptions(argv: string[]): CliOptions {
   const resolvedStyleCssPath = styleCssPath ? resolveCliPath(styleCssPath) : undefined;
 
   assertFileExists(resolvedAssessmentTestPath, 'Assessment test');
+  assertNotMarkdownInput(resolvedAssessmentTestPath, 'Assessment test');
   resolvedAssessmentResultPaths.forEach((resultPath) => {
     assertFileExists(resultPath, 'Assessment result');
+    assertNotMarkdownInput(resultPath, 'Assessment result');
   });
   resolvedAssessmentResultDirs.forEach((dirPath) => {
     assertDirectoryExists(dirPath, 'Assessment result directory');
@@ -250,6 +252,17 @@ function assertFileExists(filePath: string, label: string): void {
     }
     throw error;
   }
+}
+
+function assertNotMarkdownInput(filePath: string, label: string): void {
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension !== '.md' && extension !== '.markdown') {
+    return;
+  }
+
+  throw new Error(
+    `${label} Markdown input is not supported: ${filePath}. Convert Markdown to a QTI package before running qti-reporter.`
+  );
 }
 
 function assertDirectoryExists(dirPath: string, label: string): void {

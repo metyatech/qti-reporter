@@ -22,7 +22,7 @@ converted to a QTI package before qti-reporter runs.
   - `identifier="part-1"` (fixed)
   - `navigation-mode="linear"` (fixed)
   - `submission-mode="individual"` (fixed)
-  - May contain `qti-time-limits max-time="<ISO 8601 duration>"`.
+  - May contain `qti-time-limits max-time="<ISO 8601 duration or numeric seconds>"`.
 - `qti-assessment-section`
   - `identifier="section-1"` (fixed)
   - `title="Section 1"` (fixed)
@@ -48,6 +48,8 @@ Time limits:
 - `qti-time-limits@max-time` is optional.
 - When present in the assessment test or test part, qti-reporter treats it as a
   test-level display value for the student HTML report.
+- Supported values are ISO 8601 durations such as `PT45M` and numeric seconds
+  such as `2700`.
 - Item `time-dependent` attributes describe scoring-time behavior and are not
   used as report time limits.
 

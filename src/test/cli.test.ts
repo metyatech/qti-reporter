@@ -180,6 +180,64 @@ test('generates reports from markdown-to-qti style package fixtures', () => {
   assert.ok(csv.includes('q2'));
 });
 
+test('rejects Markdown file paths for QTI inputs', () => {
+  const repoRoot = getRepoRootFromDist();
+  const packageDir = path.join(repoRoot, 'tmp', 'cli-markdown-input-package');
+  const outputRootDir = createCleanOutputDir('cli-markdown-input');
+  fs.rmSync(packageDir, { recursive: true, force: true });
+  fs.mkdirSync(packageDir, { recursive: true });
+
+  ['new-choice.qti.xml', 'new-cloze.qti.xml', 'new-descriptive.qti.xml'].forEach((fileName) => {
+    fs.copyFileSync(resolveFixturePath(fileName), path.join(packageDir, fileName));
+  });
+
+  const markdownAssessmentTestPath = path.join(packageDir, 'assessment-test.md');
+  fs.copyFileSync(
+    resolveFixturePath('assessment-test-new-package.qti.xml'),
+    markdownAssessmentTestPath
+  );
+
+  const assessmentErrors: string[] = [];
+  const assessmentExitCode = runCli(
+    [
+      '--assessment-test',
+      markdownAssessmentTestPath,
+      '--assessment-result',
+      resolveFixturePath('assessment-result-new-package.xml'),
+      '--out-dir',
+      outputRootDir,
+    ],
+    {
+      log: () => undefined,
+      error: (message: string) => assessmentErrors.push(message),
+    }
+  );
+
+  assert.equal(assessmentExitCode, 1);
+  assert.match(assessmentErrors.join('\n'), /Markdown/i);
+
+  const markdownResultPath = path.join(packageDir, 'assessment-result.md');
+  fs.copyFileSync(resolveFixturePath('assessment-result-new-package.xml'), markdownResultPath);
+  const resultErrors: string[] = [];
+  const resultExitCode = runCli(
+    [
+      '--assessment-test',
+      resolveFixturePath('assessment-test-new-package.qti.xml'),
+      '--assessment-result',
+      markdownResultPath,
+      '--out-dir',
+      outputRootDir,
+    ],
+    {
+      log: () => undefined,
+      error: (message: string) => resultErrors.push(message),
+    }
+  );
+
+  assert.equal(resultExitCode, 1);
+  assert.match(resultErrors.join('\n'), /Markdown/i);
+});
+
 test('defaults output directory to the assessment-result location', () => {
   const repoRoot = getRepoRootFromDist();
   const resultDir = path.join(repoRoot, 'tmp', 'cli-default-out');
