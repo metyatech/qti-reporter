@@ -9,7 +9,7 @@
     <qti-p>Choose the file that qti-reporter reads.</qti-p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Markdown source</qti-simple-choice>
-      <qti-simple-choice identifier="CHOICE_B">QTI package XML</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">QTI package <qti-code>XML</qti-code></qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
       <qti-p>[1] Selects the generated QTI package</qti-p>

@@ -130,17 +130,19 @@ body {
   margin: 12px 0;
 }
 .choice-interaction simple-choice {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px;
-  align-items: start;
+  display: block;
+  position: relative;
   padding: 8px 10px;
+  padding-left: 34px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #ffffff;
 }
 .choice-interaction simple-choice::before {
   content: "○";
+  position: absolute;
+  left: 10px;
+  top: 8px;
   color: #64748b;
   font-weight: 700;
 }
@@ -292,6 +294,8 @@ tr[data-criterion-status="false"] .criterion-status {
   background: #ffffff;
 }
 .code-inline {
+  display: inline;
+  vertical-align: baseline;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   background: #e2e8f0;
   border: 1px solid #cbd5e1;

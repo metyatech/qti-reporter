@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { JSDOM } from 'jsdom';
 
 import {
   parseAssessmentItem,
@@ -61,16 +62,21 @@ interface ResolvedStyle {
   externalStylePath: string | null;
 }
 
-function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
+function buildChoiceHtmlMap(item: ParsedAssessmentItem): Map<string, string> {
   const map = new Map<string, string>();
-  item.choices.forEach((choice) => {
-    map.set(choice.identifier, choice.text);
+  const dom = new JSDOM(item.questionHtml);
+  const choices = dom.window.document.querySelectorAll('simple-choice');
+  choices.forEach((choice) => {
+    const identifier = choice.getAttribute('identifier');
+    if (identifier) {
+      map.set(identifier, choice.innerHTML);
+    }
   });
   return map;
 }
 
 function formatChoiceResponses(item: ParsedAssessmentItem, responses: string[]): string {
-  const choiceTextMap = buildChoiceTextMap(item);
+  const choiceHtmlMap = buildChoiceHtmlMap(item);
   const selectedChoices = new Set(responses);
   const choiceRows = item.choices.map((choice) => {
     const isSelected = selectedChoices.has(choice.identifier);
@@ -79,10 +85,14 @@ function formatChoiceResponses(item: ParsedAssessmentItem, responses: string[]):
       : 'choice-response-option';
     const marker = isSelected ? '●' : '○';
     const selectedLabel = isSelected ? '<span class="choice-response-label">学生の回答</span>' : '';
-    return `<li class="${rowClass}"><span class="choice-response-marker" aria-hidden="true">${marker}</span><span class="choice-response-text">${escapeHtml(choice.text)}</span>${selectedLabel}</li>`;
+    const choiceHtml = choiceHtmlMap.get(choice.identifier) ?? escapeHtml(choice.text);
+    return `<li class="${rowClass}"><span class="choice-response-marker" aria-hidden="true">${marker}</span><span class="choice-response-text">${choiceHtml}</span>${selectedLabel}</li>`;
   });
   const unmatchedRows = responses
-    .filter((response) => !choiceTextMap.has(response))
+    .filter(
+      (response) =>
+        !choiceHtmlMap.has(response) && !item.choices.some((c) => c.identifier === response)
+    )
     .map(
       () =>
         '<li class="choice-response-option choice-response-selected choice-response-unmatched"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">選択肢本文を取得できません</span><span class="choice-response-label">学生の回答</span></li>'

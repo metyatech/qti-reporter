@@ -131,7 +131,7 @@ test('generates HTML report for new QTI package fixture with test time limit', (
   assert.ok(report.html.includes('45分'));
 });
 
-test('renders choice responses as option text without internal identifiers', () => {
+test('renders choice responses as option HTML without internal identifiers', () => {
   const outputRootDir = createCleanOutputDir('html-choice-response');
 
   const report = generateHtmlReportFromFiles({
@@ -154,12 +154,21 @@ test('renders choice responses as option text without internal identifiers', () 
     candidateResponseHtml,
     /class="[^"]*\bchoice-response-option\b[^"]*\bchoice-response-selected\b/
   );
-  assert.ok(candidateResponseHtml.includes('QTI package XML'));
+  assert.match(candidateResponseHtml, /QTI package\s*<code class="code-inline">XML<\/code>/);
   assert.ok(candidateResponseHtml.includes('学生の回答'));
   assert.ok(
     !candidateResponseHtml.includes('CHOICE_B'),
     'candidate response must not contain an internal ID'
   );
+});
+
+test('keeps inline code visually inline in the default report style', () => {
+  const html = generateHtmlReportWithTimeLimit(null, 'html-inline-code-style');
+
+  assert.ok(html.includes('.choice-interaction simple-choice'));
+  assert.match(html, /\.choice-interaction simple-choice\s*\{[\s\S]*display: block;/);
+  assert.match(html, /\.code-inline\s*\{[\s\S]*display: inline;/);
+  assert.match(html, /\.code-inline\s*\{[\s\S]*vertical-align: baseline;/);
 });
 
 test('renders numeric seconds time limits in Japanese', () => {
