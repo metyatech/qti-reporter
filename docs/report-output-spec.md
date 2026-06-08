@@ -139,6 +139,7 @@ must be treated as stable for external CSS.
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
 - Comment selectors: `.comment-section`, `.comment-content`, `.comment-text`, `.comment-pre`
 - Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-pre`, `.response-empty`
+- Choice response selectors: `.choice-response-list`, `.choice-response-option`, `.choice-response-selected`, `.choice-response-marker`, `.choice-response-text`, `.choice-response-label`, `.choice-response-unmatched`
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
 
 ### Styling data attributes
@@ -167,6 +168,13 @@ External CSS may also rely on the following data attributes:
 - Line breaks in responses are preserved as entered.
 - The default renderer uses a whitespace-preserving block:
   `<pre class="response-text response-pre">...</pre>`
+- For choice items, the candidate response section renders the available
+  options as a choice list instead of a raw response identifier. The selected
+  option uses `.choice-response-selected`, a `●` marker, and the text label
+  `学生の回答`. Unselected options use a `○` marker. Internal choice response
+  identifiers such as `CHOICE_1` must not be shown as candidate-response text.
+  If a response identifier cannot be matched to an option, the selected row must
+  show `選択肢本文を取得できません` instead of echoing the unmatched identifier.
 - For cloze items (blank inputs), the candidate response section renders the
   question HTML with input fields filled with the candidate responses.
   Inputs use `.cloze-input` and `.qti-blank-input` and their `size` attribute
