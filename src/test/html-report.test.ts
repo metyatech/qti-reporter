@@ -131,6 +131,37 @@ test('generates HTML report for new QTI package fixture with test time limit', (
   assert.ok(report.html.includes('45分'));
 });
 
+test('renders choice responses as option text without internal identifiers', () => {
+  const outputRootDir = createCleanOutputDir('html-choice-response');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test-new-package.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result-new-package.xml'),
+    outputRootDir,
+  });
+
+  const choiceItemStart = report.html.indexOf('data-item-identifier="new-choice"');
+  const nextItemStart = report.html.indexOf('data-item-identifier="new-cloze"');
+  assert.ok(choiceItemStart >= 0, 'choice item block must exist');
+  assert.ok(nextItemStart > choiceItemStart, 'following item block must exist');
+  const choiceItemHtml = report.html.slice(choiceItemStart, nextItemStart);
+  const responseBlockStart = choiceItemHtml.indexOf('class="candidate-response-content"');
+  assert.ok(responseBlockStart >= 0, 'candidate response block must exist');
+  const candidateResponseHtml = choiceItemHtml.slice(responseBlockStart);
+
+  assert.match(candidateResponseHtml, /class="[^"]*\bchoice-response-list\b/);
+  assert.match(
+    candidateResponseHtml,
+    /class="[^"]*\bchoice-response-option\b[^"]*\bchoice-response-selected\b/
+  );
+  assert.ok(candidateResponseHtml.includes('QTI package XML'));
+  assert.ok(candidateResponseHtml.includes('学生の回答'));
+  assert.ok(
+    !candidateResponseHtml.includes('CHOICE_B'),
+    'candidate response must not contain an internal ID'
+  );
+});
+
 test('renders numeric seconds time limits in Japanese', () => {
   const cases = [
     ['120', '2分'],

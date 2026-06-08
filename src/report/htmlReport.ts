@@ -69,16 +69,35 @@ function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
   return map;
 }
 
+function formatChoiceResponses(item: ParsedAssessmentItem, responses: string[]): string {
+  const choiceTextMap = buildChoiceTextMap(item);
+  const selectedChoices = new Set(responses);
+  const choiceRows = item.choices.map((choice) => {
+    const isSelected = selectedChoices.has(choice.identifier);
+    const rowClass = isSelected
+      ? 'choice-response-option choice-response-selected'
+      : 'choice-response-option';
+    const marker = isSelected ? '●' : '○';
+    const selectedLabel = isSelected ? '<span class="choice-response-label">学生の回答</span>' : '';
+    return `<li class="${rowClass}"><span class="choice-response-marker" aria-hidden="true">${marker}</span><span class="choice-response-text">${escapeHtml(choice.text)}</span>${selectedLabel}</li>`;
+  });
+  const unmatchedRows = responses
+    .filter((response) => !choiceTextMap.has(response))
+    .map(
+      () =>
+        '<li class="choice-response-option choice-response-selected choice-response-unmatched"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">選択肢本文を取得できません</span><span class="choice-response-label">学生の回答</span></li>'
+    );
+  return `<ul class="choice-response-list">${[...choiceRows, ...unmatchedRows].join('')}</ul>`;
+}
+
 function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[]): string {
   if (responses.length === 0) {
     return '<p class="response-empty">（無回答）</p>';
   }
-  const choiceTextMap = buildChoiceTextMap(item);
+  if (item.choices.length > 0) {
+    return formatChoiceResponses(item, responses);
+  }
   const renderedResponses = responses.map((response) => {
-    const choiceText = choiceTextMap.get(response);
-    if (choiceText) {
-      return `${escapeHtml(response)}: ${escapeHtml(choiceText)}`;
-    }
     return escapeHtml(response);
   });
   const joined = renderedResponses.join('\n');
