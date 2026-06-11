@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runCli } from '../cli.js';
-import { generateHtmlReportFromFiles } from '../report/htmlReport.js';
+import { computeItemResultState, generateHtmlReportFromFiles } from '../report/htmlReport.js';
 import { applyResponsesToPromptHtmlSafely } from '../report/cloze.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -500,6 +500,16 @@ test('classifies item result state as full, partial, or zero', () => {
     html.includes('data-item-result="full" data-item-identifier="item-3"'),
     'item-3 with full credit must be full'
   );
+});
+
+test('classifies item result state with exact boundaries and rejects out-of-range scores', () => {
+  assert.equal(computeItemResultState(1, 1), 'full');
+  assert.equal(computeItemResultState(0, 1), 'zero');
+  assert.equal(computeItemResultState(0.5, 1), 'partial');
+
+  assert.throws(() => computeItemResultState(2, 1), /Invalid item score: 2\/1/);
+  assert.throws(() => computeItemResultState(-1, 1), /Invalid item score: -1\/1/);
+  assert.throws(() => computeItemResultState(0, 0), /Invalid maximum score for item: 0/);
 });
 
 test('marks items with comments and orders sections question, comment, rubric, response', () => {

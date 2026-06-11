@@ -71,12 +71,18 @@ interface ItemReportModel {
   commentHtml: string | null;
 }
 
-function computeItemResultState(itemScore: number, itemMaxScore: number): ItemResultState {
-  if (itemScore <= 0) {
-    return 'zero';
+export function computeItemResultState(itemScore: number, itemMaxScore: number): ItemResultState {
+  if (itemMaxScore <= 0) {
+    throw new Error(`Invalid maximum score for item: ${itemMaxScore}`);
   }
-  if (itemScore >= itemMaxScore) {
+  if (itemScore < 0 || itemScore > itemMaxScore) {
+    throw new Error(`Invalid item score: ${itemScore}/${itemMaxScore}`);
+  }
+  if (itemScore === itemMaxScore) {
     return 'full';
+  }
+  if (itemScore === 0) {
+    return 'zero';
   }
   return 'partial';
 }
