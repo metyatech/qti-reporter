@@ -465,3 +465,129 @@ test('uses test score from result XML even when it differs from item sum', () =>
   assert.ok(match, 'total score block must be present');
   assert.equal(match?.[1], '0');
 });
+
+test('classifies item result state as full, partial, or zero', () => {
+  const outputRootDir = createCleanOutputDir('html-item-state');
+  const repoRoot = getRepoRootFromDist();
+
+  const baseResultXml = fs.readFileSync(resolveFixturePath('assessment-result.xml'), 'utf8');
+  // Force item-1 to score zero by failing its only met rubric criterion.
+  const patchedResultXml = baseResultXml.replace(
+    /(<itemResult\b[^>]*identifier="item-1"[\s\S]*?identifier="RUBRIC_1_MET"[^>]*>\s*<value>)true(<\/value>)/,
+    '$1false$2'
+  );
+  assert.notEqual(patchedResultXml, baseResultXml, 'patch must change item-1 rubric outcome');
+
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-item-state.xml');
+  fs.writeFileSync(patchedResultPath, patchedResultXml, 'utf8');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir,
+  });
+  const html = report.html;
+
+  assert.ok(
+    html.includes('data-item-result="zero" data-item-identifier="item-1"'),
+    'item-1 with no met criteria must be zero'
+  );
+  assert.ok(
+    html.includes('data-item-result="partial" data-item-identifier="item-2"'),
+    'item-2 with partial credit must be partial'
+  );
+  assert.ok(
+    html.includes('data-item-result="full" data-item-identifier="item-3"'),
+    'item-3 with full credit must be full'
+  );
+});
+
+test('marks items with comments and orders sections question, comment, rubric, response', () => {
+  const outputRootDir = createCleanOutputDir('html-comment-order');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result.xml'),
+    outputRootDir,
+  });
+  const html = report.html;
+
+  const item2Start = html.indexOf('data-item-identifier="item-2"');
+  const item3Start = html.indexOf('data-item-identifier="item-3"');
+  const item1Start = html.indexOf('data-item-identifier="item-1"');
+  assert.ok(item2Start >= 0 && item3Start > item2Start, 'item-2 block must exist');
+  const item2Html = html.slice(item2Start, item3Start);
+  const item1Html = html.slice(item1Start, html.indexOf('data-item-identifier="item-3"'));
+
+  // Comment indicator (item-2 has a comment).
+  assert.ok(item2Html.includes('data-has-comment="true"'), 'commented item must carry data-has-comment');
+  assert.ok(item2Html.includes('コメントあり'), 'commented item summary must show comment flag');
+  // item-1 has no comment.
+  assert.ok(!item1Html.includes('data-has-comment'), 'item-1 must not be marked as commented');
+  assert.ok(!item1Html.includes('採点者コメント'), 'item-1 must not render a comment section');
+
+  // Section ordering inside item-2.
+  const questionIdx = item2Html.indexOf('問題');
+  const commentIdx = item2Html.indexOf('採点者コメント');
+  const rubricIdx = item2Html.indexOf('観点別の達成状況');
+  const responseIdx = item2Html.indexOf('受験者の回答');
+  assert.ok(questionIdx >= 0, 'question section must exist');
+  assert.ok(commentIdx > questionIdx, 'comment must follow the question');
+  assert.ok(rubricIdx > commentIdx, 'rubric must follow the comment');
+  assert.ok(responseIdx > rubricIdx, 'candidate response must come last');
+});
+
+test('renders grading summary bar with item state counts', () => {
+  const outputRootDir = createCleanOutputDir('html-summary-bar');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result.xml'),
+    outputRootDir,
+  });
+  const html = report.html;
+
+  const fullCount = (html.match(/data-item-result="full" data-item-identifier=/g) ?? []).length;
+  const reviewCount = (
+    html.match(/data-item-result="(?:partial|zero)" data-item-identifier=/g) ?? []
+  ).length;
+  const totalCount = fullCount + reviewCount;
+  assert.equal(totalCount, 8, 'all eight assessment-test items must be classified');
+
+  assert.ok(html.includes('class="summary-bar"'), 'grading summary bar must be present');
+  assert.match(html, new RegExp(`要確認 <span class="summary-count">${reviewCount}</span> 問`));
+  assert.match(html, new RegExp(`満点 <span class="summary-count">${fullCount}</span> 問`));
+  assert.match(html, new RegExp(`全 <span class="summary-count">${totalCount}</span> 問`));
+});
+
+test('shows a numbered human-readable title in the item summary', () => {
+  const outputRootDir = createCleanOutputDir('html-item-title');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result.xml'),
+    outputRootDir,
+  });
+  const html = report.html;
+
+  // First assessment-test ref is item-2 (title "Item 2"), shown as 問1.
+  assert.match(
+    html,
+    /<span class="item-title"><span class="item-no">問1<\/span>Item 2<\/span>/
+  );
+});
+
+test('emits item blocks collapsed by default', () => {
+  const outputRootDir = createCleanOutputDir('html-collapsed-default');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result.xml'),
+    outputRootDir,
+  });
+
+  assert.ok(
+    !/<details class="item-block"[^>]*\sopen[\s>]/.test(report.html),
+    'item blocks must not be open by default'
+  );
+});

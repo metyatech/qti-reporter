@@ -67,18 +67,55 @@ Output must be arranged in the following order:
 
 ### Item block content
 
-Each item block must include:
+Each item block must include, in this order:
 
-- Question text
-- Per-criterion correctness (scoring rubric criteria)
-- Candidate response
+1. Question text
+2. Scorer comment (when present)
+3. Per-criterion correctness (scoring rubric criteria)
+4. Candidate response
 
 Do not display any other fields.
 
+### Item result state
+
+- Each item is classified by comparing the item score to the item maximum
+  score:
+  - `full`: `itemScore == itemMaxScore`
+  - `partial`: `0 < itemScore < itemMaxScore`
+  - `zero`: `itemScore == 0`
+- The state is exposed on the `.item-block` element as
+  `data-item-result="full|partial|zero"`.
+- The closed `<summary>` row must convey the state without relying on color
+  alone: a left color band (`border-left`), a status pill with both icon and
+  text (`✓ 満点` / `▲ 要確認` / `✗ 0点`), and a score badge whose color tracks
+  the state.
+
+### Grading summary bar
+
+- Directly after the header metadata, a grading summary bar reports counts:
+  `要確認 N 問` (items that are `partial` or `zero`), `満点 M 問` (items that
+  are `full`), and `全 X 問` (all items).
+
+### Comment indicator
+
+- When an item has a scorer comment, its `.item-block` carries
+  `data-has-comment="true"` and the closed `<summary>` shows a
+  `💬 コメントあり` flag (icon plus text).
+
+### Summary layout
+
+- The `<summary>` content order is: status pill, problem number + human-readable
+  title (with a small, de-emphasized identifier), spacer, comment flag, score
+  badge, toggle caret.
+- The problem number is the 1-based position of the item in assessment-test
+  order. The title is sourced from `qti-assessment-item@title`, falling back to
+  the item identifier when absent.
+
 ### Interaction requirements
 
-- Each item block is collapsible (toggle).
-- The toggle label must show: `item score / item maximum score`.
+- Each item block is collapsible (toggle) and is collapsed by default (no
+  `open` attribute is emitted).
+- The toggle row must show: `item score / item maximum score`.
 - Inside each item block, the candidate response section is also collapsible.
 
 ### Rendering guidance
@@ -130,10 +167,13 @@ The following structure and class names are part of the styling contract and
 must be treated as stable for external CSS.
 
 - Root layout selectors: `body`, `.report-root`
-- Header selectors: `.report-header`, `.report-title`, `.meta-grid`, `.meta-row`, `.meta-label`, `.meta-value`
+- Header selectors: `.report-header`, `.report-title`, `.report-subtitle`, `.meta-grid`, `.meta-row`, `.meta-label`, `.meta-value`
+- Grading summary selectors: `.summary-bar`, `.summary-chip`, `.summary-count`
 - Items section selectors: `.items-section`, `.item-block`, `.item-summary`, `.item-score`, `.item-id`, `.item-content`
+- Item summary selectors: `.status-pill`, `.item-head`, `.item-title`, `.item-no`, `.item-spacer`, `.comment-flag`, `.toggle-caret`
 - Score selectors: `.score-badge`, `.score-total`, `.score-value`, `.score-max`, `.score-separator`
 - Section title selector: `.section-title`
+- Response section selector: `.response-section`
 - Question content selectors: `.question-section`, `.item-body`
 - Cloze selector: `.cloze-input`
 - Image selector: `.report-image`
@@ -150,6 +190,9 @@ External CSS may also rely on the following data attributes:
 
 - Report style mode: `data-qti-reporter-style="default"`, `data-qti-reporter-style="external"`
 - Item identifier: `data-item-identifier="<itemIdentifier>"`
+- Item result state: `data-item-result="full|partial|zero"`
+- Comment presence: `data-has-comment="true"` (present only when the item has a
+  scorer comment)
 - Rubric row attributes: `data-criterion-index="<criterionIndex>"`, `data-criterion-status="true|false"`
 - Code language attribute: `data-code-lang="<language>"`
 

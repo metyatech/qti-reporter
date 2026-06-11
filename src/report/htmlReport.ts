@@ -41,14 +41,49 @@ export interface GeneratedHtmlReport {
   unusedItemResultIdentifiers: string[];
 }
 
+type ItemResultState = 'full' | 'partial' | 'zero';
+
+interface StatusPillDefinition {
+  icon: string;
+  label: string;
+}
+
+const STATUS_PILLS: Record<ItemResultState, StatusPillDefinition> = {
+  full: { icon: '&#10004;', label: '満点' },
+  partial: { icon: '&#9650;', label: '要確認' },
+  zero: { icon: '&#10007;', label: '0点' },
+};
+
+const COMMENT_ICON = '&#128172;';
+const TOGGLE_CARET_ICON = '&#9656;';
+
 interface ItemReportModel {
   item: ParsedAssessmentItem;
   itemResult: ParsedItemResult;
+  itemOrder: number;
+  itemTitle: string;
   itemScore: number;
   itemMaxScore: number;
+  itemResultState: ItemResultState;
+  hasComment: boolean;
   rubricRows: RubricRowModel[];
   candidateResponseHtml: string;
   commentHtml: string | null;
+}
+
+function computeItemResultState(itemScore: number, itemMaxScore: number): ItemResultState {
+  if (itemScore <= 0) {
+    return 'zero';
+  }
+  if (itemScore >= itemMaxScore) {
+    return 'full';
+  }
+  return 'partial';
+}
+
+function resolveItemTitle(item: ParsedAssessmentItem): string {
+  const title = item.title?.trim();
+  return title && title.length > 0 ? title : item.identifier;
 }
 
 interface RubricRowModel {
@@ -249,6 +284,12 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
 
 function renderItemBlock(model: ItemReportModel): string {
   const rubricHtml = renderRubricTable(model.rubricRows);
+  const pill = STATUS_PILLS[model.itemResultState];
+  const statusPillHtml = `<span class="status-pill"><span class="ico" aria-hidden="true">${pill.icon}</span>${pill.label}</span>`;
+  const commentFlagHtml = model.hasComment
+    ? `<span class="comment-flag"><span class="ico" aria-hidden="true">${COMMENT_ICON}</span>コメントあり</span>`
+    : '';
+  const commentDataAttr = model.hasComment ? ' data-has-comment="true"' : '';
   const commentSectionHtml = model.commentHtml
     ? `
         <section class="comment-section">
@@ -259,28 +300,42 @@ function renderItemBlock(model: ItemReportModel): string {
         </section>`
     : '';
   return `
-    <details class="item-block" data-item-identifier="${escapeHtml(model.item.identifier)}">
+    <details class="item-block" data-item-result="${model.itemResultState}" data-item-identifier="${escapeHtml(
+      model.item.identifier
+    )}"${commentDataAttr}>
       <summary class="item-summary">
+        ${statusPillHtml}
+        <span class="item-head">
+          <span class="item-title"><span class="item-no">問${model.itemOrder}</span>${escapeHtml(
+            model.itemTitle
+          )}</span>
+          <span class="item-id">${escapeHtml(model.item.identifier)}</span>
+        </span>
+        <span class="item-spacer"></span>
+        ${commentFlagHtml}
         <span class="item-score score-badge">
           <span class="score-value">${model.itemScore}</span>
           <span class="score-separator">/</span>
           <span class="score-max">${model.itemMaxScore}</span>
         </span>
-        <span class="item-id">${escapeHtml(model.item.identifier)}</span>
+        <span class="toggle-caret" aria-hidden="true">${TOGGLE_CARET_ICON}</span>
       </summary>
       <div class="item-content">
         <section class="question-section">
           <h3 class="section-title">問題</h3>
           ${model.item.questionHtml}
         </section>
-        ${rubricHtml}
         ${commentSectionHtml}
-        <details class="candidate-response-block">
-          <summary>受験者の回答</summary>
-          <div class="candidate-response-content">
-            ${model.candidateResponseHtml}
-          </div>
-        </details>
+        ${rubricHtml}
+        <section class="response-section">
+          <h3 class="section-title">受験者の回答</h3>
+          <details class="candidate-response-block">
+            <summary>受験者の回答を表示</summary>
+            <div class="candidate-response-content">
+              ${model.candidateResponseHtml}
+            </div>
+          </details>
+        </section>
       </div>
     </details>`;
 }
@@ -296,6 +351,14 @@ function renderHtmlDocument(
 ): string {
   const itemsHtml = items.map((item) => renderItemBlock(item)).join('\n');
   const timeLimitMetaRow = renderTimeLimitMetaRow(timeLimit);
+  const fullCount = items.filter((item) => item.itemResultState === 'full').length;
+  const reviewCount = items.length - fullCount;
+  const summaryBarHtml = `
+        <div class="summary-bar">
+          <span class="summary-chip review"><span class="ico" aria-hidden="true">&#9650;</span>要確認 <span class="summary-count">${reviewCount}</span> 問</span>
+          <span class="summary-chip ok"><span class="ico" aria-hidden="true">&#10004;</span>満点 <span class="summary-count">${fullCount}</span> 問</span>
+          <span class="summary-chip total">全 <span class="summary-count">${items.length}</span> 問</span>
+        </div>`;
   return `<!DOCTYPE html>
 <html lang="ja">
   <head>
@@ -308,6 +371,7 @@ function renderHtmlDocument(
     <div class="report-root">
       <header class="report-header">
         <h1 class="report-title">${escapeHtml(testTitle)}</h1>
+        <p class="report-subtitle">採点結果レポート</p>
         <div class="meta-grid">
           <div class="meta-row">
             <span class="meta-label">受験番号</span>
@@ -327,6 +391,7 @@ function renderHtmlDocument(
           </div>
           ${timeLimitMetaRow}
         </div>
+        ${summaryBarHtml}
       </header>
       <main class="items-section">
         ${itemsHtml}
@@ -338,7 +403,8 @@ function renderHtmlDocument(
 
 function buildItemReportModel(
   item: ParsedAssessmentItem,
-  itemResult: ParsedItemResult
+  itemResult: ParsedItemResult,
+  itemOrder: number
 ): ItemReportModel {
   const itemMaxScore = item.itemMaxScore;
   const itemScore = computeItemScore(item, itemResult);
@@ -348,8 +414,12 @@ function buildItemReportModel(
   return {
     item,
     itemResult,
+    itemOrder,
+    itemTitle: resolveItemTitle(item),
     itemScore,
     itemMaxScore,
+    itemResultState: computeItemResultState(itemScore, itemMaxScore),
+    hasComment: commentHtml !== null,
     rubricRows,
     candidateResponseHtml,
     commentHtml,
@@ -413,7 +483,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
 
   fs.mkdirSync(outputDirPath, { recursive: true });
 
-  const items: ItemReportModel[] = assessmentTest.itemRefs.map((itemRef) => {
+  const items: ItemReportModel[] = assessmentTest.itemRefs.map((itemRef, itemIndex) => {
     const parsedItem = parseAssessmentItem(itemRef.itemPath, itemRef.identifier);
     const itemResult = assessmentResult.itemResults.get(parsedItem.identifier);
     if (!itemResult) {
@@ -433,7 +503,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       ...parsedItem,
       questionHtml: filledQuestionHtml,
     };
-    return buildItemReportModel(item, itemResult);
+    return buildItemReportModel(item, itemResult, itemIndex + 1);
   });
 
   const totalScore = computeTotalScore(assessmentResult, items);
