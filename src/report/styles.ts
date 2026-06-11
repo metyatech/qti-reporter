@@ -159,6 +159,42 @@ body {
 .item-block[data-item-result="zero"] {
   border-left-color: var(--bad);
 }
+.item-block[data-has-comment="true"] {
+  background: linear-gradient(
+    to right,
+    var(--warn-bg) 0,
+    var(--warn-bg) 4px,
+    var(--card-bg) 4px,
+    var(--card-bg) 100%
+  );
+}
+.item-block[data-has-comment="true"][data-item-result="full"] {
+  background: linear-gradient(
+    to right,
+    var(--ok-bg) 0,
+    var(--ok-bg) 4px,
+    var(--card-bg) 4px,
+    var(--card-bg) 100%
+  );
+}
+.item-block[data-has-comment="true"][data-item-result="partial"] {
+  background: linear-gradient(
+    to right,
+    var(--warn-bg) 0,
+    var(--warn-bg) 4px,
+    var(--card-bg) 4px,
+    var(--card-bg) 100%
+  );
+}
+.item-block[data-has-comment="true"][data-item-result="zero"] {
+  background: linear-gradient(
+    to right,
+    var(--bad-bg) 0,
+    var(--bad-bg) 4px,
+    var(--card-bg) 4px,
+    var(--card-bg) 100%
+  );
+}
 .item-summary {
   cursor: pointer;
   list-style: none;

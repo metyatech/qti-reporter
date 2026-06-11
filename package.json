@@ -1,6 +1,6 @@
 {
   "name": "qti-reporter",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "qti-reporter generates human-readable HTML reports per respondent and an aggregated CSV report from QTI 3.0 assessment items and results.",
   "main": "dist/cli.js",
   "bin": {
