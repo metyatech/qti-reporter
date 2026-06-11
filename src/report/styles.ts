@@ -327,7 +327,11 @@ body {
 .choice-interaction {
   display: grid;
   gap: 8px;
-  margin: 12px 0;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
 }
 .choice-interaction simple-choice {
   display: block;
@@ -646,8 +650,7 @@ tr[data-criterion-status="false"] .criterion-points {
 .hljs-deletion {
   color: #fca5a5;
 }
-.interaction-placeholder,
-.choice-interaction {
+.interaction-placeholder {
   margin: 8px 0;
   padding: 8px 10px;
   border-radius: 8px;
@@ -655,10 +658,6 @@ tr[data-criterion-status="false"] .criterion-points {
 .interaction-placeholder {
   border: 1px dashed #94a3b8;
   color: var(--muted);
-  background: #f8fafc;
-}
-.choice-interaction {
-  border: 1px solid var(--border);
   background: #f8fafc;
 }
 `;
