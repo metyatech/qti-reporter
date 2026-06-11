@@ -520,7 +520,10 @@ test('marks items with comments and orders sections question, comment, rubric, r
   const item1Html = html.slice(item1Start, html.indexOf('data-item-identifier="item-3"'));
 
   // Comment indicator (item-2 has a comment).
-  assert.ok(item2Html.includes('data-has-comment="true"'), 'commented item must carry data-has-comment');
+  assert.ok(
+    item2Html.includes('data-has-comment="true"'),
+    'commented item must carry data-has-comment'
+  );
   assert.ok(item2Html.includes('コメントあり'), 'commented item summary must show comment flag');
   // item-1 has no comment.
   assert.ok(!item1Html.includes('data-has-comment'), 'item-1 must not be marked as commented');
@@ -571,10 +574,7 @@ test('shows a numbered human-readable title in the item summary', () => {
   const html = report.html;
 
   // First assessment-test ref is item-2 (title "Item 2"), shown as 問1.
-  assert.match(
-    html,
-    /<span class="item-title"><span class="item-no">問1<\/span>Item 2<\/span>/
-  );
+  assert.match(html, /<span class="item-title"><span class="item-no">問1<\/span>Item 2<\/span>/);
 });
 
 test('emits item blocks collapsed by default', () => {
