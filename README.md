@@ -60,6 +60,11 @@ The output is written as:
 - External style file (when `--style-css` is used): `report-style.css`
 - Aggregated CSV (at the output root): `report.csv` (UTF-8 with BOM). When multiple results are provided, rows are appended for all respondents.
 
+`candidateNumber` is sourced from `context/sessionIdentifier` with
+`sourceID="candidateId"`; qti-reporter uses that `identifier` value as-is and
+never parses `context/@sourcedId` for a candidate number. A missing `candidateId`
+session identifier is an error.
+
 Example using the repository fixtures:
 
 ```bash
