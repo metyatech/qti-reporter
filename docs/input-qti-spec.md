@@ -147,12 +147,12 @@ Required attributes:
 
 `context` provides identifiers for the session and learner.
 
-- `@sourcedId` (required): unique candidate identifier (account).
-  - Must contain at least one continuous digit sequence.
-  - The first continuous digit sequence is used as the candidate number
-    (leading zeros preserved).
+- `@sourcedId` (required): external candidate identifier (for example an email
+  or account). It is never parsed for a candidate number.
 - `sessionIdentifier` (0..n): repeated identifiers using common `sourceID` keys
-  for class and candidate metadata (for example `candidateName`, `candidateId`).
+  for class and candidate metadata (for example `candidateId`, `candidateName`).
+  - `sourceID=candidateId` is required: its `identifier` value is the candidate
+    number (used as-is). A missing `candidateId` is an error.
   - `sourceID=candidateName` is required (candidate display name).
 
 ### testResult

@@ -43,9 +43,10 @@ Output must be arranged in the following order:
 ### Field sourcing
 
 - Test title: `qti-assessment-test@title`.
-- Candidate number: extract the first continuous digit sequence from
-  `context/@sourcedId`. Use the extracted string as-is (preserve leading zeros).
-  If no digit sequence is present, treat as an error.
+- Candidate number: `context/sessionIdentifier` with `sourceID=candidateId`.
+  Use the `identifier` value as-is. `context/@sourcedId` is never parsed for a
+  candidate number. If the `candidateId` sessionIdentifier is missing, treat as
+  an error.
 - Candidate name: `context/sessionIdentifier` with `sourceID=candidateName`.
 - Test time limit: `qti-time-limits@max-time`, rendered as a test-level display
   value. Item `time-dependent` attributes are not displayed as time limits.
@@ -291,7 +292,7 @@ Columns are ordered as follows.
 
 | Column name        | Type             | Required | Description / source                                                                                                                                                 |
 | ------------------ | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `candidate_number` | string           | required | Extracted from `context@sourcedId` as the first continuous digit sequence (leading zeros preserved).                                                                 |
+| `candidate_number` | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateId` (used as-is; `context@sourcedId` is never parsed). Missing value is an error.                     |
 | `candidate_name`   | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateName`.                                                                                               |
 | `test_title`       | string           | required | `qti-assessment-test@title`.                                                                                                                                         |
 | `total_score`      | number           | required | `testResult/outcomeVariable identifier="SCORE"` when present; otherwise the sum of item scores.                                                                      |

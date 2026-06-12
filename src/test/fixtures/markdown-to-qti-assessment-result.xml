@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
   <context sourcedId="user-0001-smoke">
+    <sessionIdentifier sourceID="candidateId" identifier="0001" />
     <sessionIdentifier sourceID="candidateName" identifier="Smoke Candidate" />
     <sessionIdentifier sourceID="materialTitle" identifier="Markdown QTI Smoke" />
   </context>

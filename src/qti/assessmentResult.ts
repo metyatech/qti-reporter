@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
 import {
   extractInnerXml,
@@ -24,15 +25,17 @@ export interface ParsedAssessmentResult {
   itemResults: Map<string, ParsedItemResult>;
 }
 
-function extractCandidateNumber(sourcedId: string | undefined): string {
-  if (!sourcedId) {
-    throw new Error('Invalid assessment result: context sourcedId is required');
+function extractCandidateId(
+  sessionIdentifiers: Map<string, string>,
+  assessmentResultPath: string
+): string {
+  const candidateId = sessionIdentifiers.get('candidateId');
+  if (!candidateId) {
+    throw new Error(
+      `candidateId is missing in assessment result: ${path.basename(assessmentResultPath)}`
+    );
   }
-  const match = sourcedId.match(/\d+/);
-  if (!match) {
-    throw new Error('Failed to extract candidate number from sourcedId');
-  }
-  return match[0];
+  return candidateId;
 }
 
 function parseSessionIdentifiers(contextXml: string): Map<string, string> {
@@ -206,12 +209,10 @@ export function parseAssessmentResult(assessmentResultPath: string): ParsedAsses
   if (!contextBlock) {
     throw new Error('Invalid assessment result: context not found');
   }
-  const contextOpenTag = extractOpenTag(contextBlock);
-  const contextAttributes = parseAttributes(contextOpenTag);
-
-  const candidateNumber = extractCandidateNumber(contextAttributes.sourcedId);
   const contextXml = extractInnerXml(contextBlock, 'context');
   const sessionIdentifiers = parseSessionIdentifiers(contextXml);
+
+  const candidateNumber = extractCandidateId(sessionIdentifiers, assessmentResultPath);
 
   const candidateName = sessionIdentifiers.get('candidateName');
   if (!candidateName) {

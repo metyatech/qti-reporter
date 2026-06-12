@@ -388,13 +388,13 @@ test('copies image assets and rewrites img src to output-relative paths', () => 
   assert.ok(report.html.includes('./assets/item-5/sample.svg'));
 });
 
-test('throws a clear error when candidate number cannot be extracted', () => {
+test('throws a clear error containing the file name when candidateId is missing', () => {
   const repoRoot = getRepoRootFromDist();
   const outputRootDir = createCleanOutputDir('html-error');
 
   const invalidResultPath = path.join(repoRoot, 'tmp', 'invalid-result.xml');
   const invalidResultContent =
-    '<?xml version="1.0" encoding="UTF-8"?><assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0"><context sourcedId="no-digits"><sessionIdentifier sourceID="candidateName" identifier="No Digits" /></context></assessmentResult>';
+    '<?xml version="1.0" encoding="UTF-8"?><assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0"><context sourcedId="candidate@example.com"><sessionIdentifier sourceID="candidateName" identifier="No Candidate Id" /></context></assessmentResult>';
   fs.writeFileSync(invalidResultPath, invalidResultContent, 'utf8');
 
   assert.throws(
@@ -404,7 +404,7 @@ test('throws a clear error when candidate number cannot be extracted', () => {
         assessmentResultPath: invalidResultPath,
         outputRootDir,
       }),
-    /candidate number/i
+    /candidateId is missing in assessment result: invalid-result\.xml/
   );
 });
 

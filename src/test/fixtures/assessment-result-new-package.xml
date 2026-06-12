@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
   <context sourcedId="user-0009">
+    <sessionIdentifier sourceID="candidateId" identifier="0009" />
     <sessionIdentifier sourceID="candidateName" identifier="Sato Hanako" />
   </context>
   <testResult identifier="new-package-test" datestamp="2026-05-28T09:00:00+09:00">

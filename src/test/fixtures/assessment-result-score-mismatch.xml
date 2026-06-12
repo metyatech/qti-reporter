@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imsqti_result_v3p0 http://www.imsglobal.org/xsd/imsqti_result_v3p0.xsd">
   <context sourcedId="user-0007-A">
+    <sessionIdentifier sourceID="candidateId" identifier="0007" />
     <sessionIdentifier sourceID="candidateName" identifier="Yamada Taro" />
     <sessionIdentifier sourceID="materialTitle" identifier="Physics Basics" />
   </context>
