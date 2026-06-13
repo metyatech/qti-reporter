@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test identifier="new-package-no-explanation-test" title="New Package No Explanation" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+    <qti-time-limits max-time="PT45M" />
+    <qti-assessment-section identifier="section-1" title="Section 1" visible="true">
+      <qti-assessment-item-ref identifier="new-choice" href="new-package-no-explanation-choice.qti.xml" />
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>

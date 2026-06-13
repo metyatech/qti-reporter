@@ -4,10 +4,12 @@ import { JSDOM } from 'jsdom';
 
 import {
   parseAssessmentItem,
+  parseAssessmentItemForScoring,
+  parseCorrectResponses,
   ParsedAssessmentItem,
-  RubricCriterion,
+  type RubricCriterion,
 } from '../qti/assessmentItem.js';
-import { resolveItemAssets } from '../qti/assetResolver.js';
+import { resolveExplanationAssets, resolveItemAssets } from '../qti/assetResolver.js';
 import {
   parseAssessmentResult,
   ParsedAssessmentResult,
@@ -15,7 +17,7 @@ import {
 } from '../qti/assessmentResult.js';
 import { AssessmentTimeLimit, parseAssessmentTest } from '../qti/assessmentTest.js';
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
-import { applyResponsesToPromptHtmlSafely } from './cloze.js';
+import { applyResponsesToPromptHtmlReadonly } from './cloze.js';
 import { escapeHtml } from './htmlEscape.js';
 
 export interface HtmlReportInputPaths {
@@ -67,7 +69,11 @@ interface ItemReportModel {
   itemResultState: ItemResultState;
   hasComment: boolean;
   rubricRows: RubricRowModel[];
-  candidateResponseHtml: string;
+  retryQuestionHtml: string;
+  submittedAnswerHtml: string;
+  correctAnswerHtml: string | null;
+  explanationHtml: string | null;
+  hasExplanation: boolean;
   commentHtml: string | null;
 }
 
@@ -155,12 +161,241 @@ function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[
   return `<pre class="response-text response-pre">${joined}</pre>`;
 }
 
-function formatClozeResponses(item: ParsedAssessmentItem, responses: string[]): string {
-  if (!item.questionHtml.includes('qti-blank-input')) {
-    return formatCandidateResponses(item, responses);
+function sanitizeAttrSegment(value: string): string {
+  return value.replace(/[^A-Za-z0-9._-]/g, '-');
+}
+
+function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
+  if (!item.choices.length && !item.questionHtml.includes('qti-blank-input')) {
+    // descriptive or other non-cloze/non-choice items: ensure extended-text
+    // placeholders turn into an empty textarea for the retake case.
+    return wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
   }
-  const filled = applyResponsesToPromptHtmlSafely(item.questionHtml, responses);
-  return `<div class="candidate-response-html">${filled}</div>`;
+  const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
+  const root = dom.window.document.getElementById('root');
+  if (!root) {
+    return wrapRetryQuestionBody(item.questionHtml);
+  }
+  // 1) Convert choice interaction to native radio list.
+  const choiceWrappers = Array.from(root.querySelectorAll('.choice-interaction'));
+  choiceWrappers.forEach((wrapper) => {
+    const radioName = `qti-retry-${sanitizeAttrSegment(item.identifier)}-RESPONSE`;
+    const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
+    const list = dom.window.document.createElement('ul');
+    list.className = 'choice-retry';
+    list.setAttribute('data-retry-choice-list', item.identifier);
+    if (choices.length === 0) {
+      wrapper.replaceWith(list);
+      return;
+    }
+    choices.forEach((choice) => {
+      const label = dom.window.document.createElement('label');
+      const input = dom.window.document.createElement('input');
+      input.type = 'radio';
+      input.name = radioName;
+      // Use the choice text as the radio's `value` so the internal choice
+      // identifier never appears in the retake body (not as text, not as an
+      // attribute). The visible text is rendered into a sibling span.
+      input.value = (choice.textContent ?? '').trim();
+      input.className = 'choice-retry-radio';
+      const labelSpan = dom.window.document.createElement('span');
+      labelSpan.className = 'choice-retry-text';
+      labelSpan.innerHTML = choice.innerHTML;
+      label.appendChild(input);
+      label.appendChild(labelSpan);
+      const li = dom.window.document.createElement('li');
+      li.className = 'choice-retry-item';
+      li.appendChild(label);
+      list.appendChild(li);
+    });
+    wrapper.replaceWith(list);
+  });
+
+  // 2) Strip readonly/disabled/value from cloze inputs and rename the class
+  // so external CSS can style retake vs read-only inputs independently.
+  const clozeInputs = Array.from(root.querySelectorAll('input.qti-blank-input'));
+  clozeInputs.forEach((input) => {
+    input.removeAttribute('readonly');
+    input.removeAttribute('disabled');
+    input.removeAttribute('value');
+    const classAttr = input.getAttribute('class') ?? '';
+    const classes = new Set(classAttr.split(/\s+/).filter((token) => token.length > 0));
+    classes.add('cloze-input');
+    classes.add('qti-blank-input');
+    classes.delete('cloze-input-readonly');
+    input.setAttribute('class', Array.from(classes).join(' '));
+  });
+
+  return wrapRetryQuestionBody(root.innerHTML);
+}
+
+function wrapRetryQuestionBody(innerHtml: string): string {
+  return `<div class="retry-question-block" data-retry-question="${'true'}">${innerHtml}</div>`;
+}
+
+function stripExtendedTextForRetry(html: string): string {
+  // Replace any extended-text placeholder with an empty textarea so the retake
+  // case is editable. The renderer does not emit a textarea by default for
+  // `qti-extended-text-interaction` in the report path, so we keep the
+  // container if no placeholder is present (i.e. descriptive item with no
+  // existing response surface).
+  if (!html.includes('qti-extended-placeholder') && !html.includes('qti-extended-text')) {
+    // Add an empty textarea as the response surface.
+    return `${html}<textarea class="retake-textarea" data-retry-textarea="true" aria-label="answer"></textarea>`;
+  }
+  return html.replace(
+    /<span\b[^>]*class="[^"]*\bqti-extended-placeholder\b[^"]*"[^>]*>[\s\S]*?<\/span>/g,
+    '<textarea class="retake-textarea" data-retry-textarea="true" aria-label="answer"></textarea>'
+  );
+}
+
+function buildSubmittedAnswerHtml(item: ParsedAssessmentItem, responses: string[]): string {
+  if (item.choices.length > 0) {
+    return formatChoiceResponses(item, responses);
+  }
+  if (item.questionHtml.includes('qti-blank-input')) {
+    const filled = applyResponsesToPromptHtmlReadonly(item.questionHtml, responses);
+    return `<div class="candidate-response-html">${filled}</div>`;
+  }
+  return formatCandidateResponses(item, responses);
+}
+
+function buildCorrectAnswerHtml(
+  item: ParsedAssessmentItem,
+  correctResponses: ReturnType<typeof parseCorrectResponses>
+): string | null {
+  const choiceCorrect = correctResponses.find(
+    (response) => response.interactionType === 'choice' && response.values.length > 0
+  );
+  const clozeCorrect = correctResponses.filter(
+    (response) => response.interactionType === 'text' && response.values.length > 0
+  );
+  if (!choiceCorrect && clozeCorrect.length === 0) {
+    return null;
+  }
+
+  if (item.choices.length > 0 && choiceCorrect) {
+    const correctId = choiceCorrect.values[0];
+    const matched = item.choices.find((c) => c.identifier === correctId);
+    if (!matched) return null;
+    // Render the choice text using the same choice-inner HTML as the
+    // question body (with `code-inline` markup preserved), so the student
+    // sees the same label as the original question.
+    const choiceInnerHtml = lookupChoiceInnerHtml(item, correctId) ?? escapeHtml(matched.text);
+    return `<div class="correct-answer-content"><span class="correct-answer-text">${choiceInnerHtml}</span></div>`;
+  }
+
+  if (item.questionHtml.includes('qti-blank-input') && clozeCorrect.length > 0) {
+    const correctValues = clozeCorrect.flatMap((entry) => entry.values);
+    if (correctValues.length === 0) return null;
+    const filled = applyResponsesToPromptHtmlReadonly(item.questionHtml, correctValues);
+    return `<div class="correct-answer-content">${filled}</div>`;
+  }
+
+  return null;
+}
+
+function lookupChoiceInnerHtml(item: ParsedAssessmentItem, identifier: string): string | null {
+  try {
+    const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
+    const root = dom.window.document.getElementById('root');
+    if (!root) return null;
+    const choices = Array.from(root.querySelectorAll('simple-choice'));
+    const match = choices.find((choice) => choice.getAttribute('identifier') === identifier);
+    return match ? match.innerHTML : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildExplanationHtml(
+  explanationHtml: string | null,
+  itemPath: string,
+  itemIdentifier: string,
+  outputDirPath: string
+): string | null {
+  if (!explanationHtml) {
+    return null;
+  }
+  const resolved = resolveExplanationAssets(
+    explanationHtml,
+    itemPath,
+    itemIdentifier,
+    outputDirPath
+  );
+  return applyReportCodeHighlighting(resolved.html);
+}
+
+function applyReportCodeHighlighting(html: string): string {
+  // Mirror the report path's class injection for `<pre><code>` and inline
+  // `<code>` blocks so the explanation body uses the same `.code-block`,
+  // `.code-block-code`, `data-code-lang`, and `.code-inline` surface as the
+  // question body. The hljs markup itself is produced by the scorer path's
+  // `renderNodeForScoring`, which we re-emit verbatim.
+  if (html.length === 0) {
+    return html;
+  }
+  const dom = new JSDOM(`<div id="root">${html}</div>`);
+  const root = dom.window.document.getElementById('root');
+  if (!root) {
+    return html;
+  }
+
+  const codeBlocks = Array.from(root.querySelectorAll('pre > code'));
+  codeBlocks.forEach((code) => {
+    const pre = code.parentElement;
+    if (!pre) return;
+    const codeOpen = code.outerHTML.match(/^<code\b[^>]*>/)?.[0] ?? '<code>';
+    const codeClasses = (code.getAttribute('class') ?? '').split(/\s+/).filter((c) => c.length > 0);
+    if (!codeClasses.includes('code-block-code')) {
+      codeClasses.push('code-block-code');
+    }
+    code.setAttribute('class', codeClasses.join(' '));
+
+    const preClasses = (pre.getAttribute('class') ?? '').split(/\s+/).filter((c) => c.length > 0);
+    if (!preClasses.includes('code-block')) {
+      preClasses.push('code-block');
+    }
+    if (!preClasses.includes('hljs')) {
+      preClasses.push('hljs');
+    }
+    pre.setAttribute('class', preClasses.join(' '));
+
+    const explicitLang = readLanguageFromOpenTag(codeOpen);
+    const dataLang =
+      code.getAttribute('data-code-lang') ?? pre.getAttribute('data-code-lang') ?? '';
+    const language = (explicitLang ?? dataLang ?? 'plain').trim() || 'plain';
+    if (!pre.getAttribute('data-code-lang')) {
+      pre.setAttribute('data-code-lang', language);
+    }
+    if (!code.getAttribute('data-code-lang')) {
+      code.setAttribute('data-code-lang', language);
+    }
+  });
+
+  const inlineCodes = Array.from(root.querySelectorAll('code:not(pre code):not(.code-block-code)'));
+  inlineCodes.forEach((code) => {
+    const existing = (code.getAttribute('class') ?? '').split(/\s+/).filter((c) => c.length > 0);
+    if (!existing.includes('code-inline')) {
+      existing.push('code-inline');
+    }
+    code.setAttribute('class', existing.join(' '));
+  });
+
+  return root.innerHTML;
+}
+
+function readLanguageFromOpenTag(openTag: string): string | null {
+  const dataMatch = openTag.match(/\bdata-(?:lang|language|code-lang)\s*=\s*"([^"]*)"/i);
+  if (dataMatch) return dataMatch[1];
+  const classMatch = openTag.match(/\bclass\s*=\s*"([^"]*)"/i);
+  if (!classMatch) return null;
+  const tokens = classMatch[1].split(/\s+/);
+  for (const token of tokens) {
+    const match = token.match(/^(?:language|lang)-([A-Za-z0-9_-]+)$/);
+    if (match) return match[1];
+  }
+  return null;
 }
 
 function formatItemComment(comment: string | null): string | null {
@@ -288,6 +523,35 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
     </section>`;
 }
 
+function renderAnswerExplanationSection(model: ItemReportModel): string {
+  const correctBlock = model.correctAnswerHtml
+    ? `
+          <details class="correct-answer-block" data-answer-section="correct">
+            <summary>正解を表示</summary>
+            <div class="correct-answer-content-wrapper">
+              ${model.correctAnswerHtml}
+            </div>
+          </details>`
+    : '';
+  const explanationBlock = model.explanationHtml
+    ? `
+          <details class="answer-explanation-block" data-answer-section="explanation">
+            <summary>解説を表示</summary>
+            <div class="answer-explanation-content-wrapper">
+              ${model.explanationHtml}
+            </div>
+          </details>`
+    : '';
+  if (!correctBlock && !explanationBlock) {
+    return '';
+  }
+  return `
+        <section class="answer-explanation-section">
+          <h3 class="section-title">解答・解説</h3>
+          ${correctBlock}${explanationBlock}
+        </section>`;
+}
+
 function renderItemBlock(model: ItemReportModel): string {
   const rubricHtml = renderRubricTable(model.rubricRows);
   const pill = STATUS_PILLS[model.itemResultState];
@@ -305,6 +569,7 @@ function renderItemBlock(model: ItemReportModel): string {
           </div>
         </section>`
     : '';
+  const answerExplanationSectionHtml = renderAnswerExplanationSection(model);
   return `
     <details class="item-block" data-item-result="${model.itemResultState}" data-item-identifier="${escapeHtml(
       model.item.identifier
@@ -329,7 +594,7 @@ function renderItemBlock(model: ItemReportModel): string {
       <div class="item-content">
         <section class="question-section">
           <h3 class="section-title">問題</h3>
-          ${model.item.questionHtml}
+          ${model.retryQuestionHtml}
         </section>
         ${commentSectionHtml}
         ${rubricHtml}
@@ -338,10 +603,11 @@ function renderItemBlock(model: ItemReportModel): string {
           <details class="candidate-response-block">
             <summary>受験者の回答を表示</summary>
             <div class="candidate-response-content">
-              ${model.candidateResponseHtml}
+              ${model.submittedAnswerHtml}
             </div>
           </details>
         </section>
+        ${answerExplanationSectionHtml}
       </div>
     </details>`;
 }
@@ -410,12 +676,15 @@ function renderHtmlDocument(
 function buildItemReportModel(
   item: ParsedAssessmentItem,
   itemResult: ParsedItemResult,
-  itemOrder: number
+  itemOrder: number,
+  retryQuestionHtml: string,
+  submittedAnswerHtml: string,
+  correctAnswerHtml: string | null,
+  explanationHtml: string | null
 ): ItemReportModel {
   const itemMaxScore = item.itemMaxScore;
   const itemScore = computeItemScore(item, itemResult);
   const rubricRows = buildRubricRows(item, itemResult);
-  const candidateResponseHtml = formatClozeResponses(item, itemResult.responses);
   const commentHtml = formatItemComment(itemResult.comment);
   return {
     item,
@@ -427,7 +696,11 @@ function buildItemReportModel(
     itemResultState: computeItemResultState(itemScore, itemMaxScore),
     hasComment: commentHtml !== null,
     rubricRows,
-    candidateResponseHtml,
+    retryQuestionHtml,
+    submittedAnswerHtml,
+    correctAnswerHtml,
+    explanationHtml,
+    hasExplanation: explanationHtml !== null,
     commentHtml,
   };
 }
@@ -491,6 +764,8 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
 
   const items: ItemReportModel[] = assessmentTest.itemRefs.map((itemRef, itemIndex) => {
     const parsedItem = parseAssessmentItem(itemRef.itemPath, itemRef.identifier);
+    const parsedScoring = parseAssessmentItemForScoring(itemRef.itemPath);
+    const correctResponses = parseCorrectResponses(itemRef.itemPath);
     const itemResult = assessmentResult.itemResults.get(parsedItem.identifier);
     if (!itemResult) {
       throw new Error(`Missing itemResult for ${parsedItem.identifier}`);
@@ -501,15 +776,40 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       parsedItem.identifier,
       outputDirPath
     );
-    const filledQuestionHtml = applyResponsesToPromptHtmlSafely(
-      resolvedAssets.html,
-      itemResult.responses
-    );
-    const item: ParsedAssessmentItem = {
+    // The retake body is the asset-resolved question body, stripped of any
+    // pre-filled response and any readonly/disabled state on cloze inputs,
+    // with choice items rendered as native radio inputs.
+    const itemForRetry: ParsedAssessmentItem = {
       ...parsedItem,
-      questionHtml: filledQuestionHtml,
+      questionHtml: resolvedAssets.html,
     };
-    return buildItemReportModel(item, itemResult, itemIndex + 1);
+    const retryQuestionHtml = buildRetryQuestionHtml(itemForRetry);
+    // The submitted-answer body lives inside the existing inner
+    // `<details class="candidate-response-block">` and shows the actually
+    // submitted value (read-only cloze inputs, choice text, or descriptive
+    // text). It uses the asset-resolved HTML too, so question images resolve
+    // identically to the retake body.
+    const itemForSubmission: ParsedAssessmentItem = {
+      ...parsedItem,
+      questionHtml: resolvedAssets.html,
+    };
+    const submittedAnswerHtml = buildSubmittedAnswerHtml(itemForSubmission, itemResult.responses);
+    const correctAnswerHtml = buildCorrectAnswerHtml(parsedItem, correctResponses);
+    const explanationHtml = buildExplanationHtml(
+      parsedScoring.candidateExplanationHtml,
+      itemRef.itemPath,
+      parsedItem.identifier,
+      outputDirPath
+    );
+    return buildItemReportModel(
+      { ...parsedItem, questionHtml: resolvedAssets.html },
+      itemResult,
+      itemIndex + 1,
+      retryQuestionHtml,
+      submittedAnswerHtml,
+      correctAnswerHtml,
+      explanationHtml
+    );
   });
 
   const totalScore = computeTotalScore(assessmentResult, items);

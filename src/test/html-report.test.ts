@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { JSDOM } from 'jsdom';
 
 import { runCli } from '../cli.js';
 import { computeItemResultState, generateHtmlReportFromFiles } from '../report/htmlReport.js';
@@ -276,7 +277,14 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
     item7Html.includes('qti-blank-input'),
     'cloze input must include qti-blank-input class'
   );
-  assert.ok(item7Html.includes('value="1"'), 'cloze input must include candidate response value');
+  // Retake body for item-7 must not pre-fill the candidate response value.
+  // The submitted value is rendered only inside the inner candidate-response
+  // details block (see the dedicated test below).
+  const item7RetryHtml = sliceItemBlock(html, 'item-7', 'retry-question-block');
+  assert.ok(
+    !/value="1"/.test(item7RetryHtml),
+    'item-7 retake body must not pre-fill the candidate response value'
+  );
   assert.ok(item7Html.includes('size="6"'), 'cloze input size must expand with content');
   assert.ok(
     !item7Html.includes('&lt;input class=cloze-input'),
@@ -600,4 +608,341 @@ test('emits item blocks collapsed by default', () => {
     !/<details class="item-block"[^>]*\sopen[\s>]/.test(report.html),
     'item blocks must not be open by default'
   );
+});
+
+// ---------------------------------------------------------------------------
+// Per-item retry / correct / explanation artifacts (JSDOM-backed)
+// ---------------------------------------------------------------------------
+
+function parseReport(html: string): Document {
+  return new JSDOM(html).window.document;
+}
+
+function sliceItemBlock(html: string, identifier: string, subSelector?: string): string {
+  if (!subSelector) {
+    const start = html.indexOf(`data-item-identifier="${identifier}"`);
+    if (start < 0) return '';
+    const openTagEnd = html.indexOf('>', start);
+    const closeTagStart = html.indexOf('</details>', openTagEnd);
+    return html.slice(openTagEnd + 1, closeTagStart);
+  }
+  const doc = parseReport(html);
+  const block = doc.querySelector(`details.item-block[data-item-identifier="${identifier}"]`);
+  if (!block) return '';
+  const sub = block.querySelector(`.${subSelector}`);
+  if (!sub) return '';
+  return sub.outerHTML;
+}
+
+function buildWithExplanationReport(dirName: string): {
+  html: string;
+  outputDirPath: string;
+} {
+  const outputRootDir = createCleanOutputDir(dirName);
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('new-package-with-explanation-result.xml'),
+    outputRootDir,
+  });
+  return { html: report.html, outputDirPath: report.outputDirPath };
+}
+
+test('retake body for choice items renders native radios grouped by item with no pre-checked value', () => {
+  const { html } = buildWithExplanationReport('html-retry-choice');
+  const doc = parseReport(html);
+
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-choice"]');
+  assert.ok(block, 'new-choice item block must exist');
+  assert.equal(block?.hasAttribute('open'), false, 'item-block must not have the open attribute');
+
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist');
+
+  const radioLists = retry?.querySelectorAll('ul.choice-retry') ?? [];
+  assert.equal(radioLists.length, 1, 'exactly one choice-retry list is expected');
+  const radios = Array.from(radioLists[0]?.querySelectorAll('input[type="radio"]') ?? []);
+  assert.equal(radios.length, 2, 'two radios for two choices');
+  const radioName = radios[0]?.getAttribute('name') ?? '';
+  assert.ok(
+    radioName.startsWith('qti-retry-new-choice-'),
+    `radio name must be prefixed with qti-retry-new-choice-, got ${radioName}`
+  );
+  for (const radio of radios) {
+    assert.equal(radio.getAttribute('name'), radioName, 'radios in one group must share a name');
+    assert.equal(radio.hasAttribute('checked'), false, 'no radio must be pre-checked');
+  }
+
+  const retryHtml = retry?.innerHTML ?? '';
+  assert.ok(
+    retryHtml.includes('Markdown source'),
+    'retake body must show choice text "Markdown source"'
+  );
+  assert.ok(retryHtml.includes('QTI package'), 'retake body must show choice text "QTI package"');
+  assert.ok(
+    !retryHtml.includes('CHOICE_A') && !retryHtml.includes('CHOICE_B'),
+    'retake body must not show internal choice identifiers'
+  );
+});
+
+test('retake body for cloze items has editable inputs with no pre-filled value and no readonly/disabled', () => {
+  const { html } = buildWithExplanationReport('html-retry-cloze');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  assert.ok(block, 'new-cloze item block must exist');
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist');
+  const inputs = Array.from(retry?.querySelectorAll('input.cloze-input.qti-blank-input') ?? []);
+  assert.ok(inputs.length >= 2, 'new-cloze must have at least two cloze inputs');
+  for (const input of inputs) {
+    assert.equal(input.hasAttribute('readonly'), false, 'cloze input must not be readonly');
+    assert.equal(input.hasAttribute('disabled'), false, 'cloze input must not be disabled');
+    assert.equal(input.hasAttribute('value'), false, 'cloze input must not have a value');
+  }
+});
+
+test('retake body for descriptive items has an empty textarea', () => {
+  const { html } = buildWithExplanationReport('html-retry-descriptive');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+  assert.ok(block, 'new-descriptive item block must exist');
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist');
+  const textarea = retry?.querySelector('textarea');
+  assert.ok(textarea, 'a textarea must exist for the descriptive retake body');
+  assert.equal((textarea?.textContent ?? '').trim(), '', 'textarea must be empty');
+  assert.equal(
+    textarea?.getAttribute('value') ?? null,
+    null,
+    'textarea must not carry a value attribute'
+  );
+  assert.ok(
+    !(textarea?.getAttribute('placeholder') ?? '').includes('markdown-to-qti converts'),
+    'textarea placeholder must not include the candidate submission'
+  );
+});
+
+test('candidate response inner details is collapsed by default and shows submitted value when opened', () => {
+  const { html } = buildWithExplanationReport('html-candidate-response');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  assert.ok(block, 'new-cloze item block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response-block must exist');
+  assert.equal(
+    candidate?.hasAttribute('open'),
+    false,
+    'candidate-response-block must not have the open attribute'
+  );
+
+  // Force open by adding the attribute, then re-query through JSDOM.
+  candidate?.setAttribute('open', '');
+  const filledInputs = Array.from(
+    candidate?.querySelectorAll('input.cloze-input.qti-blank-input') ?? []
+  );
+  const values = filledInputs.map((input) => input.getAttribute('value'));
+  assert.ok(
+    values.includes('second'),
+    `submitted-answer block must include the submitted value "second", got ${values.join(',')}`
+  );
+
+  // The same value-bearing input must not be present in the retake body.
+  const retryBlock = block?.querySelector('.retry-question-block');
+  const retryInputs = Array.from(retryBlock?.querySelectorAll('input.qti-blank-input') ?? []);
+  const retryHasValue = retryInputs.some((input) => input.getAttribute('value') === 'second');
+  assert.equal(
+    retryHasValue,
+    false,
+    'retake body must not contain the value-bearing input from the submitted-answer block'
+  );
+  for (const input of filledInputs) {
+    assert.equal(
+      input.classList.contains('cloze-input-readonly'),
+      true,
+      'submitted-answer cloze input must carry cloze-input-readonly class'
+    );
+    assert.equal(
+      input.hasAttribute('readonly'),
+      true,
+      'submitted-answer cloze input must be readonly'
+    );
+  }
+});
+
+test('answer-explanation inner details is collapsed by default and carries the explanation HTML when opened', () => {
+  const { html } = buildWithExplanationReport('html-explanation');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-choice"]');
+  assert.ok(block, 'new-choice item block must exist');
+  const explanation = block?.querySelector('details.answer-explanation-block');
+  assert.ok(explanation, 'answer-explanation-block must exist for new-choice');
+  assert.equal(
+    explanation?.hasAttribute('open'),
+    false,
+    'answer-explanation-block must not have the open attribute'
+  );
+  explanation?.setAttribute('open', '');
+
+  assert.ok(
+    /<p>Reasoning for the choice:/.test(explanation?.innerHTML ?? ''),
+    'explanation body must contain the reasoning paragraph'
+  );
+  const inlineCodes = Array.from(explanation?.querySelectorAll('code.code-inline') ?? []);
+  const inlineText = inlineCodes.map((c) => c.textContent ?? '').join('|');
+  assert.ok(
+    inlineText.includes('x = 1'),
+    `explanation body must contain inline code "x = 1", got ${inlineText}`
+  );
+
+  const preCode = explanation?.querySelector('pre code');
+  assert.ok(preCode, 'explanation body must contain a code block');
+  assert.ok(
+    preCode?.textContent?.includes('function pick()'),
+    'code block content must be preserved'
+  );
+
+  const image = explanation?.querySelector('img');
+  assert.ok(image, 'explanation body must contain the local image');
+  const src = image?.getAttribute('src') ?? '';
+  assert.ok(
+    src.startsWith('./assets/new-choice/sample.svg'),
+    `image src must be rewritten to ./assets/new-choice/sample.svg, got ${src}`
+  );
+});
+
+test('correct-answer inner details is present and shows choice text not the internal id', () => {
+  const { html } = buildWithExplanationReport('html-correct-choice');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-choice"]');
+  assert.ok(block, 'new-choice item block must exist');
+  const correct = block?.querySelector('details.correct-answer-block');
+  assert.ok(correct, 'correct-answer-block must exist for new-choice');
+  assert.equal(
+    correct?.hasAttribute('data-answer-section'),
+    true,
+    'correct-answer-block must carry data-answer-section'
+  );
+  correct?.setAttribute('open', '');
+  const text = correct?.textContent ?? '';
+  assert.ok(
+    text.includes('QTI package'),
+    'correct-answer body must show the choice text "QTI package"'
+  );
+  assert.ok(
+    !text.includes('CHOICE_B'),
+    'correct-answer body must not show the internal choice identifier'
+  );
+});
+
+test('correct-answer inner details is present for multi-blank cloze items with ordered correct values', () => {
+  const { html } = buildWithExplanationReport('html-correct-cloze');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  assert.ok(block, 'new-cloze item block must exist');
+  const correct = block?.querySelector('details.correct-answer-block');
+  assert.ok(correct, 'correct-answer-block must exist for new-cloze');
+  correct?.setAttribute('open', '');
+
+  const filledInputs = Array.from(
+    correct?.querySelectorAll('input.cloze-input.qti-blank-input') ?? []
+  );
+  const values = filledInputs.map((input) => input.getAttribute('value') ?? '');
+  assert.ok(
+    values.includes('first'),
+    `correct cloze body must include "first", got ${values.join(',')}`
+  );
+  assert.ok(
+    values.includes('second'),
+    `correct cloze body must include "second", got ${values.join(',')}`
+  );
+  // Ordering: blank 1 is "first" and blank 2 is "second".
+  assert.equal(values[0], 'first', 'first blank in correct body must be "first"');
+  assert.equal(values[1], 'second', 'second blank in correct body must be "second"');
+  for (const input of filledInputs) {
+    assert.equal(
+      input.classList.contains('cloze-input-readonly'),
+      true,
+      'correct-answer cloze input must carry cloze-input-readonly class'
+    );
+    assert.equal(
+      input.hasAttribute('readonly'),
+      true,
+      'correct-answer cloze input must be readonly'
+    );
+  }
+});
+
+test('answer-explanation section is omitted when neither correct response nor modal feedback is present', () => {
+  const outputRootDir = createCleanOutputDir('html-no-explanation');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-no-explanation-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('new-package-no-explanation-result.xml'),
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+  const explanation = doc.querySelector('details.answer-explanation-block');
+  assert.equal(
+    explanation,
+    null,
+    'answer-explanation-block must not be emitted when nothing to show'
+  );
+  const correct = doc.querySelector('details.correct-answer-block');
+  assert.equal(correct, null, 'correct-answer-block must not be emitted when nothing to show');
+});
+
+test('section order is 問題 → 採点者コメント → 観点別の達成状況 → 受験者の回答 → 解答・解説', () => {
+  const { html } = buildWithExplanationReport('html-section-order');
+  const newChoiceStart = html.indexOf('data-item-identifier="new-choice"');
+  const nextStart = html.indexOf('data-item-identifier="new-cloze"');
+  assert.ok(newChoiceStart >= 0, 'new-choice block must exist');
+  assert.ok(nextStart > newChoiceStart, 'new-cloze block must follow');
+  const itemHtml = html.slice(newChoiceStart, nextStart);
+
+  const questionIdx = itemHtml.indexOf('問題');
+  const commentIdx = itemHtml.indexOf('採点者コメント');
+  const rubricIdx = itemHtml.indexOf('観点別の達成状況');
+  const candidateIdx = itemHtml.indexOf('受験者の回答');
+  const explanationIdx = itemHtml.indexOf('解答・解説');
+
+  assert.ok(questionIdx > 0, '問題 must be present');
+  assert.ok(commentIdx > questionIdx, '採点者コメント must follow 問題');
+  assert.ok(rubricIdx > commentIdx, '観点別の達成状況 must follow 採点者コメント');
+  assert.ok(candidateIdx > rubricIdx, '受験者の回答 must follow 観点別の達成状況');
+  assert.ok(explanationIdx > candidateIdx, '解答・解説 must follow 受験者の回答');
+});
+
+test('explanation image is copied into assets/<itemIdentifier>/ and the src is rewritten', () => {
+  const { html, outputDirPath } = buildWithExplanationReport('html-explanation-asset');
+  const expected = path.join(outputDirPath, 'assets', 'new-choice', 'sample.svg');
+  assert.equal(fs.existsSync(expected), true, 'explanation image must be copied to assets/');
+  assert.ok(
+    html.includes('./assets/new-choice/sample.svg'),
+    'explanation body must reference the new asset path'
+  );
+});
+
+test('item-7 candidate-response inner details shows the submitted value when opened', () => {
+  const outputRootDir = createCleanOutputDir('html-item7-submitted');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('assessment-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('assessment-result.xml'),
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="item-7"]');
+  assert.ok(block, 'item-7 block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response-block must exist for item-7');
+  candidate?.setAttribute('open', '');
+  const inputs = Array.from(candidate?.querySelectorAll('input.qti-blank-input') ?? []);
+  const values = inputs.map((input) => input.getAttribute('value') ?? '');
+  assert.ok(
+    values.includes('1'),
+    `candidate-response for item-7 must include the submitted value "1", got ${values.join(',')}`
+  );
+  // The same value-bearing input must not be present in the retake body.
+  const retry = block?.querySelector('.retry-question-block');
+  const retryValues = Array.from(retry?.querySelectorAll('input.qti-blank-input') ?? []).map(
+    (input) => input.getAttribute('value') ?? ''
+  );
+  assert.ok(!retryValues.includes('1'), 'item-7 retake body must not contain the submitted value');
 });

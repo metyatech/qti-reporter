@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="new-choice" title="New Choice No Explanation" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="identifier" cardinality="single" />
+  <qti-item-body>
+    <qti-p>Choose the file that qti-reporter reads.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Markdown source</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">QTI package <qti-code>XML</qti-code></qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Selects the generated QTI package</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

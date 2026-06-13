@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
+  <context sourcedId="user-0010">
+    <sessionIdentifier sourceID="candidateId" identifier="0010" />
+    <sessionIdentifier sourceID="candidateName" identifier="Explanation Tester" />
+  </context>
+  <testResult identifier="new-package-with-explanation-test" datestamp="2026-05-28T09:00:00+09:00">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>3</value>
+    </outcomeVariable>
+  </testResult>
+  <itemResult identifier="new-choice" datestamp="2026-05-28T09:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_B</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="COMMENT" baseType="string" cardinality="single">
+      <value>Comment for new-choice from the scorer.</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="new-cloze" datestamp="2026-05-28T09:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE_1" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>first</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="RESPONSE_2" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>second</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="new-descriptive" datestamp="2026-05-28T09:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>markdown-to-qti converts Markdown and a manifest into QTI XML before reporting.</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+</assessmentResult>

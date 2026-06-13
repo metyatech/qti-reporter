@@ -111,6 +111,41 @@ Expected elements:
   - `show-hide="show"`
   - Contains a `qti-content-body` with the rendered explanation flow content
 
+Renderer expectations for the explanation body:
+
+- The reporter renders the explanation body inside a collapsible
+  `<details class="answer-explanation-block" data-answer-section="explanation">`
+  in the per-student HTML report, paired with an optional
+  `<details class="correct-answer-block" data-answer-section="correct">` for
+  the `qti-correct-response` values. See `report-output-spec.md` for the
+  report section ordering.
+- Local images inside `qti-content-body` are copied the same way as question
+  images, into `assets/<itemIdentifier>/<fileName>`, and the `src` is rewritten
+  to the output-relative path.
+- The explanation body is passed through the same code highlighter (hljs) as
+  the question body, so code blocks and inline code are highlighted
+  consistently.
+
+### Report section ordering
+
+The per-student HTML report mounts five section titles inside each item's
+`.item-content` in this strict order:
+
+1. 問題 (always; the editable retake body)
+2. 採点者コメント (only when a `COMMENT` outcome variable exists)
+3. 観点別の達成状況 (only when scorer rubric criteria exist)
+4. 受験者の回答 (the existing inner `<details class="candidate-response-block">`,
+   collapsed by default; content is the submitted-answer body)
+5. 解答・解説 (a new inner `<details class="answer-explanation-block">`,
+   collapsed by default; contains the correct-answer body and/or the
+   explanation body, both collapsed. When neither `qti-correct-response` nor
+   `qti-modal-feedback` exists, this section is not emitted.)
+
+The question body in the 問題 section is editable for re-attempt: cloze
+inputs are not pre-filled with the candidate response, native radio inputs
+are not pre-checked, and descriptive items render an empty textarea. The
+submitted value is rendered only inside the 受験者の回答 section.
+
 ### Scoring rubric blocks
 
 - `## Scoring` maps to `qti-rubric-block view="scorer"` with one `qti-p` per criterion.

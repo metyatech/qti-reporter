@@ -696,6 +696,59 @@ tr[data-criterion-status="false"] .criterion-points {
   color: var(--muted);
   background: #f8fafc;
 }
+.retry-question-block {
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+.choice-retry {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+.choice-retry label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+.choice-retry label > input[type="radio"] {
+  margin: 0;
+}
+.cloze-input-readonly {
+  background: #f8fafc;
+}
+.answer-explanation-block {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+}
+.answer-explanation-block > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.correct-answer-block {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+}
+.correct-answer-block > summary {
+  cursor: pointer;
+  font-weight: 700;
+}
 `;
 
 export const DEFAULT_STYLE_ELEMENT = `<style data-qti-reporter-style="default">${DEFAULT_REPORT_CSS}</style>`;

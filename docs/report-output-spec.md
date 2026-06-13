@@ -70,12 +70,14 @@ Output must be arranged in the following order:
 
 Each item block must include, in this order:
 
-1. Question text
+1. Question (retake body, no pre-filled response)
 2. Scorer comment (when present)
 3. Per-criterion correctness (scoring rubric criteria)
-4. Candidate response
+4. Candidate response (inner details, collapsed)
+5. Answer & explanation (inner details, collapsed; emitted only when at least
+   one of `qti-correct-response` or `qti-modal-feedback` exists)
 
-Do not display any other fields.
+Do not display any other fields beyond the five sections above.
 
 ### Item result state
 
@@ -184,6 +186,13 @@ must be treated as stable for external CSS.
 - Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-pre`, `.response-empty`
 - Choice response selectors: `.choice-response-list`, `.choice-response-option`, `.choice-response-selected`, `.choice-response-marker`, `.choice-response-text`, `.choice-response-label`, `.choice-response-unmatched`
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
+- Retry question body selector: `.retry-question-block`
+- Retry choice wrapper selector: `.choice-retry`
+- Read-only cloze input selector: `.cloze-input.cloze-input-readonly`
+- Answer & explanation section selectors: `.answer-explanation-block`,
+  `.correct-answer-block`
+- Section data attributes: `data-answer-section="explanation"`,
+  `data-answer-section="correct"`
 
 ### Styling data attributes
 
@@ -207,6 +216,10 @@ External CSS may also rely on the following data attributes:
   `./assets/<itemIdentifier>/<fileName>`
 - External sources (`http`, `https`, `data`, absolute `/`) are not copied and
   are left unchanged.
+- Local images inside `qti-modal-feedback` / `qti-content-body` (the
+  explanation body rendered inside `.answer-explanation-block`) are copied
+  the same way as question images, into the same `assets/<itemIdentifier>/`
+  directory, with the same `src` rewrite.
 
 ### Candidate response rendering
 
@@ -229,6 +242,11 @@ External CSS may also rely on the following data attributes:
   question HTML with input fields filled with the candidate responses.
   Inputs use `.cloze-input` and `.qti-blank-input` and their `size` attribute
   expands based on the response length.
+- The question body inside the 問題 section is editable for re-attempt: cloze
+  inputs are not pre-filled with the candidate response, native radio inputs
+  are not pre-checked, and descriptive items render an empty textarea. The
+  submitted value is rendered only inside the 受験者の回答 inner details
+  block.
 
 ### Item comment rendering
 

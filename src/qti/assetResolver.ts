@@ -97,3 +97,29 @@ export function resolveItemAssets(
 
   return { html, copiedAssetPaths };
 }
+
+/**
+ * Sibling of `resolveItemAssets` for arbitrary HTML fragments (used for the
+ * explanation body inside `<details class="answer-explanation-block">`). It
+ * reuses the same path-resolution and copy logic so local images referenced
+ * from the explanation end up in `assets/<itemIdentifier>/<file>` exactly like
+ * question images. External sources (`http`, `https`, `data:`, `/`) are left
+ * alone.
+ */
+export function resolveExplanationAssets(
+  explanationHtml: string,
+  itemPath: string,
+  itemIdentifier: string,
+  outputDirPath: string
+): ResolvedAssetsResult {
+  if (explanationHtml.length === 0) {
+    return { html: explanationHtml, copiedAssetPaths: [] };
+  }
+  const imgTagPattern = /<img\b[^>]*>/g;
+  const copiedAssetPaths: string[] = [];
+  const html = explanationHtml.replace(imgTagPattern, (imgTag) =>
+    rewriteImgTag(imgTag, itemPath, itemIdentifier, outputDirPath, copiedAssetPaths)
+  );
+
+  return { html, copiedAssetPaths };
+}

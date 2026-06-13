@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
+  <context sourcedId="user-0011">
+    <sessionIdentifier sourceID="candidateId" identifier="0011" />
+    <sessionIdentifier sourceID="candidateName" identifier="No Explanation Tester" />
+  </context>
+  <testResult identifier="new-package-no-explanation-test" datestamp="2026-05-28T09:00:00+09:00">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>0</value>
+    </outcomeVariable>
+  </testResult>
+  <itemResult identifier="new-choice" datestamp="2026-05-28T09:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_A</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>0</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>false</value>
+    </outcomeVariable>
+  </itemResult>
+</assessmentResult>
