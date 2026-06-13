@@ -117,27 +117,26 @@ function perInteractionNamePrefix(itemIdentifier: string, index: number): string
   return `qti-candidate-${sanitizeAttrSegment(itemIdentifier)}-${index}`;
 }
 
-function buildChoiceRenderInfo(item: ParsedAssessmentItem): ChoiceRenderInfo[] {
-  const choiceInteractions = item.interactions
+interface ItemAnswerBodies {
+  retryQuestionHtml: string;
+  submittedAnswerHtml: string;
+  correctAnswerHtml: string | null;
+}
+
+type ChoiceEntry = { interaction: InteractionInfo; interactionIndex: number };
+
+function selectChoiceEntries(item: ParsedAssessmentItem): ChoiceEntry[] {
+  return item.interactions
     .map((interaction, interactionIndex) => ({ interaction, interactionIndex }))
     .filter((entry) => entry.interaction.type === 'choice');
+}
 
-  if (choiceInteractions.length === 0) {
-    return [];
-  }
-
-  const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
-  const root = dom.window.document.getElementById('root');
-  if (!root) {
-    return choiceInteractions.map((entry) => ({
-      interaction: entry.interaction,
-      interactionIndex: entry.interactionIndex,
-      choiceInnerHtmlByIdentifier: new Map<string, string>(),
-    }));
-  }
+function buildChoiceRenderInfoFromRoot(
+  root: Element,
+  choiceEntries: ChoiceEntry[]
+): ChoiceRenderInfo[] {
   const wrappers = Array.from(root.querySelectorAll('div.choice-interaction'));
-
-  return choiceInteractions.map((entry) => {
+  return choiceEntries.map((entry) => {
     const wrapper = wrappers.shift();
     const map = new Map<string, string>();
     if (wrapper) {
@@ -157,10 +156,94 @@ function buildChoiceRenderInfo(item: ParsedAssessmentItem): ChoiceRenderInfo[] {
   });
 }
 
+/**
+ * Parse the item's `questionHtml` with JSDOM exactly once. Returns the
+ * document and the wrapping root `<div>`. This is the only place in this
+ * file that constructs a JSDOM instance: every per-item consumer
+ * (candidate-response, correct-answer, retry-question) reads from this
+ * single parse. The retry builder mutates a `cloneNode(true)` of the
+ * root so the shared parse is never disturbed.
+ */
+function parseQuestionHtmlForChoices(item: ParsedAssessmentItem): {
+  dom: JSDOM;
+  root: Element | null;
+} {
+  const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
+  return { dom, root: dom.window.document.getElementById('root') };
+}
+
+/**
+ * Build the retry-question, submitted-answer, and correct-answer bodies for a
+ * single item. For choice items the item's `questionHtml` is parsed with
+ * JSDOM exactly once; the same parsed root feeds the per-interaction choice
+ * render info that the candidate-response and correct-answer bodies share,
+ * and the retry body mutates a `cloneNode(true)` of that root so it never
+ * disturbs the shared parse. Non-choice descriptive items take a no-DOM path.
+ */
+function buildItemAnswerBodies(
+  item: ParsedAssessmentItem,
+  itemResult: ParsedItemResult
+): ItemAnswerBodies {
+  const choiceEntries = selectChoiceEntries(item);
+  const hasClozeInputs = item.questionHtml.includes('qti-blank-input');
+  const needsChoiceDom = choiceEntries.length > 0;
+  const needsRetryDom = item.choices.length > 0 || hasClozeInputs;
+
+  let choiceRenderInfo: ChoiceRenderInfo[] = [];
+  let retryQuestionHtml: string;
+
+  if (!needsChoiceDom && !needsRetryDom) {
+    // Descriptive item (no choice interactions, no cloze inputs): the retry
+    // body only needs the textarea transform, so no JSDOM parse happens.
+    retryQuestionHtml = wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
+  } else {
+    const { dom, root } = parseQuestionHtmlForChoices(item);
+    if (!root) {
+      choiceRenderInfo = choiceEntries.map((entry) => ({
+        interaction: entry.interaction,
+        interactionIndex: entry.interactionIndex,
+        choiceInnerHtmlByIdentifier: new Map<string, string>(),
+      }));
+      retryQuestionHtml = needsRetryDom
+        ? wrapRetryQuestionBody(item.questionHtml)
+        : wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
+    } else {
+      choiceRenderInfo = needsChoiceDom ? buildChoiceRenderInfoFromRoot(root, choiceEntries) : [];
+      if (needsRetryDom) {
+        const retryRoot = root.cloneNode(true) as Element;
+        retryQuestionHtml = buildRetryQuestionFromRoot(dom, retryRoot, item, choiceRenderInfo);
+      } else {
+        retryQuestionHtml = wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
+      }
+    }
+  }
+
+  return {
+    retryQuestionHtml,
+    submittedAnswerHtml: buildSubmittedAnswerHtml(item, itemResult, choiceRenderInfo),
+    correctAnswerHtml: buildCorrectAnswerHtml(item, choiceRenderInfo),
+  };
+}
+
 interface ChoiceRenderInfo {
   interaction: InteractionInfo;
   interactionIndex: number;
   choiceInnerHtmlByIdentifier: Map<string, string>;
+}
+
+/**
+ * A candidate value is "no answer" only when it is the strictly-empty string.
+ * The parser already normalizes CRLF/CR to LF, so a length-0 string is the
+ * single no-answer marker. Whitespace-only values (spaces, tabs, newlines)
+ * and values with leading/trailing whitespace are real answers and are kept
+ * verbatim — this helper never trims.
+ */
+function isEmptyResponseValue(value: string): boolean {
+  return value.length === 0;
+}
+
+function dropEmptyResponseValues(values: string[]): string[] {
+  return values.filter((value) => !isEmptyResponseValue(value));
 }
 
 function resolveChoiceInnerHtml(
@@ -176,12 +259,12 @@ function resolveChoiceInnerHtml(
 
 function buildSubmittedAnswerHtml(
   item: ParsedAssessmentItem,
-  itemResult: ParsedItemResult
+  itemResult: ParsedItemResult,
+  choiceRenderInfo: ChoiceRenderInfo[]
 ): string {
   if (item.interactions.length === 0) {
     return formatDescriptiveResponse(itemResult.responses);
   }
-  const choiceRenderInfo = buildChoiceRenderInfo(item);
   const rows = item.interactions
     .map((interaction, index) =>
       renderCandidateResponseSection(
@@ -197,7 +280,7 @@ function buildSubmittedAnswerHtml(
 }
 
 function formatDescriptiveResponse(responses: ParsedItemResponse[]): string {
-  const allValues = responses.flatMap((response) => response.values);
+  const allValues = dropEmptyResponseValues(responses.flatMap((response) => response.values));
   if (allValues.length === 0) {
     return '<p class="response-empty">（無回答）</p>';
   }
@@ -226,10 +309,11 @@ function renderCandidateResponseSection(
 }
 
 function renderDescriptiveTextCandidateBody(values: string[]): string {
-  if (values.length === 0) {
+  const kept = dropEmptyResponseValues(values);
+  if (kept.length === 0) {
     return '<p class="response-empty">（無回答）</p>';
   }
-  const joined = values.map((value) => escapeHtml(value)).join('\n');
+  const joined = kept.map((value) => escapeHtml(value)).join('\n');
   return `<pre class="response-text response-pre">${joined}</pre>`;
 }
 
@@ -237,16 +321,17 @@ function renderTextCandidateBody(interaction: InteractionInfo, values: string[])
   const idLabel = interaction.id
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
     : '';
-  if (values.length === 0) {
+  const kept = dropEmptyResponseValues(values);
+  if (kept.length === 0) {
     return `${idLabel}<p class="response-empty">（無回答）</p>`;
   }
   if (interaction.type === 'extended-text') {
-    const escaped = values.map((value) => escapeHtml(value)).join('\n');
+    const escaped = kept.map((value) => escapeHtml(value)).join('\n');
     return `${idLabel}<pre class="response-text response-pre">${escaped}</pre>`;
   }
   // text-entry: render each value as a read-only cloze input so existing CSS
   // (`.cloze-input.qti-blank-input[readonly]`) and tests keep working.
-  const inputs = values
+  const inputs = kept
     .map((value) => {
       const escaped = escapeHtml(value);
       const size = Math.max(6, value.length);
@@ -302,18 +387,26 @@ function renderChoiceCandidateBody(
   return `${submittedLabel}<ul class="choice-response-list">${[...rows, ...unmatched].join('')}</ul>`;
 }
 
-function buildCorrectAnswerHtml(item: ParsedAssessmentItem): string | null {
+function buildCorrectAnswerHtml(
+  item: ParsedAssessmentItem,
+  choiceRenderInfo: ChoiceRenderInfo[]
+): string | null {
   const hasAnyCorrect = item.interactions.some(
     (interaction) => interaction.correctResponse.length > 0
   );
   if (!hasAnyCorrect) {
     return null;
   }
-  const choiceRenderInfo = buildChoiceRenderInfo(item);
+  // Preserve the original `interactionIndex` from `item.interactions` even
+  // when we filter out interactions that have no correct response. The
+  // post-filter index would otherwise shift the second interaction's
+  // display index from 1 to 0 and pick up the previous interaction's
+  // choice text/image.
   const rows = item.interactions
-    .filter((interaction) => interaction.correctResponse.length > 0)
-    .map((interaction, index) =>
-      renderCorrectAnswerSection(interaction, index, item.identifier, choiceRenderInfo)
+    .map((interaction, interactionIndex) => ({ interaction, interactionIndex }))
+    .filter(({ interaction }) => interaction.correctResponse.length > 0)
+    .map(({ interaction, interactionIndex }) =>
+      renderCorrectAnswerSection(interaction, interactionIndex, item.identifier, choiceRenderInfo)
     )
     .join('');
   if (rows.length === 0) {
@@ -340,16 +433,22 @@ function renderTextCorrectBody(interaction: InteractionInfo): string {
   const label = interaction.id
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
     : '';
-  if (interaction.correctResponse.length === 0) {
+  // `correctResponse` is sourced from the renderer's `InteractionInfo`. It
+  // is rarely empty in practice, but we apply the same drop-empties rule
+  // as the candidate-response body for consistency. Strictly empty strings
+  // are dropped; whitespace-only values (including tabs and newlines) and
+  // values with leading/trailing whitespace are kept verbatim.
+  const kept = dropEmptyResponseValues(interaction.correctResponse);
+  if (kept.length === 0) {
     return `${label}<p class="response-empty">（正解情報なし）</p>`;
   }
   if (interaction.type === 'extended-text') {
-    const joined = interaction.correctResponse.map((value) => escapeHtml(value)).join('\n');
+    const joined = kept.map((value) => escapeHtml(value)).join('\n');
     return `${label}<pre class="response-text response-pre">${joined}</pre>`;
   }
   // text-entry: render each correct value as a read-only cloze input so the
   // existing styling and tests keep working.
-  const inputs = interaction.correctResponse
+  const inputs = kept
     .map((value) => {
       const escaped = escapeHtml(value);
       const size = Math.max(6, value.length);
@@ -384,20 +483,12 @@ function renderChoiceCorrectBody(
   return `${label}<ul class="choice-response-list">${rows.join('')}</ul>`;
 }
 
-function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
-  const hasClozeInputs = item.questionHtml.includes('qti-blank-input');
-  if (!item.choices.length && !hasClozeInputs) {
-    // Descriptive items without cloze inputs need a textarea as the response
-    // surface, including the case where the renderer has emitted a
-    // `qti-extended-text-interaction` placeholder.
-    return wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
-  }
-  const choiceRenderInfo = buildChoiceRenderInfo(item);
-  const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
-  const root = dom.window.document.getElementById('root');
-  if (!root) {
-    return wrapRetryQuestionBody(item.questionHtml);
-  }
+function buildRetryQuestionFromRoot(
+  dom: JSDOM,
+  root: Element,
+  item: ParsedAssessmentItem,
+  choiceRenderInfo: ChoiceRenderInfo[]
+): string {
   const choiceWrappers = Array.from(root.querySelectorAll('.choice-interaction'));
   const choiceInteractionIter = choiceRenderInfo[Symbol.iterator]();
   choiceWrappers.forEach((wrapper) => {
@@ -868,9 +959,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       ...parsedItem,
       questionHtml: resolvedAssets.html,
     };
-    const retryQuestionHtml = buildRetryQuestionHtml(resolvedItem);
-    const submittedAnswerHtml = buildSubmittedAnswerHtml(resolvedItem, itemResult);
-    const correctAnswerHtml = buildCorrectAnswerHtml(resolvedItem);
+    const answerBodies = buildItemAnswerBodies(resolvedItem, itemResult);
     const explanationHtml = buildExplanationHtml(
       parsedItem.explanationHtml,
       itemRef.itemPath,
@@ -881,9 +970,9 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       resolvedItem,
       itemResult,
       itemIndex + 1,
-      retryQuestionHtml,
-      submittedAnswerHtml,
-      correctAnswerHtml,
+      answerBodies.retryQuestionHtml,
+      answerBodies.submittedAnswerHtml,
+      answerBodies.correctAnswerHtml,
       explanationHtml
     );
   });

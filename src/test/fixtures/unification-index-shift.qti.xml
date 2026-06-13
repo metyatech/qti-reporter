@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="index-shift" title="Choice Interaction Index Drift" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE_A" base-type="identifier" cardinality="single" />
+  <qti-response-declaration identifier="RESPONSE" base-type="identifier" cardinality="single">
+    <qti-correct-response>
+      <qti-value>CHOICE_A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>First interaction — no correct response is declared, so the correct-answer block must skip it. The reporter must still keep the first interaction's interactionIndex=0 and not shift the second interaction down to 0.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE_A" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">First Alpha</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">First Beta</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-p>Second interaction — carries the correct response. The correct-answer block must include the choice text and image from THIS interaction (Second Gamma) and not from the first interaction.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Second Gamma <qti-img src="images/sample.svg" alt="second" /></qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">Second Delta</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Second interaction is Second Gamma</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

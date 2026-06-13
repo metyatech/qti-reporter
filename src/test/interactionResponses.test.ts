@@ -148,3 +148,52 @@ test('responseDedupeKey: unmatched interaction with no id returns empty string',
   });
   assert.equal(responseDedupeKey(interaction), '');
 });
+
+test('interaction id collides with choice identifier: binding uses the responseVariable identifier, not the choice identifier', () => {
+  // When the interaction `id` is the same string as a choice identifier
+  // (e.g. interaction id `CHOICE_A` and a `<qti-simple-choice
+  // identifier="CHOICE_A">` inside the same interaction), the binding
+  // layer must still resolve by the responseVariable identifier. The
+  // resolver sees `interaction.id === "CHOICE_A"`; a
+  // `responseVariable identifier="CHOICE_A"` is not the same as a
+  // choice identifier, so the resolver returns its `values`. The
+  // `interactionIndex` (not the choice identifier or its position) is
+  // the reporter's scope key for siblings.
+  const responses: ParsedItemResponse[] = [
+    { responseIdentifier: 'CHOICE_A', values: ['alpha', 'beta'] },
+  ];
+  const interaction = makeInteraction({
+    id: 'CHOICE_A',
+    declarationIdentifier: null,
+    declarationValueIndex: null,
+  });
+  // Direct-match: declaration is null, so the id fallback wins.
+  const result = resolveSubmittedValues(responses, interaction);
+  assert.deepEqual(
+    result,
+    ['alpha', 'beta'],
+    'resolver must use the responseVariable identifier `CHOICE_A` (not the choice identifier)'
+  );
+});
+
+test('interaction id collides with choice identifier: direct match uses the id for the responseVariable lookup', () => {
+  // Symmetric case: the responseVariable identifier happens to be the
+  // same string as the interaction's own `id` and one of its choice
+  // identifiers. The binding layer still works because it only ever
+  // consults `responseVariable.responseIdentifier`, never the choice
+  // identifier.
+  const responses: ParsedItemResponse[] = [{ responseIdentifier: 'CHOICE_A', values: ['gamma'] }];
+  const interaction = makeInteraction({
+    id: 'CHOICE_A',
+    declarationIdentifier: 'DECLARED',
+    declarationValueIndex: null,
+  });
+  // declaration `DECLARED` is absent, so the id fallback must return
+  // the responseVariable for `CHOICE_A`.
+  const result = resolveSubmittedValues(responses, interaction);
+  assert.deepEqual(
+    result,
+    ['gamma'],
+    'resolver must return the responseVariable whose identifier matches interaction.id (not the choice identifier)'
+  );
+});

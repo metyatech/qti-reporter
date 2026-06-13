@@ -60,7 +60,11 @@ radio/checkbox names are built as
 `qti-retry-<itemIdentifier>-<interactionIndex>-<interactionId>` (each
 segment sanitized with `replace(/[^A-Za-z0-9._-]/g, '-')`), so two
 siblings in the same item never share a browser radio/checkbox group
-even when their `id` is identical or empty.
+even when their `id` is identical or empty. The shared
+`src/report/interactionResponses.ts` binding layer (`resolveSubmittedValues`)
+does use `interaction.id` as a lookup fallback in both the legacy ordered
+and direct-match rules, so the id is part of the binding protocol — it
+is just not the sole scope key.
 
 ## Setup
 

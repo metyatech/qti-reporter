@@ -153,13 +153,16 @@ consumers can target it from CSS or scripts.
 ### Submission-to-interaction binding rules
 
 The interaction `id` is the renderer-emitted value of the
-`response-identifier` attribute on the interaction element. It is a
-**display attribute**, not a unique key. Two interactions in the same
-item can share the same `id` (e.g. duplicate
-`response-identifier="RESPONSE"`, or two interactions with no
-`response-identifier` at all). The reporter's authoritative key for
-distinguishing such siblings is the `interactionIndex` — the 0-based
-position of the interaction in `item.interactions`.
+`response-identifier` attribute on the interaction element. It is the
+canonical key for distinguishing interactions in a single item, but it
+is **not guaranteed unique** (two interactions can share the same id).
+The reporter's authoritative key for distinguishing such siblings is
+the `interactionIndex` — the 0-based position of the interaction in
+`item.interactions`. The interaction `id` is still part of the binding
+protocol: `resolveSubmittedValues` uses it as a lookup fallback in both
+the legacy ordered and direct-match rules below. The id is not,
+however, the sole scope key — when sibling interactions share an id, the
+reporter scopes them by `interactionIndex`.
 
 For each interaction, the reporter resolves the candidate's submitted
 values from `itemResult.responses` using the rules in
@@ -223,12 +226,20 @@ used by the CSV report. The form is selected by the renderer's
 
 - If `declarationValueIndex !== null`:
   `'<declarationIdentifier>|<declarationValueIndex>|<interaction.id>'`
-  so each legacy-distribution interaction gets its own cell.
+  (legacy ordered). Each legacy-distribution interaction gets its own
+  CSV cell by virtue of the unique `declarationValueIndex` segment.
 - Else if `declarationIdentifier`: `declarationIdentifier` (direct-match
   dedupe). Multiple interactions that share the same declaration
-  identifier collapse to a single cell.
+  identifier collapse to a single CSV cell — this is intentional, by
+  design.
 - Else: `interaction.id ?? ''` (the unmatched case, falling back to the
-  empty string when the interaction has no `id` either).
+  empty string when the interaction has no `id` either). The unmatched
+  case is INTENTIONALLY collapsed: two unmatched interactions with the
+  same `id` share a CSV cell. The HTML report renders them as separate
+  rows keyed by `interactionIndex`; the CSV does not. If the CSV must
+  distinguish two unmatched interactions with the same id, the renderer
+  must report a `declarationIdentifier`; otherwise the CSV is
+  intentionally lossy for the unmatched case.
 
 ### Multi-value preservation
 

@@ -904,3 +904,288 @@ test('multi-value / extended-text whitespace is preserved verbatim', () => {
   assert.ok(text.includes('\ttabbed'), 'whitespace test: tab must be preserved');
   assert.ok(/\n\n/.test(text), 'whitespace test: blank line must be preserved');
 });
+
+test('index-shift: correct-answer block uses the original interaction index, not the filtered index', () => {
+  // The `index-shift` fixture has two choice interactions. The first
+  // interaction has no correct response (declared `RESPONSE_A` with no
+  // `qti-correct-response`). The second interaction has the correct
+  // response (`RESPONSE`, CHOICE_A). The previous implementation
+  // computed the post-filter `index` (always 0 because the first was
+  // dropped), so the correct-answer block would render the FIRST
+  // interaction's choice text/image. The fix preserves the original
+  // `interactionIndex` from `item.interactions`.
+  const html = generateUnificationReport('unification-index-shift');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'index-shift');
+  assert.ok(block, 'index-shift block must exist');
+  const correct = block?.querySelector('details.correct-answer-block');
+  assert.ok(correct, 'correct-answer block must exist for index-shift');
+  correct?.setAttribute('open', '');
+
+  // Scope the assertions to the correct-answer block so we never confuse
+  // a candidate-response row with a correct-answer row.
+  const correctScope = correct;
+  const interactions = Array.from(
+    correctScope?.querySelectorAll('.correct-answer-interaction') ?? []
+  );
+  assert.equal(
+    interactions.length,
+    1,
+    `correct-answer block must contain exactly one .correct-answer-interaction; got ${interactions.length}`
+  );
+
+  const interactionId = interactions[0]?.getAttribute('data-interaction-id');
+  // RESPONSE_A has no correct response; the surviving interaction is
+  // RESPONSE (the second interaction, original index 1).
+  assert.equal(
+    interactionId,
+    'RESPONSE',
+    `the only correct-answer-interaction must be RESPONSE (the second interaction); got ${interactionId}`
+  );
+
+  // The candidate-name attribute must encode the ORIGINAL interaction
+  // index 1, not the post-filter index 0. This is the
+  // `data-candidate-name="qti-candidate-index-shift-1"` pattern.
+  const nameAttr = interactions[0]?.getAttribute('data-candidate-name');
+  assert.equal(
+    nameAttr,
+    'qti-candidate-index-shift-1',
+    `correct-answer-interaction data-candidate-name must encode the original interaction index 1; got ${nameAttr}`
+  );
+
+  const correctText = correctScope?.textContent ?? '';
+  // The correct-answer block must include the SECOND interaction's text
+  // ("Second Gamma") and must NOT include the first interaction's
+  // choice text ("First Alpha" / "First Beta").
+  assert.ok(
+    correctText.includes('Second Gamma'),
+    `correct-answer block must include "Second Gamma" (from the second interaction), got: ${correctText}`
+  );
+  assert.ok(
+    !correctText.includes('First Alpha'),
+    `correct-answer block must not include "First Alpha" (from the first interaction), got: ${correctText}`
+  );
+  assert.ok(
+    !correctText.includes('First Beta'),
+    `correct-answer block must not include "First Beta" (from the first interaction), got: ${correctText}`
+  );
+  assert.ok(
+    !correctText.includes('Second Delta'),
+    `correct-answer block must not include "Second Delta" (the non-correct choice of the second interaction), got: ${correctText}`
+  );
+
+  // Image guard: exactly one image, and it must be the one inside the
+  // second interaction's CHOICE_A — never the first interaction's image
+  // (the first interaction has no image).
+  const images = Array.from(correctScope?.querySelectorAll('img') ?? []);
+  assert.equal(
+    images.length,
+    1,
+    `correct-answer block must contain exactly one image; got ${images.length}`
+  );
+  const imageSrc = images[0]?.getAttribute('src') ?? '';
+  assert.ok(
+    imageSrc.endsWith('/index-shift/sample.svg'),
+    `image src must resolve to ./assets/index-shift/sample.svg; got ${imageSrc}`
+  );
+
+  // Cross-check the candidate-response block: both interactions must
+  // render, and the second interaction's candidate-name must still be
+  // `qti-candidate-index-shift-1` (the original index, not a post-filter
+  // index).
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const candidateRows = Array.from(
+    candidate?.querySelectorAll('.candidate-response-interaction') ?? []
+  );
+  assert.equal(candidateRows.length, 2, 'two choice interactions must render two rows');
+  const secondCandidateName = candidateRows[1]?.getAttribute('data-candidate-name');
+  assert.equal(
+    secondCandidateName,
+    'qti-candidate-index-shift-1',
+    `second interaction's candidate-name must encode the original interaction index 1; got ${secondCandidateName}`
+  );
+
+  // The image in the candidate-response block must also resolve to the
+  // second interaction's image (the first interaction has no image).
+  const candidateImages = Array.from(candidate?.querySelectorAll('img') ?? []);
+  assert.ok(
+    candidateImages.every((img) =>
+      (img.getAttribute('src') ?? '').endsWith('/index-shift/sample.svg')
+    ),
+    'every candidate-response image must be the second interaction image'
+  );
+});
+
+test('choice index consistency for candidate, correct, and retry', () => {
+  // Order is choice, text-entry, choice (3 interactions). The second
+  // choice (interactionIndex=2) must keep its index in the candidate
+  // wrapper, the correct-answer wrapper, and the retry-question block.
+  // We reuse `unification-legacy-distinct-vars` (RESPONSE_1, RESPONSE_2)
+  // and the `multi-text-entry` (FIRST, SECOND, THIRD) fixtures, but a
+  // dedicated consistency check is more useful as a single test that
+  // focuses on the `data-candidate-name` pattern, the correct-answer
+  // index, and the retry-question name.
+  const html = generateUnificationReport('unification-index-shift');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'index-shift');
+  assert.ok(block, 'index-shift block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  const correct = block?.querySelector('details.correct-answer-block');
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(candidate && correct && retry, 'all three bodies must exist');
+
+  candidate?.setAttribute('open', '');
+  correct?.setAttribute('open', '');
+
+  // The first interaction has no correct response, so the correct-answer
+  // block must contain only the second interaction, with
+  // `data-candidate-name="qti-candidate-index-shift-1"`.
+  const correctRows = Array.from(correct?.querySelectorAll('.correct-answer-interaction') ?? []);
+  assert.equal(correctRows.length, 1, 'one correct-answer row expected');
+  assert.equal(
+    correctRows[0]?.getAttribute('data-candidate-name'),
+    'qti-candidate-index-shift-1',
+    'correct-answer row must use the original interaction index 1'
+  );
+
+  // The candidate-response block has two rows; the second row's name
+  // must match the correct-answer row's name.
+  const candidateRows = Array.from(
+    candidate?.querySelectorAll('.candidate-response-interaction') ?? []
+  );
+  assert.equal(candidateRows.length, 2, 'two candidate-response rows expected');
+  const secondCandidate = candidateRows[1];
+  assert.equal(
+    secondCandidate?.getAttribute('data-candidate-name'),
+    'qti-candidate-index-shift-1',
+    'second candidate-response row must use the original interaction index 1'
+  );
+
+  // The retry-question block must have one radio list per choice
+  // interaction, and each list's radio name must encode the original
+  // interaction index (0 and 1).
+  const retryLists = Array.from(retry?.querySelectorAll('ul.choice-retry') ?? []);
+  assert.equal(
+    retryLists.length,
+    2,
+    'two retry-question choice lists expected (one per choice interaction)'
+  );
+  const retryNames = retryLists
+    .map((list) => list.querySelector('input[type="radio"]')?.getAttribute('name') ?? '')
+    .sort();
+  assert.ok(
+    retryNames[0]?.startsWith('qti-retry-index-shift-0-') ?? false,
+    `first retry list name must start with qti-retry-index-shift-0-, got: ${retryNames[0]}`
+  );
+  assert.ok(
+    retryNames[1]?.startsWith('qti-retry-index-shift-1-') ?? false,
+    `second retry list name must start with qti-retry-index-shift-1-, got: ${retryNames[1]}`
+  );
+});
+
+test('choice interactions with mixed correct/empty keep their original index in correct-answer block', () => {
+  // `duplicate-ids` has two choice interactions that share an
+  // `id="RESPONSE"`. The correct-answer block must render only the
+  // interactions that have a `correctResponse`, and those surviving
+  // interactions must keep their original `interactionIndex` (0 and 1).
+  // In `duplicate-ids` both interactions DO have a correct response
+  // (CHOICE_A, declared on the single RESPONSE declaration), so the
+  // correct-answer block must contain TWO rows.
+  const html = generateUnificationReport('unification-duplicate-ids');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'duplicate-ids');
+  assert.ok(block, 'duplicate-ids block must exist');
+  const correct = block?.querySelector('details.correct-answer-block');
+  assert.ok(correct, 'correct-answer block must exist for duplicate-ids');
+  correct?.setAttribute('open', '');
+  const rows = Array.from(correct?.querySelectorAll('.correct-answer-interaction') ?? []);
+  assert.equal(rows.length, 2, 'duplicate-ids must render two correct-answer rows');
+  const names = rows.map((row) => row.getAttribute('data-candidate-name'));
+  assert.ok(
+    names.includes('qti-candidate-duplicate-ids-0'),
+    `first correct-answer row must encode the original index 0, got: ${names.join(', ')}`
+  );
+  assert.ok(
+    names.includes('qti-candidate-duplicate-ids-1'),
+    `second correct-answer row must encode the original index 1, got: ${names.join(', ')}`
+  );
+
+  // The first row's text must be the first interaction's correct
+  // choice (Alpha — CHOICE_A is the only correct value); the second
+  // row's text must be the second interaction's correct choice
+  // (Gamma — same CHOICE_A identifier, but a different text in the
+  // second interaction's `qti-simple-choice` children). No text bleed
+  // across rows.
+  const firstText = rows[0]?.textContent ?? '';
+  const secondText = rows[1]?.textContent ?? '';
+  assert.ok(firstText.includes('Alpha'), `first row must include Alpha, got: ${firstText}`);
+  assert.ok(
+    !firstText.includes('Gamma') && !firstText.includes('Delta'),
+    `first row must not include Gamma/Delta, got: ${firstText}`
+  );
+  assert.ok(secondText.includes('Gamma'), `second row must include Gamma, got: ${secondText}`);
+  assert.ok(
+    !secondText.includes('Alpha') && !secondText.includes('Beta'),
+    `second row must not include Alpha/Beta, got: ${secondText}`
+  );
+});
+
+test('empty interaction id: candidate-response and retry keep interaction index 0 and 1 with no text bleed', () => {
+  // `empty-ids` has two choice interactions with no
+  // `response-identifier`. The renderer does not surface a
+  // `correctResponse` for either (the response-identifier is absent
+  // on both interactions, so no direct match fires), so the
+  // correct-answer block is intentionally omitted. The candidate and
+  // retry bodies must still keep the original interaction index (0
+  // and 1) keyed by `data-candidate-name` and the retry radio names.
+  const html = generateUnificationReport('unification-empty-ids');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'empty-ids');
+  assert.ok(block, 'empty-ids block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist for empty-ids');
+  candidate?.setAttribute('open', '');
+  const candidateRows = Array.from(
+    candidate?.querySelectorAll('.candidate-response-interaction') ?? []
+  );
+  assert.equal(candidateRows.length, 2, 'empty-ids must render two per-interaction rows');
+  const candidateNames = candidateRows.map((row) => row.getAttribute('data-candidate-name'));
+  // The `data-candidate-name` segment is `qti-candidate-<itemId>-<index>`
+  // (no trailing interactionId segment when the response-identifier is
+  // empty). Both rows must be present and distinct.
+  assert.ok(
+    candidateNames.includes('qti-candidate-empty-ids-0'),
+    `first candidate-response row must encode the original index 0, got: ${candidateNames.join(', ')}`
+  );
+  assert.ok(
+    candidateNames.includes('qti-candidate-empty-ids-1'),
+    `second candidate-response row must encode the original index 1, got: ${candidateNames.join(', ')}`
+  );
+  // Both candidate rows must show （無回答） because no response was
+  // submitted for either interaction.
+  for (const row of candidateRows) {
+    assert.ok(
+      (row.textContent ?? '').includes('（無回答）'),
+      `empty-id row must include （無回答）, got: ${row.textContent}`
+    );
+  }
+  // The retry-question block must have two radio lists keyed by the
+  // original interaction index 0 and 1.
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question block must exist for empty-ids');
+  const retryLists = Array.from(retry?.querySelectorAll('ul.choice-retry') ?? []);
+  assert.equal(retryLists.length, 2, 'empty-ids must render two retry choice lists');
+  const retryNames = retryLists
+    .map((list) => list.querySelector('input[type="radio"]')?.getAttribute('name') ?? '')
+    .sort();
+  assert.ok(
+    retryNames[0]?.startsWith('qti-retry-empty-ids-0-') ?? false,
+    `first retry list name must start with qti-retry-empty-ids-0-, got: ${retryNames[0]}`
+  );
+  assert.ok(
+    retryNames[1]?.startsWith('qti-retry-empty-ids-1-') ?? false,
+    `second retry list name must start with qti-retry-empty-ids-1-, got: ${retryNames[1]}`
+  );
+});

@@ -19,6 +19,7 @@
       <qti-assessment-item-ref identifier="duplicate-ids" href="unification-duplicate-ids.qti.xml" />
       <qti-assessment-item-ref identifier="empty-ids" href="unification-empty-ids.qti.xml" />
       <qti-assessment-item-ref identifier="empty-candidate-response" href="unification-empty-candidate-response.qti.xml" />
+      <qti-assessment-item-ref identifier="index-shift" href="unification-index-shift.qti.xml" />
     </qti-assessment-section>
   </qti-test-part>
 </qti-assessment-test>

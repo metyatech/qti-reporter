@@ -129,6 +129,15 @@ function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
   // skipped — the rule for that case is unchanged. The parser walks the
   // responseVariables in document order so the per-interaction dedupe key
   // downstream is stable.
+  //
+  // Inside `<candidateResponse>`, every `<value>` element is recorded as a
+  // separate entry in `values` — including the empty forms
+  // `<value></value>`, `<value />`, and `<value/>`, each of which produces
+  // an empty string `""` in the values array. The HTML layer treats the
+  // empty string as "no answer" (see `isEmptyResponseValue` /
+  // `dropEmptyResponseValues` in `src/report/htmlReport.ts`); whitespace-
+  // only values (`" "`, `"\t"`, `"\n"`) and values with leading/trailing
+  // whitespace are kept verbatim.
   const responseVariablePattern = /<responseVariable\b[^>]*>[\s\S]*?<\/responseVariable>/g;
   const responseVariables = itemXml.match(responseVariablePattern) ?? [];
   const responses: ParsedItemResponse[] = [];
@@ -148,14 +157,20 @@ function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
       continue;
     }
     const candidateResponseXml = paired ? paired[1] : '';
-    const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>/g;
+    // Match both paired `<value>...</value>` and self-closing `<value\s*/>`.
+    // A single regex with a single capture group lets the empty and
+    // self-closing forms collapse to a single inner-content string. The
+    // self-closing alternative has no capture, so its inner content is the
+    // empty string. Document order of `<value>` siblings is preserved.
+    const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>|<value\b[^>]*\/>/g;
     const values: string[] = [];
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
     while (valueMatch) {
       // Preserve surrounding whitespace, indentation, tabs, and blank lines
       // for every <value>. CRLF / CR endings are normalized to LF so the
       // downstream HTML and CSV layers can join values with a single '\n'.
-      const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, '\n');
+      const inner = valueMatch[1] ?? '';
+      const preserved = stripTagsPreserveWhitespace(inner).replace(/\r\n?/g, '\n');
       values.push(preserved);
       valueMatch = valuePattern.exec(candidateResponseXml);
     }

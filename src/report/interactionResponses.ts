@@ -33,15 +33,14 @@
  *
  * Display id vs unique key
  * ------------------------
- * The interaction `id` is sourced from the renderer's `response-identifier`
- * and is treated as a display attribute, NOT a unique key. Two interactions
- * in the same item can carry the same `id` (e.g. duplicate
- * `response-identifier="RESPONSE"` on two `qti-choice-interaction`
- * elements). When that happens, both interactions see the SAME
- * `responseVariable` and the resolver must NOT collapse them by `id` —
- * each interaction gets its own row in the rendered HTML/CSV. The
- * `interactionIndex` (0-based position in `item.interactions`) is the
- * reporter's authoritative key for distinguishing such siblings.
+ * The interaction `id` is the renderer's `response-identifier` value. It is
+ * the canonical key for distinguishing interactions in a single item, but
+ * it is NOT guaranteed unique (two interactions can share the same id).
+ * When sibling interactions share an id, the reporter scopes them by
+ * `interactionIndex`. The binding layer (`resolveSubmittedValues`) does use
+ * `interaction.id` as a lookup fallback in both the legacy ordered and
+ * direct-match rules, so the id is part of the binding protocol — just not
+ * the sole scope key.
  */
 import type { InteractionInfo } from '../qti/assessmentItem.js';
 import type { ParsedItemResponse } from '../qti/assessmentResult.js';
@@ -51,22 +50,33 @@ import type { ParsedItemResponse } from '../qti/assessmentResult.js';
  * emitting the same `responseVariable`'s values twice when two interactions
  * in the same item share a `responseVariable`.
  *
- * - If the renderer reports `declarationValueIndex !== null`, the key is
- *   `"<declarationIdentifier>|<declarationValueIndex>|<interaction.id>"`
- *   so each legacy-distribution interaction gets its own cell.
- * - Otherwise, when `declarationIdentifier` is non-null, the key is the
- *   declaration identifier (direct-match dedupe). Multiple interactions
- *   that share the same declaration identifier collapse to a single cell.
- * - Otherwise (the interaction is unmatched), the key is the interaction's
- *   own `id` (or `''` when both are absent).
+ * The key form is selected by the renderer's `declarationValueIndex`:
  *
- * Note: the `id` is a display attribute. Two interactions with the same
- * `id` and no `declarationIdentifier` will dedupe to the same key by
- * design; the HTML report renders them as separate rows, but the CSV
- * report intentionally collapses them. Callers that need to keep sibling
- * interactions apart in the CSV MUST look at the renderer's
- * `declarationValueIndex` (which is per-interaction) or the
- * `interactionIndex` (0-based position in `item.interactions`).
+ * - **Legacy ordered**: when `declarationValueIndex !== null`, the key is
+ *   `"<declarationIdentifier>|<declarationValueIndex>|<interaction.id>"`.
+ *   The unique `declarationValueIndex` segment gives each legacy-
+ *   distribution interaction its own CSV cell.
+ * - **Direct match**: when `declarationValueIndex === null` and
+ *   `declarationIdentifier` is non-null, the key is the
+ *   `declarationIdentifier` alone. Multiple interactions that share the
+ *   same declaration identifier collapse to a single CSV cell — this is
+ *   intentional, by design.
+ * - **Unmatched**: when neither `declarationValueIndex` nor
+ *   `declarationIdentifier` is available, the key is `interaction.id` (or
+ *   `""` when both `id` and `declarationIdentifier` are absent). The
+ *   unmatched case is INTENTIONALLY collapsed: two unmatched interactions
+ *   with the same `id` share a CSV cell. The HTML report renders them as
+ *   separate rows keyed by `interactionIndex`; the CSV does not. If the
+ *   CSV must distinguish two unmatched interactions with the same `id`,
+ *   the renderer must report a `declarationIdentifier`; otherwise the
+ *   CSV is intentionally lossy for the unmatched case.
+ *
+ * This function is NOT `interactionIndex`-aware — it does not take an
+ * `interactionIndex` parameter and does not embed one in the returned
+ * key. Sibling interactions in the HTML report are differentiated by
+ * `interactionIndex` in the radio/checkbox `name` and the
+ * `data-candidate-name` attribute; the CSV key is selected purely from
+ * the renderer's `InteractionInfo` and follows the rules above.
  */
 export function responseDedupeKey(interaction: InteractionInfo): string {
   if (interaction.declarationValueIndex !== null) {
@@ -98,12 +108,14 @@ function findResponse(
  * Resolve a renderer's `InteractionInfo` to the candidate's submitted
  * `string[]` for that interaction.
  *
- * The interaction `id` is a display attribute and is NOT used as a binding
- * key. Two interactions in the same item can share the same `id` (for
- * example two `qti-choice-interaction` elements with the same
- * `response-identifier`); both must be resolved independently by the
- * `interactionIndex` (0-based position in `item.interactions`) the caller
- * already knows.
+ * The interaction `id` is the renderer's `response-identifier` value. It is
+ * the canonical key for distinguishing interactions in a single item, but
+ * it is NOT guaranteed unique (two interactions can share the same id).
+ * When sibling interactions share an id, the reporter scopes them by
+ * `interactionIndex` (0-based position in `item.interactions`). The
+ * binding layer (`resolveSubmittedValues`) DOES use `interaction.id` as a
+ * lookup fallback in both the legacy ordered and direct-match rules, so
+ * the id is part of the binding protocol — just not the sole scope key.
  *
  * The resolver picks the rules based on the renderer's
  * `declarationValueIndex`:

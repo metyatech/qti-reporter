@@ -1229,3 +1229,237 @@ test('extended-text candidate response preserves whitespace and newlines', () =>
     'extended-text response must not be wrapped with <br> tags'
   );
 });
+
+function patchValueInResult(
+  identifier: string,
+  valuePatch: (prefix: string, _value: string, suffix: string) => string
+): string {
+  const baseResult = fs.readFileSync(
+    resolveFixturePath('new-package-with-explanation-result.xml'),
+    'utf8'
+  );
+  return baseResult.replace(
+    new RegExp(
+      `(<itemResult\\b[^>]*identifier="${identifier}"[\\s\\S]*?<candidateResponse>[\\s\\S]*?<value\\b[^>]*>)([\\s\\S]*?)(<\\/value>)`
+    ),
+    (_full, prefix: string, value: string, suffix: string) => valuePatch(prefix, value, suffix)
+  );
+}
+
+test('new-descriptive empty value renders （無回答） with no empty <pre>', () => {
+  const repoRoot = getRepoRootFromDist();
+  const patched = patchValueInResult('new-descriptive', (prefix) => `${prefix}${''}</value>`);
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-empty-descriptive.xml');
+  fs.writeFileSync(patchedResultPath, patched, 'utf8');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir: createCleanOutputDir('html-empty-descriptive'),
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+  assert.ok(block, 'new-descriptive block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const text = candidate?.textContent ?? '';
+  assert.ok(text.includes('（無回答）'), `must include （無回答）, got: ${text}`);
+  const emptyPres = Array.from(candidate?.querySelectorAll('pre.response-pre') ?? []).filter(
+    (pre) => ((pre.textContent ?? '').length ?? 0) === 0
+  );
+  assert.equal(
+    emptyPres.length,
+    0,
+    'no empty <pre class="response-pre"> must be rendered for an empty candidate response'
+  );
+});
+
+test('new-descriptive [empty, empty] values render （無回答）', () => {
+  const repoRoot = getRepoRootFromDist();
+  const baseResult = fs.readFileSync(
+    resolveFixturePath('new-package-with-explanation-result.xml'),
+    'utf8'
+  );
+  // Replace the new-descriptive candidateResponse entirely with two
+  // paired-empty values, so values = ["", ""].
+  const patched = baseResult.replace(
+    /(<itemResult\b[^>]*identifier="new-descriptive"[\s\S]*?<candidateResponse>)([\s\S]*?)(<\/candidateResponse>)/,
+    (_full, prefix: string, _inner: string, suffix: string) =>
+      `${prefix}<value></value><value></value>${suffix}`
+  );
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-empty-pair.xml');
+  fs.writeFileSync(patchedResultPath, patched, 'utf8');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir: createCleanOutputDir('html-empty-pair'),
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+  assert.ok(block, 'new-descriptive block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  candidate?.setAttribute('open', '');
+  const text = candidate?.textContent ?? '';
+  assert.ok(text.includes('（無回答）'), `must include （無回答）, got: ${text}`);
+  const emptyPres = Array.from(candidate?.querySelectorAll('pre.response-pre') ?? []).filter(
+    (pre) => ((pre.textContent ?? '').length ?? 0) === 0
+  );
+  assert.equal(emptyPres.length, 0, 'no empty <pre class="response-pre"> must be rendered');
+});
+
+test('new-descriptive [empty, "answer"] drops the empty and keeps the answer', () => {
+  const repoRoot = getRepoRootFromDist();
+  const baseResult = fs.readFileSync(
+    resolveFixturePath('new-package-with-explanation-result.xml'),
+    'utf8'
+  );
+  const patched = baseResult.replace(
+    /(<itemResult\b[^>]*identifier="new-descriptive"[\s\S]*?<candidateResponse>)([\s\S]*?)(<\/candidateResponse>)/,
+    (_full, prefix: string, _inner: string, suffix: string) =>
+      `${prefix}<value></value><value>answer</value>${suffix}`
+  );
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-mixed-empty.xml');
+  fs.writeFileSync(patchedResultPath, patched, 'utf8');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir: createCleanOutputDir('html-mixed-empty'),
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+  assert.ok(block, 'new-descriptive block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  candidate?.setAttribute('open', '');
+  const pre = candidate?.querySelector('pre.response-text.response-pre');
+  assert.ok(pre, 'a <pre class="response-pre"> must be rendered for the kept value');
+  const text = pre?.textContent ?? '';
+  assert.equal(
+    text,
+    'answer',
+    `kept value must be "answer" (no empty), got: ${JSON.stringify(text)}`
+  );
+});
+
+test('new-cloze empty RESPONSE_1 renders （無回答） with no empty <input value="">', () => {
+  const repoRoot = getRepoRootFromDist();
+  const baseResult = fs.readFileSync(
+    resolveFixturePath('new-package-with-explanation-result.xml'),
+    'utf8'
+  );
+  // Patch RESPONSE_1 to a paired empty value. The reporter must drop the
+  // empty string and render （無回答） for the first text-entry
+  // interaction, while keeping the second interaction's value "second".
+  const patched = baseResult.replace(
+    /(<itemResult\b[^>]*identifier="new-cloze"[\s\S]*?<responseVariable\b[^>]*identifier="RESPONSE_1"[\s\S]*?<candidateResponse>)([\s\S]*?)(<\/candidateResponse>)/,
+    (_full, prefix: string, _inner: string, suffix: string) => `${prefix}<value></value>${suffix}`
+  );
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-empty-cloze.xml');
+  fs.writeFileSync(patchedResultPath, patched, 'utf8');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir: createCleanOutputDir('html-empty-cloze'),
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  assert.ok(block, 'new-cloze block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const rows = Array.from(candidate?.querySelectorAll('.candidate-response-interaction') ?? []);
+  const response1 = rows.find((row) => row.getAttribute('data-interaction-id') === 'RESPONSE_1');
+  assert.ok(response1, 'RESPONSE_1 row must exist');
+  assert.ok(
+    (response1?.textContent ?? '').includes('（無回答）'),
+    `RESPONSE_1 must show （無回答）, got: ${response1?.textContent ?? ''}`
+  );
+  // No empty `<input value="">` for the unanswered interaction.
+  const emptyValueInputs = Array.from(
+    response1?.querySelectorAll('input.cloze-input.qti-blank-input') ?? []
+  ).filter((input) => (input.getAttribute('value') ?? '') === '');
+  assert.equal(
+    emptyValueInputs.length,
+    0,
+    'no empty <input value=""> must be rendered for the unanswered RESPONSE_1'
+  );
+});
+
+test('new-cloze extended-text empty value renders （無回答）', () => {
+  // new-cloze has only text-entry interactions, so we patch the
+  // "new-descriptive" item to test the extended-text empty path. The
+  // reporter must surface （無回答） and never an empty <pre>.
+  const repoRoot = getRepoRootFromDist();
+  const patched = patchValueInResult('new-descriptive', (prefix) => `${prefix}${''}</value>`);
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-exttext-empty.xml');
+  fs.writeFileSync(patchedResultPath, patched, 'utf8');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir: createCleanOutputDir('html-exttext-empty'),
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+  assert.ok(block, 'new-descriptive block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  candidate?.setAttribute('open', '');
+  const text = candidate?.textContent ?? '';
+  assert.ok(text.includes('（無回答）'), `must include （無回答）, got: ${text}`);
+  const pres = Array.from(candidate?.querySelectorAll('pre.response-pre') ?? []);
+  assert.equal(pres.length, 0, 'no <pre class="response-pre"> must be rendered for an empty value');
+});
+
+test('new-cloze extended-text whitespace-only values are preserved verbatim', () => {
+  const repoRoot = getRepoRootFromDist();
+  const cases: Array<[string, string]> = [
+    ['  ', 'whitespace-only (spaces)'],
+    ['\t', 'whitespace-only (tab)'],
+    ['line 1\n  line 2', 'multiline with leading indent'],
+  ];
+  for (const [value, label] of cases) {
+    const patched = patchValueInResult('new-descriptive', (prefix) => `${prefix}${value}</value>`);
+    const patchedResultPath = path.join(
+      repoRoot,
+      'tmp',
+      `assessment-result-exttext-ws-${Math.random().toString(36).slice(2, 8)}.xml`
+    );
+    fs.writeFileSync(patchedResultPath, patched, 'utf8');
+    const report = generateHtmlReportFromFiles({
+      assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+      assessmentResultPath: patchedResultPath,
+      outputRootDir: createCleanOutputDir(`html-exttext-ws-${label.replace(/\W+/g, '-')}`),
+    });
+    const doc = parseReport(report.html);
+    const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+    assert.ok(block, `new-descriptive block must exist for case: ${label}`);
+    const candidate = block?.querySelector('details.candidate-response-block');
+    candidate?.setAttribute('open', '');
+    const pre = candidate?.querySelector('pre.response-text.response-pre');
+    assert.ok(pre, `a <pre class="response-pre"> must be rendered for case: ${label}`);
+    const text = pre?.textContent ?? '';
+    assert.equal(
+      text,
+      value,
+      `case "${label}" must preserve the value verbatim, got: ${JSON.stringify(text)}`
+    );
+  }
+});
+
+test('item answer bodies are built with exactly one JSDOM parse in htmlReport.ts', () => {
+  // Source-level guard: every per-item body (candidate-response,
+  // correct-answer, retry-question) must share a single JSDOM parse of
+  // `item.questionHtml`. The item-level orchestrator
+  // `buildItemAnswerBodies` is the only place in this file that may
+  // construct a JSDOM instance. Counting the `new JSDOM(` substrings in
+  // the source is a reliable proxy for that invariant (a constructor
+  // call is the only way to allocate a JSDOM in this file).
+  const source = fs.readFileSync(
+    path.join(getRepoRootFromDist(), 'src', 'report', 'htmlReport.ts'),
+    'utf8'
+  );
+  const matches = source.match(/new JSDOM\(/g) ?? [];
+  assert.equal(
+    matches.length,
+    1,
+    `htmlReport.ts must construct JSDOM exactly once (one per item); found ${matches.length} occurrences.`
+  );
+});
