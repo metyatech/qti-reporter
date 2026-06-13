@@ -152,37 +152,56 @@ consumers can target it from CSS or scripts.
 
 ### Submission-to-interaction binding rules
 
-For each interaction, the reporter resolves the candidate's submitted
-values from `itemResult.responses` using this three-tier precedence
-(implemented in `src/report/interactionResponses.ts` and shared by
-both the HTML and CSV reports):
+The interaction `id` is the renderer-emitted value of the
+`response-identifier` attribute on the interaction element. It is a
+**display attribute**, not a unique key. Two interactions in the same
+item can share the same `id` (e.g. duplicate
+`response-identifier="RESPONSE"`, or two interactions with no
+`response-identifier` at all). The reporter's authoritative key for
+distinguishing such siblings is the `interactionIndex` — the 0-based
+position of the interaction in `item.interactions`.
 
-1. **Interaction-id priority** — when the interaction has an `id` and
-   a `responseVariable` with that exact `responseIdentifier` exists,
-   return that response's `values` array verbatim. This wins over both
-   the legacy path and the direct-match path because the interaction
-   `id` is the most specific key the renderer exposes.
-2. **Legacy ordered `RESPONSE` distribution** — when the renderer
+For each interaction, the reporter resolves the candidate's submitted
+values from `itemResult.responses` using the rules in
+`src/report/interactionResponses.ts` (shared by both the HTML and CSV
+reports). The rules are selected by the renderer's
+`declarationValueIndex`:
+
+1. **Legacy ordered `RESPONSE` distribution** — when the renderer
    reports `declarationValueIndex !== null` (e.g. `RESPONSE_1`,
    `RESPONSE_2` in a pure cloze item with one ordered `RESPONSE`
-   declaration), the reporter looks up the `responseVariable` by
-   `declarationIdentifier` and returns
-   `[values[declarationValueIndex]]` — exactly one value at the
-   index, NOT the full list. A renderer interaction whose
-   `declarationValueIndex !== null` MUST NEVER receive the full
-   multi-value list.
-3. **Direct match on `declarationIdentifier`** — when the renderer
-   bound the interaction to a `responseVariable` by identifier, return
-   that `responseVariable`'s `values` array in full. A
-   `cardinality="multiple"` or `"ordered"` response is preserved as a
-   multi-element array.
+   declaration):
+   1. If a `responseVariable` exists with
+      `responseIdentifier === interaction.id`, return its `values`
+      array (the full array). The renderer has reported an explicit
+      index, but when the interaction is also reachable through its
+      own `id` the resolver honors the `id` match and returns the full
+      `values` array.
+   2. Else if a `responseVariable` exists with
+      `responseIdentifier === interaction.declarationIdentifier`,
+      return `[values[declarationValueIndex]]` — exactly one value at
+      the index, NOT the full list. A renderer interaction whose
+      `declarationValueIndex !== null` MUST NEVER receive the full
+      multi-value list when the only match is by `declarationIdentifier`.
+   3. Else `[]`.
+2. **Direct match** — when `declarationValueIndex === null`:
+   1. If a `responseVariable` exists with
+      `responseIdentifier === interaction.declarationIdentifier`,
+      return its `values` array (the full array). A
+      `cardinality="multiple"` or `"ordered"` response is preserved as
+      a multi-element array.
+   2. Else if a `responseVariable` exists with
+      `responseIdentifier === interaction.id`, return its `values`
+      array.
+   3. Else `[]`.
 
-The renderer (`qti-html-renderer`) is the only authority on
+The returned `string[]` is always a fresh copy of the input `values`
+array — the reporter never mutates the parser's records. The renderer
+(`qti-html-renderer`) is the only authority on
 `declarationValueIndex`. The reporter does not invent a
 `RESPONSE_N` numeric-suffix mapping on the result side, and it does not
 re-parse the source XML for `qti-response-declaration` or
-`qti-correct-response`. If neither rule applies, the interaction's
-submitted values are `[]`.
+`qti-correct-response`.
 
 `ParsedItemResponse` is the result-side record:
 
@@ -197,6 +216,19 @@ The `declarationValueIndex` field that was previously on
 `ParsedItemResponse` is gone — it was always a renderer-side concept.
 The reporter reads it from `InteractionInfo.declarationValueIndex`
 returned by the renderer.
+
+`responseDedupeKey(interaction)` returns the per-interaction dedupe key
+used by the CSV report. The form is selected by the renderer's
+`declarationValueIndex`:
+
+- If `declarationValueIndex !== null`:
+  `'<declarationIdentifier>|<declarationValueIndex>|<interaction.id>'`
+  so each legacy-distribution interaction gets its own cell.
+- Else if `declarationIdentifier`: `declarationIdentifier` (direct-match
+  dedupe). Multiple interactions that share the same declaration
+  identifier collapse to a single cell.
+- Else: `interaction.id ?? ''` (the unmatched case, falling back to the
+  empty string when the interaction has no `id` either).
 
 ### Multi-value preservation
 
@@ -272,7 +304,7 @@ must be treated as stable for external CSS.
   `data-answer-section="correct"`
 - Interaction binding attribute: `data-interaction-id="<interaction id>"`
 - Per-interaction candidate name attribute:
-  `data-candidate-name="qti-candidate-<itemIdentifier>-<index>"`
+  `data-candidate-name="qti-candidate-<itemIdentifier>-<interactionIndex>"`
 
 ### Styling data attributes
 
@@ -321,15 +353,18 @@ External CSS may also rely on the following data attributes:
   submitted identifier cannot be matched to any option, the row
   shows `選択肢本文を取得できません` instead of echoing the unmatched
   identifier. The radio or checkbox `name` is per interaction, in the
-  form `qti-candidate-<itemIdentifier>-<index>-<interactionId>`, where
-  `<index>` is the 0-based position of the interaction in
-  `item.interactions` and each segment is sanitized with
+  form `qti-candidate-<itemIdentifier>-<interactionIndex>-<interactionId>`,
+  where `<interactionIndex>` is the 0-based position of the interaction
+  in `item.interactions` and each segment is sanitized with
   `replace(/[^A-Za-z0-9._-]/g, '-')`. The wrapping
   `.candidate-response-interaction` element carries both
   `data-interaction-id` and a `data-candidate-name` attribute in the
-  form `qti-candidate-<itemIdentifier>-<index>`. This guarantees that
-  two interactions in the same item, or the same interaction id reused
-  across two items, never share a browser radio/checkbox group.
+  form `qti-candidate-<itemIdentifier>-<interactionIndex>`. This
+  guarantees that two interactions in the same item, the same `id`
+  reused across two items, two interactions with an empty `id` and
+  different `interactionIndex`, or any combination thereof, never
+  share a browser radio/checkbox group. The candidate and retry groups
+  differ by the `qti-candidate-` vs `qti-retry-` prefix.
 - For text-entry interactions, the response section renders
   read-only `input.cloze-input.qti-blank-input.cloze-input-readonly`
   elements with the submitted value as the `value` attribute and a
@@ -339,14 +374,53 @@ External CSS may also rely on the following data attributes:
   Whitespace, indentation, and blank lines are preserved verbatim
   (no `<br>` tags are inserted).
 - For items that have no `interactions[]` (e.g. pure descriptive items
-  with no interaction element), the response section renders the
-  submitted values as a `<pre class="response-text response-pre">`
-  with `\n`-joined values, or `（無回答）` when there are no values.
+  with no interaction element), the response section flattens every
+  `responseVariable.values` entry into a single string array. When
+  the flattened length is zero, the section renders
+  `<p class="response-empty">（無回答）</p>` and never an empty
+  `<pre class="response-text response-pre">`. When at least one value
+  exists, the values are joined with `\n` and rendered in the `<pre>`.
+  Self-closing `<candidateResponse />` and `<candidateResponse/>`
+  forms in the result XML produce the same `values: []` record as the
+  explicit empty `<candidateResponse></candidateResponse>` form, so
+  every empty-candidate path lands on the `（無回答）` rendering.
 - The question body inside the 問題 section is editable for re-attempt: cloze
   inputs are not pre-filled with the candidate response, native radio inputs
   are not pre-checked, and descriptive items render an empty textarea. The
   submitted value is rendered only inside the 受験者の回答 inner details
   block.
+
+### Retake body
+
+The retake body inside the 問題 section is the renderer's
+`questionHtml` with two reporter-driven rewrites:
+
+- For each `<div class="choice-interaction" data-interaction-id="...">`
+  wrapper, the reporter pairs it (in document order) with the choice
+  interaction at the same `interactionIndex` in
+  `item.interactions.filter(i => i.type === 'choice')`. The
+  per-interaction `name` of the resulting native radio/checkbox
+  inputs is
+  `qti-retry-<itemIdentifier>-<interactionIndex>-<interactionId>`,
+  with each segment sanitized by
+  `replace(/[^A-Za-z0-9._-]/g, '-')`. The `<interactionId>` segment
+  is empty when the wrapper has no `data-interaction-id`; the
+  sanitized form ends with a trailing dash in that case, but the
+  preceding `interactionIndex` keeps the names distinct. The
+  `qti-candidate-` and `qti-retry-` prefixes guarantee the candidate
+  and retry radio/checkbox groups never collide.
+- For each cloze `<input class="qti-blank-input" ...>` the reporter
+  removes the `readonly`, `disabled`, and `value` attributes and the
+  `cloze-input-readonly` class so the input is editable in the retake
+  body. Cloze inputs are not pre-filled with the candidate response.
+- When the item has no choice interactions and no cloze inputs, the
+  reporter appends an empty
+  `<textarea class="retake-textarea" data-retry-textarea="true" aria-label="answer"></textarea>`
+  to provide a response surface (or replaces the renderer's
+  `qti-extended-text-interaction` placeholder span with that
+  textarea). Descriptive-item candidate responses are rendered only
+  inside the 受験者の回答 inner details block, never inside the
+  retake body.
 
 ### Item comment rendering
 

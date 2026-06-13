@@ -40,8 +40,27 @@ record of the legacy ordered `RESPONSE` distribution. The reporter is
 the only consumer of that field; the result-side `ParsedItemResponse`
 shape is `{ responseIdentifier, values: string[] }` and never carries
 `declarationValueIndex`. The shared `src/report/interactionResponses.ts`
-module centralises the binding rules (interaction-id priority, legacy
-index, direct match) and is called by both the HTML and CSV reports.
+module centralises the binding rules (legacy ordered index and direct
+match) and is called by both the HTML and CSV reports.
+
+### Interaction `id` is a display attribute, not a unique key
+
+`InteractionInfo.id` is the renderer-emitted value of the
+`response-identifier` attribute on the interaction element. It is
+displayed to the reader (as the per-interaction label, in
+`data-interaction-id`, and in CSV `response_labels`) but it is **not**
+a unique key. Two `qti-choice-interaction` elements in the same item
+can carry the same `id` (e.g. duplicate `response-identifier="RESPONSE"`,
+or two interactions with no `response-identifier` at all). The reporter's
+authoritative key for distinguishing such siblings is the
+`interactionIndex` — the 0-based position of the interaction in
+`item.interactions`. The candidate-response and retry-question
+radio/checkbox names are built as
+`qti-candidate-<itemIdentifier>-<interactionIndex>-<interactionId>` /
+`qti-retry-<itemIdentifier>-<interactionIndex>-<interactionId>` (each
+segment sanitized with `replace(/[^A-Za-z0-9._-]/g, '-')`), so two
+siblings in the same item never share a browser radio/checkbox group
+even when their `id` is identical or empty.
 
 ## Setup
 

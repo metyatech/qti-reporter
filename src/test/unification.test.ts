@@ -701,3 +701,206 @@ test('all <details> blocks (item-block, candidate-response, correct-answer, answ
     `no <details> may have the open attribute; found ${openDetails.length}`
   );
 });
+
+test('duplicate interaction id: each interaction renders its own choice text and radio group', () => {
+  // duplicate-ids has two `qti-choice-interaction`s both bound to
+  // `response-identifier="RESPONSE"`. The first carries Alpha/Beta and the
+  // second carries Gamma/Delta. The reporter must:
+  //  - render one per-interaction row per choice interaction,
+  //  - keep the Alpha/Beta text inside the first row and the Gamma/Delta
+  //    text inside the second row (no global-fallback bleed),
+  //  - assign each row a distinct radio `name` so the browser does not
+  //    collapse them.
+  const html = generateUnificationReport('unification-duplicate-ids');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'duplicate-ids');
+  assert.ok(block, 'duplicate-ids block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const rows = Array.from(candidate?.querySelectorAll('.candidate-response-interaction') ?? []);
+  assert.equal(rows.length, 2, 'duplicate-ids must render two per-interaction rows');
+
+  // The first row's radios must carry only Alpha/Beta; the second row's
+  // radios must carry only Gamma/Delta. The reporter must not fall back to
+  // a global `simple-choice` map that would mix the texts.
+  const firstRowText = rows[0]?.textContent ?? '';
+  const secondRowText = rows[1]?.textContent ?? '';
+  assert.ok(firstRowText.includes('Alpha'), `first row must include Alpha, got: ${firstRowText}`);
+  assert.ok(firstRowText.includes('Beta'), `first row must include Beta, got: ${firstRowText}`);
+  assert.ok(
+    !firstRowText.includes('Gamma'),
+    `first row must not include Gamma, got: ${firstRowText}`
+  );
+  assert.ok(
+    !firstRowText.includes('Delta'),
+    `first row must not include Delta, got: ${firstRowText}`
+  );
+  assert.ok(
+    secondRowText.includes('Gamma'),
+    `second row must include Gamma, got: ${secondRowText}`
+  );
+  assert.ok(
+    secondRowText.includes('Delta'),
+    `second row must include Delta, got: ${secondRowText}`
+  );
+  assert.ok(
+    !secondRowText.includes('Alpha'),
+    `second row must not include Alpha, got: ${secondRowText}`
+  );
+  assert.ok(
+    !secondRowText.includes('Beta'),
+    `second row must not include Beta, got: ${secondRowText}`
+  );
+
+  // Each per-interaction row must use a distinct radio name.
+  const firstRowRadios = Array.from(rows[0]?.querySelectorAll('input[type="radio"]') ?? []);
+  const secondRowRadios = Array.from(rows[1]?.querySelectorAll('input[type="radio"]') ?? []);
+  assert.ok(firstRowRadios.length > 0, 'first row must have at least one radio');
+  assert.ok(secondRowRadios.length > 0, 'second row must have at least one radio');
+  const firstName = firstRowRadios[0]?.getAttribute('name') ?? '';
+  const secondName = secondRowRadios[0]?.getAttribute('name') ?? '';
+  assert.notEqual(
+    firstName,
+    secondName,
+    `duplicate-id rows must use distinct radio names; got ${firstName} and ${secondName}`
+  );
+  // The names must encode the interactionIndex (0 and 1) so the two rows
+  // never collapse into a single browser group.
+  assert.ok(
+    /qti-candidate-duplicate-ids-0-/.test(firstName),
+    `first row name must include the interactionIndex 0, got: ${firstName}`
+  );
+  assert.ok(
+    /qti-candidate-duplicate-ids-1-/.test(secondName),
+    `second row name must include the interactionIndex 1, got: ${secondName}`
+  );
+  // All radios in the same row must share the same name.
+  for (const radio of firstRowRadios) {
+    assert.equal(
+      radio.getAttribute('name'),
+      firstName,
+      `radios in the first row must share a name; got ${firstName} vs ${radio.getAttribute('name')}`
+    );
+  }
+  for (const radio of secondRowRadios) {
+    assert.equal(
+      radio.getAttribute('name'),
+      secondName,
+      `radios in the second row must share a name; got ${secondName} vs ${radio.getAttribute('name')}`
+    );
+  }
+
+  // The retry-question block must also produce two distinct radio names.
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist');
+  const retryNames = Array.from(retry?.querySelectorAll('input[type="radio"]') ?? []).map(
+    (input) => input.getAttribute('name') ?? ''
+  );
+  const uniqueRetryNames = new Set(retryNames);
+  assert.equal(
+    uniqueRetryNames.size,
+    2,
+    `duplicate-id retry radios must use two distinct names; got ${Array.from(uniqueRetryNames).join(', ')}`
+  );
+  assert.ok(
+    Array.from(uniqueRetryNames).some((name) => /qti-retry-duplicate-ids-0-/.test(name)),
+    `first retry name must encode interactionIndex 0, got: ${Array.from(uniqueRetryNames).join(', ')}`
+  );
+  assert.ok(
+    Array.from(uniqueRetryNames).some((name) => /qti-retry-duplicate-ids-1-/.test(name)),
+    `second retry name must encode interactionIndex 1, got: ${Array.from(uniqueRetryNames).join(', ')}`
+  );
+});
+
+test('empty interaction id: two choice interactions without response-identifier get distinct retry names', () => {
+  // empty-ids has two `qti-choice-interaction`s with no
+  // `response-identifier` attribute. The candidate response is absent in
+  // the result, so the reporter must render 無回答 for the candidate but
+  // still build distinct retry radio names keyed by interactionIndex.
+  const html = generateUnificationReport('unification-empty-ids');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'empty-ids');
+  assert.ok(block, 'empty-ids block must exist');
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist');
+  const retryInputs = Array.from(retry?.querySelectorAll('input[type="radio"]') ?? []);
+  const retryNames = new Set(retryInputs.map((input) => input.getAttribute('name') ?? ''));
+  assert.equal(
+    retryNames.size,
+    2,
+    `empty-id retry radios must use two distinct names; got ${Array.from(retryNames).join(', ')}`
+  );
+  const sortedNames = Array.from(retryNames).sort();
+  // Each name must be of the form qti-retry-empty-ids-<index>-<interactionId>
+  // (interactionId is empty when the response-identifier is absent, so the
+  // segment ends with a trailing dash). The two names must differ by their
+  // index segment only.
+  assert.ok(
+    sortedNames[0]?.startsWith('qti-retry-empty-ids-0-') ?? false,
+    `first empty-id retry name must start with qti-retry-empty-ids-0-, got: ${sortedNames[0]}`
+  );
+  assert.ok(
+    sortedNames[1]?.startsWith('qti-retry-empty-ids-1-') ?? false,
+    `second empty-id retry name must start with qti-retry-empty-ids-1-, got: ${sortedNames[1]}`
+  );
+
+  // The candidate-response block must render 無回答 (per-interaction,
+  // single response) for each row because the responseVariable is absent.
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const rows = Array.from(candidate?.querySelectorAll('.candidate-response-interaction') ?? []);
+  assert.equal(rows.length, 2, 'empty-ids must render two per-interaction rows');
+  for (const row of rows) {
+    const text = row.textContent ?? '';
+    assert.ok(text.includes('（無回答）'), `empty-id row must include （無回答）, got: ${text}`);
+  }
+});
+
+test('empty candidate response renders （無回答） and never an empty <pre>', () => {
+  // empty-candidate-response is a descriptive item with
+  // `<candidateResponse />` (self-closing) in the result. The reporter
+  // must surface `（無回答）` and must NOT emit an empty
+  // `<pre class="response-text response-pre">` block.
+  const html = generateUnificationReport('unification-empty-candidate-response');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'empty-candidate-response');
+  assert.ok(block, 'empty-candidate-response block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const text = candidate?.textContent ?? '';
+  assert.ok(
+    text.includes('（無回答）'),
+    `empty candidate response must include （無回答）, got: ${text}`
+  );
+  const emptyPres = Array.from(candidate?.querySelectorAll('pre.response-pre') ?? []).filter(
+    (pre) => ((pre.textContent ?? '').trim().length ?? 0) === 0
+  );
+  assert.equal(
+    emptyPres.length,
+    0,
+    'no <pre class="response-pre"> with empty text content must be rendered for an empty candidate response'
+  );
+});
+
+test('multi-value / extended-text whitespace is preserved verbatim', () => {
+  // Existing extended-text fixture must still preserve indentation, tabs,
+  // and blank lines (regression for the pre / stripTagsPreserveWhitespace
+  // contract).
+  const html = generateUnificationReport('unification-extended-text');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'extended-text');
+  assert.ok(block, 'extended-text block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const pre = candidate?.querySelector('pre.response-text.response-pre');
+  assert.ok(pre, 'extended-text candidate body must render a <pre>');
+  const text = pre?.textContent ?? '';
+  assert.ok(text.includes('line one'), 'whitespace test: line one must be present');
+  assert.ok(text.includes('  indented'), 'whitespace test: leading spaces must be preserved');
+  assert.ok(text.includes('\ttabbed'), 'whitespace test: tab must be preserved');
+  assert.ok(/\n\n/.test(text), 'whitespace test: blank line must be preserved');
+});

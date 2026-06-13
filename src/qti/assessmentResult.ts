@@ -120,6 +120,15 @@ function parseOutcomeVariableString(xml: string, identifier: string): string | n
 }
 
 function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
+  // The result XML uses both the explicit
+  // `<candidateResponse>...</candidateResponse>` form and the self-closing
+  // `<candidateResponse/>` (or `<candidateResponse />`) form. We accept all
+  // three and produce the same `{ responseIdentifier, values: [] }` record.
+  // responseVariable blocks with NO `<candidateResponse>` element at all
+  // (i.e. the candidate left every response blank in the source XML) are
+  // skipped — the rule for that case is unchanged. The parser walks the
+  // responseVariables in document order so the per-interaction dedupe key
+  // downstream is stable.
   const responseVariablePattern = /<responseVariable\b[^>]*>[\s\S]*?<\/responseVariable>/g;
   const responseVariables = itemXml.match(responseVariablePattern) ?? [];
   const responses: ParsedItemResponse[] = [];
@@ -131,13 +140,14 @@ function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
     if (!identifier) {
       continue;
     }
-    const candidateResponseMatch = responseVariable.match(
+    const selfClosing = responseVariable.match(/<candidateResponse\b[^>]*\/>/);
+    const paired = responseVariable.match(
       /<candidateResponse\b[^>]*>([\s\S]*?)<\/candidateResponse>/
     );
-    if (!candidateResponseMatch) {
+    if (!selfClosing && !paired) {
       continue;
     }
-    const candidateResponseXml = candidateResponseMatch[1];
+    const candidateResponseXml = paired ? paired[1] : '';
     const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>/g;
     const values: string[] = [];
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);

@@ -236,4 +236,39 @@ blank line above</value>
       <value>true</value>
     </outcomeVariable>
   </itemResult>
+  <itemResult identifier="duplicate-ids" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_A</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>2</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_2_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="empty-ids" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="empty-candidate-response" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse />
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>0</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>false</value>
+    </outcomeVariable>
+  </itemResult>
 </assessmentResult>

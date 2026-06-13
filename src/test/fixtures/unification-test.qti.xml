@@ -16,6 +16,9 @@
       <qti-assessment-item-ref identifier="image-explanation" href="unification-image-explanation.qti.xml" />
       <qti-assessment-item-ref identifier="no-correct-no-explanation" href="unification-no-correct-no-explanation.qti.xml" />
       <qti-assessment-item-ref identifier="multiple-values" href="unification-multiple-values.qti.xml" />
+      <qti-assessment-item-ref identifier="duplicate-ids" href="unification-duplicate-ids.qti.xml" />
+      <qti-assessment-item-ref identifier="empty-ids" href="unification-empty-ids.qti.xml" />
+      <qti-assessment-item-ref identifier="empty-candidate-response" href="unification-empty-candidate-response.qti.xml" />
     </qti-assessment-section>
   </qti-test-part>
 </qti-assessment-test>

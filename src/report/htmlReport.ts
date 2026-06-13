@@ -117,6 +117,63 @@ function perInteractionNamePrefix(itemIdentifier: string, index: number): string
   return `qti-candidate-${sanitizeAttrSegment(itemIdentifier)}-${index}`;
 }
 
+function buildChoiceRenderInfo(item: ParsedAssessmentItem): ChoiceRenderInfo[] {
+  const choiceInteractions = item.interactions
+    .map((interaction, interactionIndex) => ({ interaction, interactionIndex }))
+    .filter((entry) => entry.interaction.type === 'choice');
+
+  if (choiceInteractions.length === 0) {
+    return [];
+  }
+
+  const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
+  const root = dom.window.document.getElementById('root');
+  if (!root) {
+    return choiceInteractions.map((entry) => ({
+      interaction: entry.interaction,
+      interactionIndex: entry.interactionIndex,
+      choiceInnerHtmlByIdentifier: new Map<string, string>(),
+    }));
+  }
+  const wrappers = Array.from(root.querySelectorAll('div.choice-interaction'));
+
+  return choiceInteractions.map((entry) => {
+    const wrapper = wrappers.shift();
+    const map = new Map<string, string>();
+    if (wrapper) {
+      const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
+      for (const choice of choices) {
+        const identifier = choice.getAttribute('identifier');
+        if (identifier) {
+          map.set(identifier, choice.innerHTML);
+        }
+      }
+    }
+    return {
+      interaction: entry.interaction,
+      interactionIndex: entry.interactionIndex,
+      choiceInnerHtmlByIdentifier: map,
+    };
+  });
+}
+
+interface ChoiceRenderInfo {
+  interaction: InteractionInfo;
+  interactionIndex: number;
+  choiceInnerHtmlByIdentifier: Map<string, string>;
+}
+
+function resolveChoiceInnerHtml(
+  choiceInnerHtmlByIdentifier: Map<string, string>,
+  interaction: InteractionInfo,
+  choiceIdentifier: string
+): string | null {
+  if (choiceInnerHtmlByIdentifier.has(choiceIdentifier)) {
+    return choiceInnerHtmlByIdentifier.get(choiceIdentifier) ?? null;
+  }
+  return null;
+}
+
 function buildSubmittedAnswerHtml(
   item: ParsedAssessmentItem,
   itemResult: ParsedItemResult
@@ -124,23 +181,27 @@ function buildSubmittedAnswerHtml(
   if (item.interactions.length === 0) {
     return formatDescriptiveResponse(itemResult.responses);
   }
+  const choiceRenderInfo = buildChoiceRenderInfo(item);
   const rows = item.interactions
     .map((interaction, index) =>
-      renderCandidateResponseSection(item, itemResult.responses, interaction, index)
+      renderCandidateResponseSection(
+        item,
+        itemResult.responses,
+        interaction,
+        index,
+        choiceRenderInfo
+      )
     )
     .join('');
   return `<div class="candidate-response-per-interaction">${rows}</div>`;
 }
 
 function formatDescriptiveResponse(responses: ParsedItemResponse[]): string {
-  if (responses.length === 0) {
+  const allValues = responses.flatMap((response) => response.values);
+  if (allValues.length === 0) {
     return '<p class="response-empty">（無回答）</p>';
   }
-  const joined = responses
-    .map((response) => response.values)
-    .flat()
-    .map((value) => escapeHtml(value))
-    .join('\n');
+  const joined = allValues.map((value) => escapeHtml(value)).join('\n');
   return `<pre class="response-text response-pre">${joined}</pre>`;
 }
 
@@ -148,14 +209,15 @@ function renderCandidateResponseSection(
   item: ParsedAssessmentItem,
   responses: ParsedItemResponse[],
   interaction: InteractionInfo,
-  index: number
+  index: number,
+  choiceRenderInfo: ChoiceRenderInfo[]
 ): string {
   const idAttr = interaction.id ? ` data-interaction-id="${escapeHtml(interaction.id)}"` : '';
   const nameAttr = ` data-candidate-name="${escapeHtml(perInteractionNamePrefix(item.identifier, index))}"`;
   const submittedValues = resolveSubmittedValues(responses, interaction);
 
   if (interaction.type === 'choice') {
-    return `<div class="candidate-response-interaction"${idAttr}${nameAttr}>${renderChoiceCandidateBody(item.identifier, index, interaction, submittedValues, item.questionHtml)}</div>`;
+    return `<div class="candidate-response-interaction"${idAttr}${nameAttr}>${renderChoiceCandidateBody(item.identifier, index, interaction, submittedValues, choiceRenderInfo)}</div>`;
   }
   if (interaction.type === 'text-entry' || interaction.type === 'extended-text') {
     return `<div class="candidate-response-interaction"${idAttr}${nameAttr}>${renderTextCandidateBody(interaction, submittedValues)}</div>`;
@@ -194,114 +256,19 @@ function renderTextCandidateBody(interaction: InteractionInfo, values: string[])
   return `${idLabel}${inputs}`;
 }
 
-/**
- * Walk the renderer's `questionHtml` and build a per-interaction
- * Map<choiceIdentifier, innerHtml>. The renderer emits each
- * `<qti-choice-interaction>` wrapped in
- * `<div class="choice-interaction" data-interaction-id="<id>">...</div>`;
- * the per-interaction Map scopes choice identifiers to the wrapper that
- * owns them so two interactions that share an internal `CHOICE_A`
- * identifier do not bleed into each other.
- *
- * The map is a Map<interactionId, Map<choiceIdentifier, innerHtml>>. A
- * `null` second-level Map means the wrapper was missing for that
- * interaction id; callers must fall back to either a single global
- * `simple-choice` scan or to `interaction.choices[].text` in that case.
- */
-function buildChoiceInnerHtmlMapByInteraction(
-  questionHtml: string
-): Map<string, Map<string, string>> {
-  const result = new Map<string, Map<string, string>>();
-  try {
-    const dom = new JSDOM(`<div id="root">${questionHtml}</div>`);
-    const root = dom.window.document.getElementById('root');
-    if (!root) return result;
-    const wrappers = Array.from(root.querySelectorAll('div.choice-interaction'));
-    if (wrappers.length === 0) {
-      // No per-interaction wrappers in the renderer output (e.g. an item
-      // that has no choice interactions). Return an empty map; callers
-      // that need a global fallback will scan all `simple-choice`s.
-      return result;
-    }
-    for (const wrapper of wrappers) {
-      const interactionId = wrapper.getAttribute('data-interaction-id') ?? '';
-      const inner = new Map<string, string>();
-      const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
-      for (const choice of choices) {
-        const identifier = choice.getAttribute('identifier');
-        if (identifier) {
-          inner.set(identifier, choice.innerHTML);
-        }
-      }
-      result.set(interactionId, inner);
-    }
-  } catch {
-    // ignore parse errors; per-interaction rows fall back to plain text
-  }
-  return result;
-}
-
-/**
- * Build a single global `Map<choiceIdentifier, innerHtml>` from every
- * `simple-choice` in `questionHtml`. This is the fallback used when the
- * renderer's per-interaction wrapper is missing for an interaction but the
- * caller still needs choice inner HTML for the candidate-response or
- * correct-answer body.
- */
-function buildChoiceInnerHtmlMap(questionHtml: string): Map<string, string> {
-  const map = new Map<string, string>();
-  try {
-    const dom = new JSDOM(`<div id="root">${questionHtml}</div>`);
-    const root = dom.window.document.getElementById('root');
-    if (!root) return map;
-    const choices = Array.from(root.querySelectorAll('simple-choice'));
-    choices.forEach((choice) => {
-      const identifier = choice.getAttribute('identifier');
-      if (identifier) {
-        map.set(identifier, choice.innerHTML);
-      }
-    });
-  } catch {
-    // ignore parse errors; the per-interaction rows fall back to plain text
-  }
-  return map;
-}
-
-/**
- * Resolve the inner HTML for a single (interaction, choice) pair. The
- * per-interaction map is the primary source; when the wrapper is missing
- * for the given interaction id, the caller falls back to the single global
- * map; when both are missing, the caller falls back to `choice.text`.
- */
-function resolveChoiceInnerHtml(
-  perInteractionMap: Map<string, Map<string, string>>,
-  globalMap: Map<string, string>,
-  interaction: InteractionInfo,
-  choiceIdentifier: string
-): string | null {
-  const scoped = perInteractionMap.get(interaction.id ?? '');
-  if (scoped && scoped.has(choiceIdentifier)) {
-    return scoped.get(choiceIdentifier) ?? null;
-  }
-  if (globalMap.has(choiceIdentifier)) {
-    return globalMap.get(choiceIdentifier) ?? null;
-  }
-  return null;
-}
-
 function renderChoiceCandidateBody(
   itemIdentifier: string,
   index: number,
   interaction: InteractionInfo,
   submittedValues: string[],
-  questionHtml: string
+  choiceRenderInfo: ChoiceRenderInfo[]
 ): string {
   const submittedSet = new Set(submittedValues);
   const isMultiple = interaction.cardinality === 'multiple';
   const inputType = isMultiple ? 'checkbox' : 'radio';
   const name = `qti-candidate-${sanitizeAttrSegment(itemIdentifier)}-${index}-${sanitizeAttrSegment(interaction.id ?? '')}`;
-  const perInteractionMap = buildChoiceInnerHtmlMapByInteraction(questionHtml);
-  const globalMap = buildChoiceInnerHtmlMap(questionHtml);
+  const renderInfo = choiceRenderInfo.find((entry) => entry.interactionIndex === index);
+  const choiceInnerHtmlByIdentifier = renderInfo?.choiceInnerHtmlByIdentifier ?? new Map();
 
   const submittedLabel = interaction.id
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
@@ -317,7 +284,7 @@ function renderChoiceCandidateBody(
     const marker = isSelected ? '●' : '○';
     const labelTag = isSelected ? '<span class="choice-response-label">学生の回答</span>' : '';
     const labelInner =
-      resolveChoiceInnerHtml(perInteractionMap, globalMap, interaction, choice.identifier) ??
+      resolveChoiceInnerHtml(choiceInnerHtmlByIdentifier, interaction, choice.identifier) ??
       escapeHtml(choice.text);
     // Use the choice text as the radio/checkbox `value` so the internal
     // choice identifier never appears in the candidate-response body.
@@ -342,10 +309,11 @@ function buildCorrectAnswerHtml(item: ParsedAssessmentItem): string | null {
   if (!hasAnyCorrect) {
     return null;
   }
+  const choiceRenderInfo = buildChoiceRenderInfo(item);
   const rows = item.interactions
     .filter((interaction) => interaction.correctResponse.length > 0)
     .map((interaction, index) =>
-      renderCorrectAnswerSection(interaction, index, item.identifier, item.questionHtml)
+      renderCorrectAnswerSection(interaction, index, item.identifier, choiceRenderInfo)
     )
     .join('');
   if (rows.length === 0) {
@@ -358,12 +326,12 @@ function renderCorrectAnswerSection(
   interaction: InteractionInfo,
   index: number,
   itemIdentifier: string,
-  questionHtml: string
+  choiceRenderInfo: ChoiceRenderInfo[]
 ): string {
   const idAttr = interaction.id ? ` data-interaction-id="${escapeHtml(interaction.id)}"` : '';
   const nameAttr = ` data-candidate-name="${escapeHtml(perInteractionNamePrefix(itemIdentifier, index))}"`;
   if (interaction.type === 'choice') {
-    return `<div class="correct-answer-interaction"${idAttr}${nameAttr}>${renderChoiceCorrectBody(interaction, questionHtml)}</div>`;
+    return `<div class="correct-answer-interaction"${idAttr}${nameAttr}>${renderChoiceCorrectBody(interaction, index, choiceRenderInfo)}</div>`;
   }
   return `<div class="correct-answer-interaction"${idAttr}${nameAttr}>${renderTextCorrectBody(interaction)}</div>`;
 }
@@ -391,18 +359,22 @@ function renderTextCorrectBody(interaction: InteractionInfo): string {
   return `${label}${inputs}`;
 }
 
-function renderChoiceCorrectBody(interaction: InteractionInfo, questionHtml: string): string {
+function renderChoiceCorrectBody(
+  interaction: InteractionInfo,
+  index: number,
+  choiceRenderInfo: ChoiceRenderInfo[]
+): string {
   const label = interaction.id
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
     : '';
   const correctIds = new Set(interaction.correctResponse);
-  const perInteractionMap = buildChoiceInnerHtmlMapByInteraction(questionHtml);
-  const globalMap = buildChoiceInnerHtmlMap(questionHtml);
+  const renderInfo = choiceRenderInfo.find((entry) => entry.interactionIndex === index);
+  const choiceInnerHtmlByIdentifier = renderInfo?.choiceInnerHtmlByIdentifier ?? new Map();
   const rows = interaction.choices
     .filter((choice) => correctIds.has(choice.identifier))
     .map((choice) => {
       const labelInner =
-        resolveChoiceInnerHtml(perInteractionMap, globalMap, interaction, choice.identifier) ??
+        resolveChoiceInnerHtml(choiceInnerHtmlByIdentifier, interaction, choice.identifier) ??
         escapeHtml(choice.text);
       return `<li class="choice-response-option choice-response-selected"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">${labelInner}</span><span class="choice-response-label">正解</span></li>`;
     });
@@ -420,20 +392,23 @@ function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
     // `qti-extended-text-interaction` placeholder.
     return wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
   }
+  const choiceRenderInfo = buildChoiceRenderInfo(item);
   const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
   const root = dom.window.document.getElementById('root');
   if (!root) {
     return wrapRetryQuestionBody(item.questionHtml);
   }
   const choiceWrappers = Array.from(root.querySelectorAll('.choice-interaction'));
+  const choiceInteractionIter = choiceRenderInfo[Symbol.iterator]();
   choiceWrappers.forEach((wrapper) => {
     const interactionId = wrapper.getAttribute('data-interaction-id') ?? '';
-    const interactionIndex = item.interactions.findIndex((entry) => entry.id === interactionId);
-    const indexSegment =
-      interactionIndex >= 0 ? String(interactionIndex) : sanitizeAttrSegment(interactionId);
+    const next = choiceInteractionIter.next();
+    const renderInfo = next.done ? null : next.value;
+    const interactionIndex = renderInfo?.interactionIndex ?? -1;
+    const fallbackIndex = renderInfo === null ? String(choiceWrappers.indexOf(wrapper)) : '';
+    const indexSegment = interactionIndex >= 0 ? String(interactionIndex) : fallbackIndex || '0';
     const radioName = `qti-retry-${sanitizeAttrSegment(item.identifier)}-${indexSegment}-${sanitizeAttrSegment(interactionId)}`;
-    const interaction = item.interactions.find((entry) => entry.id === interactionId);
-    const inputType = interaction?.cardinality === 'multiple' ? 'checkbox' : 'radio';
+    const inputType = renderInfo?.interaction.cardinality === 'multiple' ? 'checkbox' : 'radio';
     const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
     const list = dom.window.document.createElement('ul');
     list.className = 'choice-retry';

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="duplicate-ids" title="Duplicate Interaction Identifier" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="identifier" cardinality="single">
+    <qti-correct-response>
+      <qti-value>CHOICE_A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>First question — two `qti-choice-interaction`s share `response-identifier="RESPONSE"`. The reporter must render each interaction independently with its own choice text and per-interaction radio group.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Alpha</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">Beta</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-p>Second question — same identifier, different texts.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Gamma</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">Delta</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] First interaction is Alpha</qti-p>
+      <qti-p>[1] Second interaction is Gamma</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

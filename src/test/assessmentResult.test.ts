@@ -1,0 +1,118 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+
+import { parseAssessmentResult } from '../qti/assessmentResult.js';
+
+function makeResultXml(blocks: string[]): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
+  <context sourcedId="unit-test">
+    <sessionIdentifier sourceID="candidateId" identifier="test-001" />
+    <sessionIdentifier sourceID="candidateName" identifier="Test Candidate" />
+  </context>
+  <testResult identifier="unit-test-result" datestamp="2026-06-13T00:00:00+09:00">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>0</value>
+    </outcomeVariable>
+  </testResult>
+${blocks.map((block) => `  ${block}`).join('\n')}
+</assessmentResult>
+`;
+}
+
+function writeTempResult(blocks: string[]): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qti-reporter-result-'));
+  const file = path.join(dir, 'result.xml');
+  fs.writeFileSync(file, makeResultXml(blocks), 'utf8');
+  return file;
+}
+
+test('self-closing candidateResponse with `<candidateResponse />` produces values: []', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="empty-self-closing" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse />
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('empty-self-closing');
+  assert.ok(itemResult, 'itemResult must exist for empty-self-closing');
+  assert.equal(itemResult?.responses.length, 1, 'one responseVariable must be present');
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, []);
+});
+
+test('self-closing candidateResponse with `<candidateResponse/>` produces values: []', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="empty-self-closing-tight" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse/>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('empty-self-closing-tight');
+  assert.ok(itemResult);
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, []);
+});
+
+test('responseVariable without candidateResponse element is skipped', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="no-candidate" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single" />
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('no-candidate');
+  assert.ok(itemResult);
+  assert.equal(
+    itemResult?.responses.length,
+    0,
+    'responseVariable without candidateResponse must be skipped'
+  );
+});
+
+test('responseVariable document order is preserved', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="ordered" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="Z" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value>zebra</value>
+        </candidateResponse>
+      </responseVariable>
+      <responseVariable identifier="A" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value>apple</value>
+        </candidateResponse>
+      </responseVariable>
+      <responseVariable identifier="M" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value>mango</value>
+        </candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('ordered');
+  assert.ok(itemResult);
+  const ids = itemResult?.responses.map((response) => response.responseIdentifier);
+  assert.deepEqual(ids, ['Z', 'A', 'M'], 'document order of responseVariables must be preserved');
+});
