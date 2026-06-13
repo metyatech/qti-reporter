@@ -10,10 +10,21 @@ import {
   stripTagsPreserveWhitespace,
 } from './xml.js';
 
+/**
+ * One `responseVariable` from the result XML. Each `responseVariable` produces
+ * exactly one record, regardless of how many `<value>` children it carries.
+ * The `values` array preserves every `<value>` in document order, so a
+ * `cardinality="multiple"` or `ordered` response is never collapsed to a
+ * single string.
+ *
+ * `declarationValueIndex` deliberately does NOT live on this type: it is a
+ * renderer-side concept that describes the legacy ordered `RESPONSE`
+ * distribution. Consumers must read it from `InteractionInfo` (returned by
+ * the renderer) instead of from the result.
+ */
 export interface ParsedItemResponse {
   responseIdentifier: string;
-  value: string;
-  declarationValueIndex: number | null;
+  values: string[];
 }
 
 export interface ParsedItemResult {
@@ -128,16 +139,20 @@ function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
     }
     const candidateResponseXml = candidateResponseMatch[1];
     const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>/g;
+    const values: string[] = [];
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
     while (valueMatch) {
+      // Preserve surrounding whitespace, indentation, tabs, and blank lines
+      // for every <value>. CRLF / CR endings are normalized to LF so the
+      // downstream HTML and CSV layers can join values with a single '\n'.
       const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, '\n');
-      responses.push({
-        responseIdentifier: identifier,
-        value: preserved,
-        declarationValueIndex: null,
-      });
+      values.push(preserved);
       valueMatch = valuePattern.exec(candidateResponseXml);
     }
+    responses.push({
+      responseIdentifier: identifier,
+      values,
+    });
   }
 
   return responses;

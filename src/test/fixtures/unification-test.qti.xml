@@ -8,9 +8,11 @@
       <qti-assessment-item-ref identifier="declaration-mismatch" href="unification-declaration-mismatch.qti.xml" />
       <qti-assessment-item-ref identifier="order-mismatch" href="unification-order-mismatch.qti.xml" />
       <qti-assessment-item-ref identifier="legacy-ordered" href="unification-legacy-ordered.qti.xml" />
+      <qti-assessment-item-ref identifier="legacy-distinct-vars" href="unification-legacy-distinct-vars.qti.xml" />
       <qti-assessment-item-ref identifier="multi-text-entry" href="unification-multi-text-entry.qti.xml" />
       <qti-assessment-item-ref identifier="extended-text" href="unification-extended-text.qti.xml" />
       <qti-assessment-item-ref identifier="image-correct" href="unification-image-correct.qti.xml" />
+      <qti-assessment-item-ref identifier="image-correct-choice-internal" href="unification-image-correct-choice-internal.qti.xml" />
       <qti-assessment-item-ref identifier="image-explanation" href="unification-image-explanation.qti.xml" />
       <qti-assessment-item-ref identifier="no-correct-no-explanation" href="unification-no-correct-no-explanation.qti.xml" />
       <qti-assessment-item-ref identifier="multiple-values" href="unification-multiple-values.qti.xml" />

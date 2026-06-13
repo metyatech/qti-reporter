@@ -153,29 +153,50 @@ consumers can target it from CSS or scripts.
 ### Submission-to-interaction binding rules
 
 For each interaction, the reporter resolves the candidate's submitted
-values from `itemResult.responses` using this precedence:
+values from `itemResult.responses` using this three-tier precedence
+(implemented in `src/report/interactionResponses.ts` and shared by
+both the HTML and CSV reports):
 
-1. **Direct match on `declarationIdentifier`** — when the
-   `responseVariable` identifier equals
-   `interaction.declarationIdentifier`, all `<value>` elements in
-   that `responseVariable` (in document order) are bound to the
-   interaction.
-2. **Fallback to the interaction's own `id`** — when no
-   `declarationIdentifier` was bound (e.g. `null`) and the interaction
-   has its own `id`, the reporter looks up the `responseVariable` by
-   `id`. This handles the case where the result XML uses the
-   interaction element's response-identifier directly without a
-   matching declaration.
-3. **Legacy ordered `RESPONSE` distribution** — when the renderer
-   reports `declarationIdentifier === "RESPONSE"` with
-   `declarationValueIndex !== null`, the reporter maps
-   `RESPONSE_${declarationValueIndex + 1}` to a `responseVariable`
-   in the result XML. The renderer is the only authority on when
-   this legacy distribution applies.
+1. **Interaction-id priority** — when the interaction has an `id` and
+   a `responseVariable` with that exact `responseIdentifier` exists,
+   return that response's `values` array verbatim. This wins over both
+   the legacy path and the direct-match path because the interaction
+   `id` is the most specific key the renderer exposes.
+2. **Legacy ordered `RESPONSE` distribution** — when the renderer
+   reports `declarationValueIndex !== null` (e.g. `RESPONSE_1`,
+   `RESPONSE_2` in a pure cloze item with one ordered `RESPONSE`
+   declaration), the reporter looks up the `responseVariable` by
+   `declarationIdentifier` and returns
+   `[values[declarationValueIndex]]` — exactly one value at the
+   index, NOT the full list. A renderer interaction whose
+   `declarationValueIndex !== null` MUST NEVER receive the full
+   multi-value list.
+3. **Direct match on `declarationIdentifier`** — when the renderer
+   bound the interaction to a `responseVariable` by identifier, return
+   that `responseVariable`'s `values` array in full. A
+   `cardinality="multiple"` or `"ordered"` response is preserved as a
+   multi-element array.
 
-The reporter does not perform any positional distribution by
-`RESPONSE_N` numeric suffix outside of the legacy path. The renderer
-is responsible for binding the legacy distribution values.
+The renderer (`qti-html-renderer`) is the only authority on
+`declarationValueIndex`. The reporter does not invent a
+`RESPONSE_N` numeric-suffix mapping on the result side, and it does not
+re-parse the source XML for `qti-response-declaration` or
+`qti-correct-response`. If neither rule applies, the interaction's
+submitted values are `[]`.
+
+`ParsedItemResponse` is the result-side record:
+
+```ts
+interface ParsedItemResponse {
+  responseIdentifier: string;
+  values: string[]; // every <value> in document order; never collapsed
+}
+```
+
+The `declarationValueIndex` field that was previously on
+`ParsedItemResponse` is gone — it was always a renderer-side concept.
+The reporter reads it from `InteractionInfo.declarationValueIndex`
+returned by the renderer.
 
 ### Multi-value preservation
 
@@ -250,6 +271,8 @@ must be treated as stable for external CSS.
 - Section data attributes: `data-answer-section="explanation"`,
   `data-answer-section="correct"`
 - Interaction binding attribute: `data-interaction-id="<interaction id>"`
+- Per-interaction candidate name attribute:
+  `data-candidate-name="qti-candidate-<itemIdentifier>-<index>"`
 
 ### Styling data attributes
 
@@ -298,9 +321,15 @@ External CSS may also rely on the following data attributes:
   submitted identifier cannot be matched to any option, the row
   shows `選択肢本文を取得できません` instead of echoing the unmatched
   identifier. The radio or checkbox `name` is per interaction, in the
-  form `qti-${sanitizeAttrSegment(interaction.id)}`, so two interactions
-  in the same item that share the same internal choice identifier do
-  not share a `name`.
+  form `qti-candidate-<itemIdentifier>-<index>-<interactionId>`, where
+  `<index>` is the 0-based position of the interaction in
+  `item.interactions` and each segment is sanitized with
+  `replace(/[^A-Za-z0-9._-]/g, '-')`. The wrapping
+  `.candidate-response-interaction` element carries both
+  `data-interaction-id` and a `data-candidate-name` attribute in the
+  form `qti-candidate-<itemIdentifier>-<index>`. This guarantees that
+  two interactions in the same item, or the same interaction id reused
+  across two items, never share a browser radio/checkbox group.
 - For text-entry interactions, the response section renders
   read-only `input.cloze-input.qti-blank-input.cloze-input-readonly`
   elements with the submitted value as the `value` attribute and a
@@ -429,6 +458,16 @@ Columns are ordered as follows.
 - When the same interaction produces multiple submitted values
   (e.g. a `cardinality="multiple"` response), all values are joined
   with `\n` inside that interaction's cell.
+- For the legacy ordered `RESPONSE` distribution, each interaction
+  receives exactly one value at the renderer's `declarationValueIndex`
+  position. A 2-blank legacy item therefore produces
+  `alpha\nbeta` (one line per interaction), never a single collapsed
+  value and never a duplicated value.
+- Each interaction's value list is also deduped across interactions
+  with `responseDedupeKey(interaction)`: a legacy interaction gets a
+  unique key per index, a direct-match interaction dedupes by
+  `declarationIdentifier`, and an unmatched interaction dedupes by its
+  own `id`.
 - If no candidate response exists for any interaction, the cell is empty.
 - The literal `（無回答）` is not used in CSV; it is HTML-only presentation.
 

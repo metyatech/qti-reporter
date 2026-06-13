@@ -18,6 +18,7 @@ import {
 import { AssessmentTimeLimit, parseAssessmentTest } from '../qti/assessmentTest.js';
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
 import { escapeHtml } from './htmlEscape.js';
+import { resolveSubmittedValues } from './interactionResponses.js';
 
 export interface HtmlReportInputPaths {
   assessmentTestPath: string;
@@ -112,6 +113,10 @@ function sanitizeAttrSegment(value: string): string {
   return value.replace(/[^A-Za-z0-9._-]/g, '-');
 }
 
+function perInteractionNamePrefix(itemIdentifier: string, index: number): string {
+  return `qti-candidate-${sanitizeAttrSegment(itemIdentifier)}-${index}`;
+}
+
 function buildSubmittedAnswerHtml(
   item: ParsedAssessmentItem,
   itemResult: ParsedItemResult
@@ -120,7 +125,9 @@ function buildSubmittedAnswerHtml(
     return formatDescriptiveResponse(itemResult.responses);
   }
   const rows = item.interactions
-    .map((interaction) => renderCandidateResponseSection(item, itemResult.responses, interaction))
+    .map((interaction, index) =>
+      renderCandidateResponseSection(item, itemResult.responses, interaction, index)
+    )
     .join('');
   return `<div class="candidate-response-per-interaction">${rows}</div>`;
 }
@@ -130,54 +137,30 @@ function formatDescriptiveResponse(responses: ParsedItemResponse[]): string {
     return '<p class="response-empty">（無回答）</p>';
   }
   const joined = responses
-    .map((response) => response.value)
+    .map((response) => response.values)
+    .flat()
     .map((value) => escapeHtml(value))
     .join('\n');
   return `<pre class="response-text response-pre">${joined}</pre>`;
 }
 
-function getSubmittedValuesForInteraction(
-  responses: ParsedItemResponse[],
-  interaction: InteractionInfo
-): string[] {
-  const directId = interaction.declarationIdentifier;
-  if (directId) {
-    const matched = responses.filter((entry) => entry.responseIdentifier === directId);
-    if (matched.length > 0) {
-      return matched.map((entry) => entry.value);
-    }
-  }
-  if (interaction.id && interaction.id !== directId) {
-    const matched = responses.filter((entry) => entry.responseIdentifier === interaction.id);
-    if (matched.length > 0) {
-      return matched.map((entry) => entry.value);
-    }
-  }
-  if (directId === 'RESPONSE' && interaction.declarationValueIndex !== null) {
-    const legacyId = `RESPONSE_${interaction.declarationValueIndex + 1}`;
-    const matched = responses.filter((entry) => entry.responseIdentifier === legacyId);
-    if (matched.length > 0) {
-      return matched.map((entry) => entry.value);
-    }
-  }
-  return [];
-}
-
 function renderCandidateResponseSection(
   item: ParsedAssessmentItem,
   responses: ParsedItemResponse[],
-  interaction: InteractionInfo
+  interaction: InteractionInfo,
+  index: number
 ): string {
   const idAttr = interaction.id ? ` data-interaction-id="${escapeHtml(interaction.id)}"` : '';
-  const submittedValues = getSubmittedValuesForInteraction(responses, interaction);
+  const nameAttr = ` data-candidate-name="${escapeHtml(perInteractionNamePrefix(item.identifier, index))}"`;
+  const submittedValues = resolveSubmittedValues(responses, interaction);
 
   if (interaction.type === 'choice') {
-    return `<div class="candidate-response-interaction"${idAttr}>${renderChoiceCandidateBody(interaction, submittedValues, item.questionHtml)}</div>`;
+    return `<div class="candidate-response-interaction"${idAttr}${nameAttr}>${renderChoiceCandidateBody(item.identifier, index, interaction, submittedValues, item.questionHtml)}</div>`;
   }
   if (interaction.type === 'text-entry' || interaction.type === 'extended-text') {
-    return `<div class="candidate-response-interaction"${idAttr}>${renderTextCandidateBody(interaction, submittedValues)}</div>`;
+    return `<div class="candidate-response-interaction"${idAttr}${nameAttr}>${renderTextCandidateBody(interaction, submittedValues)}</div>`;
   }
-  return `<div class="candidate-response-interaction"${idAttr}>${renderDescriptiveTextCandidateBody(submittedValues)}</div>`;
+  return `<div class="candidate-response-interaction"${idAttr}${nameAttr}>${renderDescriptiveTextCandidateBody(submittedValues)}</div>`;
 }
 
 function renderDescriptiveTextCandidateBody(values: string[]): string {
@@ -211,6 +194,60 @@ function renderTextCandidateBody(interaction: InteractionInfo, values: string[])
   return `${idLabel}${inputs}`;
 }
 
+/**
+ * Walk the renderer's `questionHtml` and build a per-interaction
+ * Map<choiceIdentifier, innerHtml>. The renderer emits each
+ * `<qti-choice-interaction>` wrapped in
+ * `<div class="choice-interaction" data-interaction-id="<id>">...</div>`;
+ * the per-interaction Map scopes choice identifiers to the wrapper that
+ * owns them so two interactions that share an internal `CHOICE_A`
+ * identifier do not bleed into each other.
+ *
+ * The map is a Map<interactionId, Map<choiceIdentifier, innerHtml>>. A
+ * `null` second-level Map means the wrapper was missing for that
+ * interaction id; callers must fall back to either a single global
+ * `simple-choice` scan or to `interaction.choices[].text` in that case.
+ */
+function buildChoiceInnerHtmlMapByInteraction(
+  questionHtml: string
+): Map<string, Map<string, string>> {
+  const result = new Map<string, Map<string, string>>();
+  try {
+    const dom = new JSDOM(`<div id="root">${questionHtml}</div>`);
+    const root = dom.window.document.getElementById('root');
+    if (!root) return result;
+    const wrappers = Array.from(root.querySelectorAll('div.choice-interaction'));
+    if (wrappers.length === 0) {
+      // No per-interaction wrappers in the renderer output (e.g. an item
+      // that has no choice interactions). Return an empty map; callers
+      // that need a global fallback will scan all `simple-choice`s.
+      return result;
+    }
+    for (const wrapper of wrappers) {
+      const interactionId = wrapper.getAttribute('data-interaction-id') ?? '';
+      const inner = new Map<string, string>();
+      const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
+      for (const choice of choices) {
+        const identifier = choice.getAttribute('identifier');
+        if (identifier) {
+          inner.set(identifier, choice.innerHTML);
+        }
+      }
+      result.set(interactionId, inner);
+    }
+  } catch {
+    // ignore parse errors; per-interaction rows fall back to plain text
+  }
+  return result;
+}
+
+/**
+ * Build a single global `Map<choiceIdentifier, innerHtml>` from every
+ * `simple-choice` in `questionHtml`. This is the fallback used when the
+ * renderer's per-interaction wrapper is missing for an interaction but the
+ * caller still needs choice inner HTML for the candidate-response or
+ * correct-answer body.
+ */
 function buildChoiceInnerHtmlMap(questionHtml: string): Map<string, string> {
   const map = new Map<string, string>();
   try {
@@ -230,7 +267,31 @@ function buildChoiceInnerHtmlMap(questionHtml: string): Map<string, string> {
   return map;
 }
 
+/**
+ * Resolve the inner HTML for a single (interaction, choice) pair. The
+ * per-interaction map is the primary source; when the wrapper is missing
+ * for the given interaction id, the caller falls back to the single global
+ * map; when both are missing, the caller falls back to `choice.text`.
+ */
+function resolveChoiceInnerHtml(
+  perInteractionMap: Map<string, Map<string, string>>,
+  globalMap: Map<string, string>,
+  interaction: InteractionInfo,
+  choiceIdentifier: string
+): string | null {
+  const scoped = perInteractionMap.get(interaction.id ?? '');
+  if (scoped && scoped.has(choiceIdentifier)) {
+    return scoped.get(choiceIdentifier) ?? null;
+  }
+  if (globalMap.has(choiceIdentifier)) {
+    return globalMap.get(choiceIdentifier) ?? null;
+  }
+  return null;
+}
+
 function renderChoiceCandidateBody(
+  itemIdentifier: string,
+  index: number,
   interaction: InteractionInfo,
   submittedValues: string[],
   questionHtml: string
@@ -238,8 +299,9 @@ function renderChoiceCandidateBody(
   const submittedSet = new Set(submittedValues);
   const isMultiple = interaction.cardinality === 'multiple';
   const inputType = isMultiple ? 'checkbox' : 'radio';
-  const name = `qti-${sanitizeAttrSegment(interaction.id || 'unknown')}`;
-  const choiceInnerHtml = buildChoiceInnerHtmlMap(questionHtml);
+  const name = `qti-candidate-${sanitizeAttrSegment(itemIdentifier)}-${index}-${sanitizeAttrSegment(interaction.id ?? '')}`;
+  const perInteractionMap = buildChoiceInnerHtmlMapByInteraction(questionHtml);
+  const globalMap = buildChoiceInnerHtmlMap(questionHtml);
 
   const submittedLabel = interaction.id
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
@@ -254,7 +316,9 @@ function renderChoiceCandidateBody(
     if (isSelected) optionClasses.push('choice-response-selected');
     const marker = isSelected ? '●' : '○';
     const labelTag = isSelected ? '<span class="choice-response-label">学生の回答</span>' : '';
-    const labelInner = choiceInnerHtml.get(choice.identifier) ?? escapeHtml(choice.text);
+    const labelInner =
+      resolveChoiceInnerHtml(perInteractionMap, globalMap, interaction, choice.identifier) ??
+      escapeHtml(choice.text);
     // Use the choice text as the radio/checkbox `value` so the internal
     // choice identifier never appears in the candidate-response body.
     const radioValue = choice.text.replace(/\s+/g, ' ').trim();
@@ -280,7 +344,9 @@ function buildCorrectAnswerHtml(item: ParsedAssessmentItem): string | null {
   }
   const rows = item.interactions
     .filter((interaction) => interaction.correctResponse.length > 0)
-    .map((interaction) => renderCorrectAnswerSection(interaction, item.questionHtml))
+    .map((interaction, index) =>
+      renderCorrectAnswerSection(interaction, index, item.identifier, item.questionHtml)
+    )
     .join('');
   if (rows.length === 0) {
     return null;
@@ -288,12 +354,18 @@ function buildCorrectAnswerHtml(item: ParsedAssessmentItem): string | null {
   return `<div class="correct-answer-per-interaction">${rows}</div>`;
 }
 
-function renderCorrectAnswerSection(interaction: InteractionInfo, questionHtml: string): string {
+function renderCorrectAnswerSection(
+  interaction: InteractionInfo,
+  index: number,
+  itemIdentifier: string,
+  questionHtml: string
+): string {
   const idAttr = interaction.id ? ` data-interaction-id="${escapeHtml(interaction.id)}"` : '';
+  const nameAttr = ` data-candidate-name="${escapeHtml(perInteractionNamePrefix(itemIdentifier, index))}"`;
   if (interaction.type === 'choice') {
-    return `<div class="correct-answer-interaction"${idAttr}>${renderChoiceCorrectBody(interaction, questionHtml)}</div>`;
+    return `<div class="correct-answer-interaction"${idAttr}${nameAttr}>${renderChoiceCorrectBody(interaction, questionHtml)}</div>`;
   }
-  return `<div class="correct-answer-interaction"${idAttr}>${renderTextCorrectBody(interaction)}</div>`;
+  return `<div class="correct-answer-interaction"${idAttr}${nameAttr}>${renderTextCorrectBody(interaction)}</div>`;
 }
 
 function renderTextCorrectBody(interaction: InteractionInfo): string {
@@ -324,11 +396,14 @@ function renderChoiceCorrectBody(interaction: InteractionInfo, questionHtml: str
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
     : '';
   const correctIds = new Set(interaction.correctResponse);
-  const choiceInnerHtml = buildChoiceInnerHtmlMap(questionHtml);
+  const perInteractionMap = buildChoiceInnerHtmlMapByInteraction(questionHtml);
+  const globalMap = buildChoiceInnerHtmlMap(questionHtml);
   const rows = interaction.choices
     .filter((choice) => correctIds.has(choice.identifier))
     .map((choice) => {
-      const labelInner = choiceInnerHtml.get(choice.identifier) ?? escapeHtml(choice.text);
+      const labelInner =
+        resolveChoiceInnerHtml(perInteractionMap, globalMap, interaction, choice.identifier) ??
+        escapeHtml(choice.text);
       return `<li class="choice-response-option choice-response-selected"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">${labelInner}</span><span class="choice-response-label">正解</span></li>`;
     });
   if (rows.length === 0) {
@@ -353,7 +428,10 @@ function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
   const choiceWrappers = Array.from(root.querySelectorAll('.choice-interaction'));
   choiceWrappers.forEach((wrapper) => {
     const interactionId = wrapper.getAttribute('data-interaction-id') ?? '';
-    const radioName = `qti-retry-${sanitizeAttrSegment(item.identifier)}-${sanitizeAttrSegment(interactionId)}`;
+    const interactionIndex = item.interactions.findIndex((entry) => entry.id === interactionId);
+    const indexSegment =
+      interactionIndex >= 0 ? String(interactionIndex) : sanitizeAttrSegment(interactionId);
+    const radioName = `qti-retry-${sanitizeAttrSegment(item.identifier)}-${indexSegment}-${sanitizeAttrSegment(interactionId)}`;
     const interaction = item.interactions.find((entry) => entry.id === interactionId);
     const inputType = interaction?.cardinality === 'multiple' ? 'checkbox' : 'radio';
     const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
@@ -811,17 +889,13 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       parsedItem.identifier,
       outputDirPath
     );
-    const itemForRetry: ParsedAssessmentItem = {
+    const resolvedItem: ParsedAssessmentItem = {
       ...parsedItem,
       questionHtml: resolvedAssets.html,
     };
-    const retryQuestionHtml = buildRetryQuestionHtml(itemForRetry);
-    const itemForSubmission: ParsedAssessmentItem = {
-      ...parsedItem,
-      questionHtml: resolvedAssets.html,
-    };
-    const submittedAnswerHtml = buildSubmittedAnswerHtml(itemForSubmission, itemResult);
-    const correctAnswerHtml = buildCorrectAnswerHtml(parsedItem);
+    const retryQuestionHtml = buildRetryQuestionHtml(resolvedItem);
+    const submittedAnswerHtml = buildSubmittedAnswerHtml(resolvedItem, itemResult);
+    const correctAnswerHtml = buildCorrectAnswerHtml(resolvedItem);
     const explanationHtml = buildExplanationHtml(
       parsedItem.explanationHtml,
       itemRef.itemPath,
@@ -829,7 +903,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       outputDirPath
     );
     return buildItemReportModel(
-      { ...parsedItem, questionHtml: resolvedAssets.html },
+      resolvedItem,
       itemResult,
       itemIndex + 1,
       retryQuestionHtml,

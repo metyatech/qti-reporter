@@ -107,14 +107,24 @@ test('single choice and multiple choice in the same item are independent', () =>
   for (const radio of radios) {
     valuesByName.set(radio.getAttribute('name') ?? '', radio.getAttribute('value') ?? '');
   }
-  // Names are qti-RESPONSE and qti-COLLISION (sanitized). Look them up.
-  const responseValue = valuesByName.get('qti-RESPONSE');
-  const collisionValue = valuesByName.get('qti-COLLISION');
-  assert.equal(responseValue, 'Alpha', 'RESPONSE interaction must show Alpha as its chosen option');
+  // The new radio name contract is
+  // `qti-candidate-<itemIdentifier>-<index>-<interactionIdentifier>`.
+  // For collision-choice the item identifier is `collision-choice`, the
+  // RESPONSE interaction is at index 0, and the COLLISION interaction is
+  // at index 1.
+  const responseName = 'qti-candidate-collision-choice-0-RESPONSE';
+  const collisionName = 'qti-candidate-collision-choice-1-COLLISION';
+  const responseValue = valuesByName.get(responseName);
+  const collisionValue = valuesByName.get(collisionName);
+  assert.equal(
+    responseValue,
+    'Alpha',
+    `RESPONSE interaction (radio name ${responseName}) must show Alpha as its chosen option, got: ${responseValue}`
+  );
   assert.equal(
     collisionValue,
     'Gamma',
-    'COLLISION interaction must show Gamma as its chosen option'
+    `COLLISION interaction (radio name ${collisionName}) must show Gamma as its chosen option, got: ${collisionValue}`
   );
 });
 
@@ -139,6 +149,17 @@ test('two choice interactions that share an internal CHOICE_A identifier render 
     names.size,
     2,
     `each choice interaction must have its own name; got names: ${Array.from(names).join(', ')}`
+  );
+  // Names are scoped per interaction by item identifier + interaction
+  // index + interaction id. collision-choice has RESPONSE at index 0 and
+  // COLLISION at index 1.
+  assert.ok(
+    Array.from(names).some((name) => name === 'qti-candidate-collision-choice-0-RESPONSE'),
+    `expected per-interaction name for RESPONSE; got: ${Array.from(names).join(', ')}`
+  );
+  assert.ok(
+    Array.from(names).some((name) => name === 'qti-candidate-collision-choice-1-COLLISION'),
+    `expected per-interaction name for COLLISION; got: ${Array.from(names).join(', ')}`
   );
 });
 
@@ -257,19 +278,110 @@ test('legacy ordered RESPONSE distribution routes RESPONSE_N to the renderer-bou
   const candidate = block.querySelector('details.candidate-response-block');
   assert.ok(candidate, 'candidate-response block must exist');
   candidate?.setAttribute('open', '');
+  // There must be exactly two cloze inputs — one per text-entry interaction.
   const inputs = Array.from(candidate.querySelectorAll('input.cloze-input.qti-blank-input'));
+  assert.equal(
+    inputs.length,
+    2,
+    `legacy ordered item must render one input per interaction; got ${inputs.length}`
+  );
+  // Each interaction wrapper is keyed by its data-interaction-id; the
+  // candidate-response block has two wrappers, one with id RESPONSE_1 and
+  // one with RESPONSE_2, and each must contain exactly one input.
+  const wrappers = Array.from(candidate.querySelectorAll('.candidate-response-interaction'));
+  assert.equal(
+    wrappers.length,
+    2,
+    `legacy ordered item must have two per-interaction wrappers; got ${wrappers.length}`
+  );
+  for (const wrapper of wrappers) {
+    const wrapperInputs = wrapper.querySelectorAll('input.cloze-input.qti-blank-input');
+    assert.equal(
+      wrapperInputs.length,
+      1,
+      `each legacy interaction wrapper must contain exactly one input; got ${wrapperInputs.length}`
+    );
+  }
+  // Document-order assertion: the first input is RESPONSE_1 (alpha) and
+  // the second is RESPONSE_2 (beta). The renderer reports the bindings in
+  // document order, so this is also the renderer-assigned order.
   const values = inputs.map((input) => input.getAttribute('value') ?? '');
-  assert.ok(
-    values.includes('alpha'),
-    `legacy ordered RESPONSE_1 must show the first declared value, got ${values.join(',')}`
+  assert.equal(
+    values[0],
+    'alpha',
+    `legacy ordered first input must be "alpha" (RESPONSE_1); got ${values.join(',')}`
   );
-  assert.ok(
-    values.includes('beta'),
-    `legacy ordered RESPONSE_2 must show the second declared value, got ${values.join(',')}`
+  assert.equal(
+    values[1],
+    'beta',
+    `legacy ordered second input must be "beta" (RESPONSE_2); got ${values.join(',')}`
   );
-  // The first input must be alpha (RESPONSE_1) and the second must be beta.
-  assert.equal(values[0], 'alpha');
-  assert.equal(values[1], 'beta');
+});
+
+test('distinct RESPONSE_1 and RESPONSE_2 declarations bind directly without legacy distribution', () => {
+  // legacy-distinct-vars has two separate RESPONSE_1 / RESPONSE_2 declarations
+  // (cardinality=single each) and two text-entry interactions. Unlike
+  // legacy-ordered where a single cardinality=ordered RESPONSE is distributed
+  // by declarationValueIndex, here the renderer binds RESPONSE_1 interaction
+  // directly to RESPONSE_1 and RESPONSE_2 directly to RESPONSE_2. The HTML
+  // output must still show alpha for the first input and beta for the second.
+  const html = generateUnificationReport('unification-legacy-distinct');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'legacy-distinct-vars');
+  assert.ok(block, 'legacy-distinct-vars block must exist');
+  const candidate = block.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  // There must be exactly two cloze inputs — one per text-entry interaction.
+  const inputs = Array.from(candidate.querySelectorAll('input.cloze-input.qti-blank-input'));
+  assert.equal(
+    inputs.length,
+    2,
+    `distinct vars item must render one input per interaction; got ${inputs.length}`
+  );
+  // Each interaction wrapper is keyed by its data-interaction-id; the
+  // candidate-response block has two wrappers, one with id RESPONSE_1 and
+  // one with RESPONSE_2, and each must contain exactly one input.
+  const wrappers = Array.from(candidate.querySelectorAll('.candidate-response-interaction'));
+  assert.equal(
+    wrappers.length,
+    2,
+    `distinct vars item must have two per-interaction wrappers; got ${wrappers.length}`
+  );
+  for (const wrapper of wrappers) {
+    const wrapperInputs = wrapper.querySelectorAll('input.cloze-input.qti-blank-input');
+    assert.equal(
+      wrapperInputs.length,
+      1,
+      `each interaction wrapper must contain exactly one input; got ${wrapperInputs.length}`
+    );
+  }
+  // Document-order assertion: the first input is RESPONSE_1 (alpha) and
+  // the second is RESPONSE_2 (beta). Each wrapper's data-interaction-id
+  // must match its identifier.
+  const firstWrapper = wrappers[0];
+  const secondWrapper = wrappers[1];
+  assert.equal(
+    firstWrapper?.getAttribute('data-interaction-id'),
+    'RESPONSE_1',
+    `first wrapper must be RESPONSE_1; got ${firstWrapper?.getAttribute('data-interaction-id')}`
+  );
+  assert.equal(
+    secondWrapper?.getAttribute('data-interaction-id'),
+    'RESPONSE_2',
+    `second wrapper must be RESPONSE_2; got ${secondWrapper?.getAttribute('data-interaction-id')}`
+  );
+  const values = inputs.map((input) => input.getAttribute('value') ?? '');
+  assert.equal(
+    values[0],
+    'alpha',
+    `first input must be "alpha" (RESPONSE_1); got ${values.join(',')}`
+  );
+  assert.equal(
+    values[1],
+    'beta',
+    `second input must be "beta" (RESPONSE_2); got ${values.join(',')}`
+  );
 });
 
 test('multiple text-entry interactions with distinct identifiers each render per-interaction', () => {
@@ -370,6 +482,89 @@ test('local image in correct-answer block is copied to assets/ and the src is re
     'image-correct item image must be copied to assets/image-correct/sample.svg'
   );
   assert.ok(report.html.includes('./assets/image-correct/sample.svg'));
+});
+
+test('local image INSIDE a simple choice is copied to assets/ and resolves in the correct-answer block', () => {
+  // image-correct-choice-internal places a qti-img inside a
+  // qti-simple-choice (CHOICE_A) which is the correct answer. The image
+  // must be copied to assets/<itemIdentifier>/<fileName> and the rendered
+  // correct-answer block must reference ./assets/<itemIdentifier>/sample.svg
+  // — never the original "images/sample.svg" — because asset resolution
+  // walks the resolved questionHtml, which includes the choice's inner
+  // HTML as part of the per-interaction choice inner HTML map.
+  const outputRootDir = createCleanOutputDir('unification-image-correct-choice-internal');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('unification-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('unification-result.xml'),
+    outputRootDir,
+  });
+  const expectedAssetPath = path.join(
+    report.outputDirPath,
+    'assets',
+    'image-correct-choice-internal',
+    'sample.svg'
+  );
+  assert.equal(
+    fs.existsSync(expectedAssetPath),
+    true,
+    'image-correct-choice-internal item image must be copied to assets/image-correct-choice-internal/sample.svg'
+  );
+
+  const doc = parseReport(report.html);
+  const block = findItemBlock(doc, 'image-correct-choice-internal');
+  assert.ok(block, 'image-correct-choice-internal block must exist');
+  const correct = block.querySelector('details.correct-answer-block');
+  assert.ok(correct, 'correct-answer block must exist for image-correct-choice-internal');
+  correct?.setAttribute('open', '');
+
+  // The image must exist inside the correct-answer block and must use
+  // the resolved output-relative src.
+  const images = Array.from(correct.querySelectorAll('img'));
+  assert.equal(
+    images.length,
+    1,
+    `correct-answer block must contain exactly one image; got ${images.length}`
+  );
+  const src = images[0]?.getAttribute('src') ?? '';
+  assert.equal(
+    src,
+    './assets/image-correct-choice-internal/sample.svg',
+    `image src must be the resolved output-relative path; got ${src}`
+  );
+
+  // The original "images/sample.svg" must NOT appear anywhere inside the
+  // correct-answer block.
+  const correctHtml = correct.innerHTML;
+  assert.ok(
+    !correctHtml.includes('images/sample.svg'),
+    `correct-answer block must not include the unresolved src "images/sample.svg"; got: ${correctHtml}`
+  );
+
+  // The image in the candidate-response and retry-question blocks must
+  // also be resolved (the question body — which embeds the choice
+  // interaction's body — is the same shared body).
+  const candidate = block.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist for image-correct-choice-internal');
+  candidate?.setAttribute('open', '');
+  const candidateImages = Array.from(candidate.querySelectorAll('img'));
+  assert.ok(
+    candidateImages.every(
+      (img) =>
+        (img.getAttribute('src') ?? '') === './assets/image-correct-choice-internal/sample.svg'
+    ),
+    'candidate-response block images must use the resolved output-relative src'
+  );
+
+  const retry = block.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist for image-correct-choice-internal');
+  const retryImages = Array.from(retry.querySelectorAll('img'));
+  assert.ok(
+    retryImages.every(
+      (img) =>
+        (img.getAttribute('src') ?? '') === './assets/image-correct-choice-internal/sample.svg'
+    ),
+    'retry-question-block images must use the resolved output-relative src'
+  );
 });
 
 test('local image in explanation is copied and the explanation body preserves the renderer hljs markup', () => {

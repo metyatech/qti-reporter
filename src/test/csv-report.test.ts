@@ -158,3 +158,228 @@ test('uses test score from result XML even when it differs from item sum', () =>
   const totalScore = columns[3];
   assert.equal(totalScore, '0');
 });
+
+test('legacy ordered RESPONSE distribution emits one value per interaction in the CSV', () => {
+  // legacy-ordered has a single RESPONSE declaration (cardinality=ordered,
+  // base-type=string) and two text-entry interactions RESPONSE_1 /
+  // RESPONSE_2. The renderer assigns declarationValueIndex=0 to RESPONSE_1
+  // and declarationValueIndex=1 to RESPONSE_2. The CSV must surface each
+  // value exactly once in document order — alpha first, beta second — and
+  // must not collapse, duplicate, or reorder them.
+  const outputRootDir = createCleanOutputDir('csv-legacy-ordered');
+
+  const exitCode = runCli([
+    '--assessment-test',
+    resolveFixturePath('unification-test.qti.xml'),
+    '--assessment-result',
+    resolveFixturePath('unification-result.xml'),
+    '--out-dir',
+    outputRootDir,
+  ]);
+
+  assert.equal(exitCode, 0);
+
+  const csvPath = path.join(outputRootDir, 'report.csv');
+  const { text } = readCsvWithoutBom(csvPath);
+  // The values cell for the legacy-ordered row is multi-line
+  // (alpha\nbeta). Walk the file by quoting state to split logical rows
+  // and pull out the response_values and response_labels cells for the
+  // legacy-ordered item.
+  const logicalRows = parseCsvLogicalRows(text);
+  // Drop the header.
+  assert.ok(logicalRows.length >= 2, 'header + at least one data row expected');
+  const dataRows = logicalRows.slice(1);
+  const legacyRow = dataRows.find((cells) => cells[6] === 'legacy-ordered');
+  assert.ok(legacyRow, 'legacy-ordered row must exist');
+
+  const legacyResponseValues = legacyRow[12];
+  const legacyResponseLabels = legacyRow[13];
+  assert.ok(legacyResponseValues, 'response_values cell must be found for legacy-ordered');
+  assert.ok(legacyResponseLabels, 'response_labels cell must be found for legacy-ordered');
+
+  // alpha and beta must each appear exactly once.
+  const alphaCountValues = (legacyResponseValues.match(/\balpha\b/g) ?? []).length;
+  const betaCountValues = (legacyResponseValues.match(/\bbeta\b/g) ?? []).length;
+  assert.equal(
+    alphaCountValues,
+    1,
+    `response_values must include alpha exactly once; got "${legacyResponseValues}"`
+  );
+  assert.equal(
+    betaCountValues,
+    1,
+    `response_values must include beta exactly once; got "${legacyResponseValues}"`
+  );
+  // Order must be alpha before beta.
+  const alphaIdxValues = legacyResponseValues.indexOf('alpha');
+  const betaIdxValues = legacyResponseValues.indexOf('beta');
+  assert.ok(
+    alphaIdxValues >= 0 && betaIdxValues > alphaIdxValues,
+    `response_values must keep alpha before beta; got "${legacyResponseValues}"`
+  );
+
+  const alphaCountLabels = (legacyResponseLabels.match(/\balpha\b/g) ?? []).length;
+  const betaCountLabels = (legacyResponseLabels.match(/\bbeta\b/g) ?? []).length;
+  assert.equal(
+    alphaCountLabels,
+    1,
+    `response_labels must include alpha exactly once; got "${legacyResponseLabels}"`
+  );
+  assert.equal(
+    betaCountLabels,
+    1,
+    `response_labels must include beta exactly once; got "${legacyResponseLabels}"`
+  );
+  const alphaIdxLabels = legacyResponseLabels.indexOf('alpha');
+  const betaIdxLabels = legacyResponseLabels.indexOf('beta');
+  assert.ok(
+    alphaIdxLabels >= 0 && betaIdxLabels > alphaIdxLabels,
+    `response_labels must keep alpha before beta; got "${legacyResponseLabels}"`
+  );
+});
+
+test('distinct RESPONSE_1/RESPONSE_2 declarations emit one value per identifier in the CSV', () => {
+  // legacy-distinct-vars has two separate RESPONSE_1 / RESPONSE_2 declarations
+  // (cardinality=single each). Unlike legacy-ordered where the renderer
+  // distributes from a single cardinality=ordered RESPONSE, here each
+  // interaction binds directly to its own identifier. The CSV must still
+  // surface alpha and beta exactly once each in document order, and must
+  // NOT duplicate them. We verify this alongside legacy-ordered so both
+  // paths produce identical response_values semantics.
+  const outputRootDir = createCleanOutputDir('csv-legacy-distinct-vars');
+
+  const exitCode = runCli([
+    '--assessment-test',
+    resolveFixturePath('unification-test.qti.xml'),
+    '--assessment-result',
+    resolveFixturePath('unification-result.xml'),
+    '--out-dir',
+    outputRootDir,
+  ]);
+
+  assert.equal(exitCode, 0);
+
+  const csvPath = path.join(outputRootDir, 'report.csv');
+  const { text } = readCsvWithoutBom(csvPath);
+  const logicalRows = parseCsvLogicalRows(text);
+  assert.ok(logicalRows.length >= 2, 'header + at least one data row expected');
+  const dataRows = logicalRows.slice(1);
+
+  // Check both legacy items produce the same semantics.
+  const legacyItems = ['legacy-ordered', 'legacy-distinct-vars'];
+  for (const itemId of legacyItems) {
+    const row = dataRows.find((cells) => cells[6] === itemId);
+    assert.ok(row, `${itemId} row must exist`);
+
+    const responseValues = row[12];
+    const responseLabels = row[13];
+    assert.ok(responseValues, `response_values cell must be found for ${itemId}`);
+    assert.ok(responseLabels, `response_labels cell must be found for ${itemId}`);
+
+    // alpha and beta must each appear exactly once — no duplicates from
+    // over-eager binding.
+    const alphaCountValues = (responseValues.match(/\balpha\b/g) ?? []).length;
+    const betaCountValues = (responseValues.match(/\bbeta\b/g) ?? []).length;
+    assert.equal(
+      alphaCountValues,
+      1,
+      `response_values for ${itemId} must include alpha exactly once; got "${responseValues}"`
+    );
+    assert.equal(
+      betaCountValues,
+      1,
+      `response_values for ${itemId} must include beta exactly once; got "${responseValues}"`
+    );
+    // Order must be alpha before beta.
+    const alphaIdxValues = responseValues.indexOf('alpha');
+    const betaIdxValues = responseValues.indexOf('beta');
+    assert.ok(
+      alphaIdxValues >= 0 && betaIdxValues > alphaIdxValues,
+      `response_values for ${itemId} must keep alpha before beta; got "${responseValues}"`
+    );
+
+    // Same checks for response_labels.
+    const alphaCountLabels = (responseLabels.match(/\balpha\b/g) ?? []).length;
+    const betaCountLabels = (responseLabels.match(/\bbeta\b/g) ?? []).length;
+    assert.equal(
+      alphaCountLabels,
+      1,
+      `response_labels for ${itemId} must include alpha exactly once; got "${responseLabels}"`
+    );
+    assert.equal(
+      betaCountLabels,
+      1,
+      `response_labels for ${itemId} must include beta exactly once; got "${responseLabels}"`
+    );
+    const alphaIdxLabels = responseLabels.indexOf('alpha');
+    const betaIdxLabels = responseLabels.indexOf('beta');
+    assert.ok(
+      alphaIdxLabels >= 0 && betaIdxLabels > alphaIdxLabels,
+      `response_labels for ${itemId} must keep alpha before beta; got "${responseLabels}"`
+    );
+  }
+
+  // Confirm legacy-distinct-vars uses direct binding (joined form
+  // alpha\nbeta) and NOT the over-eager form alpha\nbeta\nalpha\nbeta.
+  const distinctRow = dataRows.find((cells) => cells[6] === 'legacy-distinct-vars');
+  const distinctValues = distinctRow?.[12] ?? '';
+  assert.ok(
+    !distinctValues.includes('alpha\nbeta\n'),
+    `legacy-distinct-vars must not have duplicate values; got "${distinctValues}"`
+  );
+});
+
+/**
+ * Parse a CSV file into one entry per logical row. Quoted fields may
+ * contain commas, newlines, and escaped quotes (""). Each entry is the
+ * unquoted list of field values in the order they appear on the row.
+ * The trailing line-ending newline (if any) is dropped.
+ */
+function parseCsvLogicalRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let currentCells: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          currentField += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        currentField += char;
+      }
+      continue;
+    }
+    if (char === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (char === ',') {
+      currentCells.push(currentField);
+      currentField = '';
+      continue;
+    }
+    if (char === '\n') {
+      currentCells.push(currentField);
+      rows.push(currentCells);
+      currentCells = [];
+      currentField = '';
+      continue;
+    }
+    if (char === '\r') {
+      // Swallow CR — LF marks the row boundary.
+      continue;
+    }
+    currentField += char;
+  }
+  if (currentField.length > 0 || currentCells.length > 0) {
+    currentCells.push(currentField);
+    rows.push(currentCells);
+  }
+  return rows;
+}

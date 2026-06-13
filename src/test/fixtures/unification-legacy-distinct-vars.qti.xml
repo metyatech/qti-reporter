@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="legacy-distinct-vars" title="Legacy Distinct RESPONSE Variables" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE_1" base-type="string" cardinality="single">
+    <qti-correct-response>
+      <qti-value>alpha</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="RESPONSE_2" base-type="string" cardinality="single">
+    <qti-correct-response>
+      <qti-value>beta</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>Fill in the blanks.</qti-p>
+    <qti-text-entry-interaction response-identifier="RESPONSE_1" />
+    <qti-text-entry-interaction response-identifier="RESPONSE_2" />
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Two distinct blanks</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

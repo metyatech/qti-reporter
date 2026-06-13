@@ -16,21 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own choices).
 - Correct answer and candidate response are now rendered **per
   interaction**, keyed by `data-interaction-id`. Each interaction is
-  resolved by the renderer's `InteractionInfo.declarationIdentifier`
-  first, with a fallback to the interaction element's own response
-  identifier, and a final legacy fallback that maps
-  `RESPONSE_N -> RESPONSE_${declarationValueIndex + 1}` when the
-  renderer reports the legacy ordered distribution.
+  resolved by the renderer's `InteractionInfo.id` first (when the
+  renderer's per-interaction distribution already accounts for the
+  binding), with a fallback to the renderer's legacy ordered
+  `RESPONSE` distribution (using `declarationValueIndex`), and a final
+  fallback to the renderer's `declarationIdentifier` direct match.
 - The reporter no longer parses the source XML for `qti-response-declaration`
   or `qti-correct-response`; the previous `parseCorrectResponses`,
   `parseAssessmentItemForScoring`, and `applyReportCodeHighlighting` paths
   are removed.
-- The reporter no longer parses the result XML for `RESPONSE_N` numeric
-  suffix names. `ParsedItemResponse` now records
-  `{ responseIdentifier, value, declarationValueIndex }` and
-  preserves every `<value>` element in document order, so a
-  `cardinality="multiple"` response is not collapsed to a single
-  string.
+- `ParsedItemResponse` is now `{ responseIdentifier, values: string[] }`;
+  the previous `value` and `declarationValueIndex` fields are removed
+  from the result side. Every `<value>` element is preserved in document
+  order, so a `cardinality="multiple"` response is not collapsed to a
+  single string. The renderer is the only authority for
+  `declarationValueIndex`; the reporter reads it from
+  `InteractionInfo` and uses it to pick the single value at that index
+  for legacy ordered bindings.
 - The explanation body is used verbatim from the renderer's
   `explanationHtml`. The reporter does not run a second highlighter
   pass on the explanation body. Code blocks and inline code keep the
@@ -39,16 +41,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The retake body for choice interactions is now grouped per
   interaction (radio for `cardinality=single`, checkbox for
   `cardinality=multiple`); the radio/checkbox name is per interaction
-  (`qti-${item.identifier}-${interaction.id}`) and uses the choice
-  text as the input value, so the internal choice identifier never
-  appears in the retake body, even when two interactions share the
+  (`qti-retry-<itemIdentifier>-<index>-<interactionId>`) and uses the
+  choice text as the input value, so the internal choice identifier
+  never appears in the retake body, even when two interactions share the
   same choice identifier.
+- The candidate-response radio/checkbox name is now
+  `qti-candidate-<itemIdentifier>-<index>-<interactionId>`, with the
+  same 0-based `index` of the interaction in the item's `interactions`
+  list. The per-interaction wrapper now also carries a
+  `data-candidate-name="qti-candidate-<itemIdentifier>-<index>"`
+  attribute for stable CSS / scripting targeting.
+- The per-interaction choice inner HTML map is now scoped per
+  interaction id. `buildChoiceInnerHtmlMapByInteraction(questionHtml)`
+  walks each `<div class="choice-interaction" data-interaction-id>`
+  wrapper from the renderer and returns
+  `Map<interactionId, Map<choiceIdentifier, innerHtml>>`. The reporter
+  falls back to a global `simple-choice` map and then to
+  `interaction.choices[].text` when the per-interaction wrapper is
+  missing for a given interaction.
+- The correct-answer body now uses the resolved item (with rewritten
+  image sources) for the per-interaction choice inner HTML map, so
+  local images inside `<qti-simple-choice>` are copied to
+  `assets/<itemIdentifier>/<fileName>` and the `src` is rewritten to
+  the output-relative path the same way question-body images are.
 
 ### Added
 
 - New `InteractionInfo` type re-export from
   `qti-html-renderer` is available to consumers of
   `src/qti/assessmentItem.ts`.
+- New shared module `src/report/interactionResponses.ts` exporting
+  `resolveSubmittedValues(responses, interaction)` and
+  `responseDedupeKey(interaction)`. Both the HTML and CSV reports call
+  into this module; submission-to-interaction binding rules live here in
+  one place.
 - New `unification-*.qti.xml` fixtures and a corresponding
   `unification-result.xml` covering: multiple choice interactions in
   the same item, single + multiple choice in the same item, two
@@ -58,16 +84,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ordered `RESPONSE` distribution, multiple text-entry interactions
   with distinct identifiers, extended-text whitespace preservation,
   multiple values for a `cardinality="multiple"` variable, local
-  images in the correct-answer block and in the explanation body,
+  images in the correct-answer block (in the question body and
+  inside a `<qti-simple-choice>`) and in the explanation body,
   and the omitted-section case.
-- New JSDOM-backed tests in `src/test/unification.test.ts` and
-  `src/test/html-report.test.ts` covering the per-interaction binding
-  rules, the no-rehighlight contract, the asset-copying for the
-  correct-answer and explanation bodies, and the per-interaction
-  radio/checkbox grouping.
+- New `new-shared-choices-across-items-{A,B}.qti.xml` fixture pair
+  with two items in one section that both carry a choice interaction
+  with `response-identifier="RESPONSE"`. A new test confirms the
+  candidate-response and retry-question radio names are unique per
+  item, even when both items share the same interaction id.
+- New JSDOM-backed tests in `src/test/unification.test.ts`,
+  `src/test/html-report.test.ts`, and `src/test/csv-report.test.ts`
+  covering the per-interaction binding rules, the no-rehighlight
+  contract, the asset-copying for the correct-answer (with a
+  `<qti-img>` inside a choice) and explanation bodies, the
+  per-interaction radio/checkbox grouping, the cross-item name
+  uniqueness, and the legacy ordered CSV row layout.
 - New `（無回答）` label for a per-interaction candidate response row
   when no submitted value exists for that interaction, even when
   other interactions in the same item have submitted values.
+
+### Fixed
+
+- The legacy ordered `RESPONSE` distribution now produces a single
+  cell per interaction in the CSV (alpha\nbeta for a 2-blank item),
+  instead of duplicating or collapsing the values. The CSV cell is
+  built from `response.values` (the array), with each value on its
+  own line in the cell.
+- Local images inside `<qti-simple-choice>` (not just the question
+  body) are now copied to `assets/<itemIdentifier>/<fileName>` and
+  the `src` is rewritten to the output-relative path, so the
+  correct-answer body, the candidate-response body, and the
+  retry-question body all see the resolved image.
 
 ## [1.1.3] - 2026-05-30
 

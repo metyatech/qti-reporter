@@ -998,6 +998,88 @@ test('sibling choice interactions sharing choice identifiers are bound by their 
   }
 });
 
+test('candidate and retry radio names are unique per item, even when two items share RESPONSE', () => {
+  // new-shared-choices-A and new-shared-choices-B both have a choice
+  // interaction with response-identifier="RESPONSE" in the same section.
+  // The candidate-response radio name and the retry-question radio name
+  // must be unique per item, so the two items' radios never collapse into
+  // a single browser group. The retry question radio name in item A
+  // must differ from the retry question radio name in item B.
+  const outputRootDir = createCleanOutputDir('html-shared-choices-across-items');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-shared-choices-across-items-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('new-shared-choices-across-items-result.xml'),
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+
+  const blockA = doc.querySelector(
+    'details.item-block[data-item-identifier="new-shared-choices-A"]'
+  );
+  const blockB = doc.querySelector(
+    'details.item-block[data-item-identifier="new-shared-choices-B"]'
+  );
+  assert.ok(blockA, 'item A block must exist');
+  assert.ok(blockB, 'item B block must exist');
+
+  for (const block of [blockA, blockB]) {
+    const candidate = block?.querySelector('details.candidate-response-block');
+    assert.ok(candidate, 'candidate-response-block must exist');
+    candidate?.setAttribute('open', '');
+    // Within one interaction wrapper all radios must share a single name.
+    const rows = Array.from(candidate?.querySelectorAll('.candidate-response-interaction') ?? []);
+    assert.equal(rows.length, 1, 'each item has exactly one choice interaction');
+    const radios = Array.from(rows[0]?.querySelectorAll('input[type="radio"]') ?? []);
+    assert.equal(radios.length, 2, 'two radios for two choices');
+    const name = radios[0]?.getAttribute('name') ?? '';
+    for (const radio of radios) {
+      assert.equal(
+        radio.getAttribute('name'),
+        name,
+        `radios in the same interaction wrapper must share a name; got ${name} vs ${radio.getAttribute('name')}`
+      );
+    }
+  }
+
+  // Across the two items, the candidate radio names must differ.
+  const aName = blockA
+    ?.querySelector(
+      'details.candidate-response-block .candidate-response-interaction input[type="radio"]'
+    )
+    ?.getAttribute('name');
+  const bName = blockB
+    ?.querySelector(
+      'details.candidate-response-block .candidate-response-interaction input[type="radio"]'
+    )
+    ?.getAttribute('name');
+  assert.ok(aName && bName, 'both items must produce a candidate radio name');
+  assert.notEqual(
+    aName,
+    bName,
+    `candidate radio names must differ across items even when both interactions are RESPONSE; got ${aName} and ${bName}`
+  );
+  // Each candidate name must encode its item identifier.
+  assert.ok(
+    aName?.includes('new-shared-choices-A'),
+    `item A candidate radio name must include the item identifier; got ${aName}`
+  );
+  assert.ok(
+    bName?.includes('new-shared-choices-B'),
+    `item B candidate radio name must include the item identifier; got ${bName}`
+  );
+
+  // The retry question radio names must also differ across items.
+  const aRetry = blockA?.querySelector('.retry-question-block input[type="radio"]');
+  const bRetry = blockB?.querySelector('.retry-question-block input[type="radio"]');
+  const aRetryName = aRetry?.getAttribute('name') ?? '';
+  const bRetryName = bRetry?.getAttribute('name') ?? '';
+  assert.notEqual(
+    aRetryName,
+    bRetryName,
+    `retry question radio names must differ across items even when both interactions are RESPONSE; got ${aRetryName} and ${bRetryName}`
+  );
+});
+
 test('multi-blank cloze fixture renders one candidate response per text-entry interaction', () => {
   const { html } = buildWithExplanationReport('html-multi-cloze');
   const doc = parseReport(html);

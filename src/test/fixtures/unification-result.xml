@@ -112,6 +112,24 @@
       <value>true</value>
     </outcomeVariable>
   </itemResult>
+  <itemResult identifier="legacy-distinct-vars" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE_1" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>alpha</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="RESPONSE_2" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>beta</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>2</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
   <itemResult identifier="multi-text-entry" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
     <responseVariable identifier="FIRST" baseType="string" cardinality="single">
       <candidateResponse>
@@ -153,6 +171,19 @@ blank line above</value>
     </outcomeVariable>
   </itemResult>
   <itemResult identifier="image-correct" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_A</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="image-correct-choice-internal" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
     <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
       <candidateResponse>
         <value>CHOICE_A</value>

@@ -1,11 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import {
-  parseAssessmentItem,
-  ParsedAssessmentItem,
-  InteractionInfo,
-} from '../qti/assessmentItem.js';
+import { parseAssessmentItem, ParsedAssessmentItem } from '../qti/assessmentItem.js';
 import {
   parseAssessmentResult,
   ParsedAssessmentResult,
@@ -13,6 +9,7 @@ import {
   ParsedItemResult,
 } from '../qti/assessmentResult.js';
 import { parseAssessmentTest } from '../qti/assessmentTest.js';
+import { resolveSubmittedValues, responseDedupeKey } from './interactionResponses.js';
 
 export interface CsvReportInputPaths {
   assessmentTestPath: string;
@@ -66,60 +63,27 @@ function escapeCsvField(value: string): string {
   return `"${escapedQuotes}"`;
 }
 
-function getSubmittedValuesForInteraction(
-  responses: ParsedItemResponse[],
-  interaction: InteractionInfo
-): string[] {
-  const directId = interaction.declarationIdentifier;
-  if (directId) {
-    const matched = responses
-      .filter((entry) => entry.responseIdentifier === directId)
-      .map((entry) => entry.value);
-    if (matched.length > 0) {
-      return matched;
-    }
-  }
-  // 2. Fallback: responseVariable identifier == interaction.id.
-  if (interaction.id && interaction.id !== directId) {
-    const matched = responses
-      .filter((entry) => entry.responseIdentifier === interaction.id)
-      .map((entry) => entry.value);
-    if (matched.length > 0) {
-      return matched;
-    }
-  }
-  // 3. Legacy ordered RESPONSE distribution.
-  if (directId === 'RESPONSE' && interaction.declarationValueIndex !== null) {
-    const legacyId = `RESPONSE_${interaction.declarationValueIndex + 1}`;
-    const matched = responses
-      .filter((entry) => entry.responseIdentifier === legacyId)
-      .map((entry) => entry.value);
-    if (matched.length > 0) {
-      return matched;
-    }
-  }
-  return [];
-}
-
 function formatResponseValuesForItem(model: CsvItemModel): string {
   if (model.item.interactions.length === 0) {
     if (model.resolvedResponses.length === 0) {
       return '';
     }
-    return model.resolvedResponses.map((entry) => entry.value).join('\n');
+    return model.resolvedResponses.flatMap((entry) => entry.values).join('\n');
   }
   const lines: string[] = [];
   const seen = new Set<string>();
   for (const interaction of model.item.interactions) {
     // Two interactions may bind to the same responseVariable (e.g. two
-    // text-entry interactions sharing `response-identifier="RESPONSE"`); emit
-    // each responseVariable's values only once.
-    const dedupeKey = interaction.declarationIdentifier ?? interaction.id;
+    // text-entry interactions sharing `response-identifier="RESPONSE"`).
+    // `responseDedupeKey` returns a unique key per legacy interaction and a
+    // shared key for direct-match dedupe so the values appear once per
+    // responseVariable.
+    const dedupeKey = responseDedupeKey(interaction);
     if (!dedupeKey || seen.has(dedupeKey)) {
       continue;
     }
     seen.add(dedupeKey);
-    const values = getSubmittedValuesForInteraction(model.resolvedResponses, interaction);
+    const values = resolveSubmittedValues(model.resolvedResponses, interaction);
     if (values.length === 0) {
       continue;
     }
@@ -137,17 +101,17 @@ function formatResponseLabelsForItem(model: CsvItemModel): string {
     if (model.resolvedResponses.length === 0) {
       return '';
     }
-    return model.resolvedResponses.map((entry) => entry.value).join('\n');
+    return model.resolvedResponses.flatMap((entry) => entry.values).join('\n');
   }
   const lines: string[] = [];
   const seen = new Set<string>();
   for (const interaction of model.item.interactions) {
-    const dedupeKey = interaction.declarationIdentifier ?? interaction.id;
+    const dedupeKey = responseDedupeKey(interaction);
     if (!dedupeKey || seen.has(dedupeKey)) {
       continue;
     }
     seen.add(dedupeKey);
-    const values = getSubmittedValuesForInteraction(model.resolvedResponses, interaction);
+    const values = resolveSubmittedValues(model.resolvedResponses, interaction);
     if (values.length === 0) {
       continue;
     }

@@ -23,14 +23,25 @@ not parse Markdown time-limit notation and does not use time limits for scoring.
 qti-reporter uses `qti-html-renderer@^0.1.3` as the single source of truth
 for item XML parsing. The reporter calls
 `renderQtiItemForReport(xml, expectedIdentifier, options)` once per item
-and reads `interactions[].correctResponse`, `choices`, `interactions[].id`,
+and reads `interactions[].correctResponse`, `interactions[].id`,
+`interactions[].declarationIdentifier`, `interactions[].declarationValueIndex`,
+`interactions[].cardinality`, `interactions[].baseType`,
 `interactions[].choices`, and `explanationHtml` directly from the
 returned `ParsedItemForReport`. The reporter does not re-parse
 `qti-response-declaration` or `qti-correct-response` itself, and it does
 not run any code highlighter on the explanation body — the renderer
 already calls the supplied `codeHighlighter` for both the question body
 and the explanation body, and the reporter only resolves local image
-assets under `qti-modal-feedback` / `qti-content-body`.
+assets under `qti-modal-feedback` / `qti-content-body` and inside
+`<qti-simple-choice>` choices.
+
+`InteractionInfo.declarationValueIndex` is the renderer's authoritative
+record of the legacy ordered `RESPONSE` distribution. The reporter is
+the only consumer of that field; the result-side `ParsedItemResponse`
+shape is `{ responseIdentifier, values: string[] }` and never carries
+`declarationValueIndex`. The shared `src/report/interactionResponses.ts`
+module centralises the binding rules (interaction-id priority, legacy
+index, direct match) and is called by both the HTML and CSV reports.
 
 ## Setup
 
