@@ -18,6 +18,20 @@ not parse Markdown time-limit notation and does not use time limits for scoring.
 - Input QTI spec: `docs/input-qti-spec.md`
 - Output report spec: `docs/report-output-spec.md`
 
+## Renderer integration
+
+qti-reporter uses `qti-html-renderer@^0.1.3` as the single source of truth
+for item XML parsing. The reporter calls
+`renderQtiItemForReport(xml, expectedIdentifier, options)` once per item
+and reads `interactions[].correctResponse`, `choices`, `interactions[].id`,
+`interactions[].choices`, and `explanationHtml` directly from the
+returned `ParsedItemForReport`. The reporter does not re-parse
+`qti-response-declaration` or `qti-correct-response` itself, and it does
+not run any code highlighter on the explanation body — the renderer
+already calls the supplied `codeHighlighter` for both the question body
+and the explanation body, and the reporter only resolves local image
+assets under `qti-modal-feedback` / `qti-content-body`.
+
 ## Setup
 
 1. Install dependencies.

@@ -10,10 +10,16 @@ import {
   stripTagsPreserveWhitespace,
 } from './xml.js';
 
+export interface ParsedItemResponse {
+  responseIdentifier: string;
+  value: string;
+  declarationValueIndex: number | null;
+}
+
 export interface ParsedItemResult {
   identifier: string;
   score: number | null;
-  responses: string[];
+  responses: ParsedItemResponse[];
   rubricOutcomes: Map<number, boolean>;
   comment: string | null;
 }
@@ -102,16 +108,16 @@ function parseOutcomeVariableString(xml: string, identifier: string): string | n
   return preserved.length > 0 ? preserved : null;
 }
 
-function parseCandidateResponses(itemXml: string): string[] {
+function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
   const responseVariablePattern = /<responseVariable\b[^>]*>[\s\S]*?<\/responseVariable>/g;
   const responseVariables = itemXml.match(responseVariablePattern) ?? [];
-  const orderedResponses: Array<{ index: number; value: string }> = [];
+  const responses: ParsedItemResponse[] = [];
 
   for (const responseVariable of responseVariables) {
     const openTag = extractOpenTag(responseVariable);
     const attributes = parseAttributes(openTag);
-    const identifier = attributes.identifier ?? '';
-    if (!identifier.startsWith('RESPONSE')) {
+    const identifier = attributes.identifier;
+    if (!identifier) {
       continue;
     }
     const candidateResponseMatch = responseVariable.match(
@@ -123,33 +129,18 @@ function parseCandidateResponses(itemXml: string): string[] {
     const candidateResponseXml = candidateResponseMatch[1];
     const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>/g;
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
-    const values: string[] = [];
     while (valueMatch) {
       const preserved = stripTagsPreserveWhitespace(valueMatch[1]).replace(/\r\n?/g, '\n');
-      values.push(preserved);
+      responses.push({
+        responseIdentifier: identifier,
+        value: preserved,
+        declarationValueIndex: null,
+      });
       valueMatch = valuePattern.exec(candidateResponseXml);
     }
-    if (values.length === 0) {
-      continue;
-    }
-
-    if (identifier === 'RESPONSE') {
-      values.forEach((value, idx) => orderedResponses.push({ index: idx, value }));
-      continue;
-    }
-
-    const match = identifier.match(/^RESPONSE_(\d+)$/);
-    if (!match) {
-      continue;
-    }
-    const index = Number.parseInt(match[1], 10) - 1;
-    if (Number.isNaN(index)) {
-      continue;
-    }
-    values.forEach((value, offset) => orderedResponses.push({ index: index + offset, value }));
   }
 
-  return orderedResponses.sort((a, b) => a.index - b.index).map((entry) => entry.value);
+  return responses;
 }
 
 function parseRubricOutcomes(itemXml: string): Map<number, boolean> {

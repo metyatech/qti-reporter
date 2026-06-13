@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="legacy-ordered" title="Legacy Ordered RESPONSE Distribution" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="ordered">
+    <qti-correct-response>
+      <qti-value>alpha</qti-value>
+      <qti-value>beta</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>Fill in the blanks.</qti-p>
+    <qti-text-entry-interaction response-identifier="RESPONSE_1" />
+    <qti-text-entry-interaction response-identifier="RESPONSE_2" />
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Two blanks</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

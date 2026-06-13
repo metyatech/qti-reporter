@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="extended-text" title="Extended Text Whitespace" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>Explain in detail.</qti-p>
+    <qti-extended-text-interaction response-identifier="RESPONSE" expected-length="200" />
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Detailed response</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

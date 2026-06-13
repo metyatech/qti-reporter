@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="multi-choice" title="Multi Choice" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="identifier" cardinality="multiple">
+    <qti-correct-response>
+      <qti-value>CHOICE_A</qti-value>
+      <qti-value>CHOICE_C</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>Select all that apply.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="3">
+      <qti-simple-choice identifier="CHOICE_A">First</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">Second</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_C">Third</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] First and Third are correct</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

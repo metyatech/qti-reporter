@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
+  <context sourcedId="user-shared-choices">
+    <sessionIdentifier sourceID="candidateId" identifier="0020" />
+    <sessionIdentifier sourceID="candidateName" identifier="Shared Choices Tester" />
+  </context>
+  <testResult identifier="new-package-with-shared-choices-test" datestamp="2026-06-13T09:00:00+09:00">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+  </testResult>
+  <itemResult identifier="new-shared-choices" datestamp="2026-06-13T09:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE_A" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_A</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="RESPONSE_B" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_B</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+</assessmentResult>

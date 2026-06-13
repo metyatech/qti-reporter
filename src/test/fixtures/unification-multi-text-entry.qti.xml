@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="multi-text-entry" title="Multi Text Entry" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="FIRST" base-type="string" cardinality="single">
+    <qti-correct-response>
+      <qti-value>apple</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="SECOND" base-type="string" cardinality="single">
+    <qti-correct-response>
+      <qti-value>banana</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="THIRD" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>First = <qti-text-entry-interaction response-identifier="FIRST" /></qti-p>
+    <qti-p>Second = <qti-text-entry-interaction response-identifier="SECOND" /></qti-p>
+    <qti-p>Third = <qti-text-entry-interaction response-identifier="THIRD" /></qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Three blanks</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

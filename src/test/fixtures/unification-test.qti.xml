@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-test identifier="unification-test" title="Unification Test" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-test-part identifier="part-1" navigation-mode="linear" submission-mode="individual">
+    <qti-assessment-section identifier="section-1" title="Section 1" visible="true">
+      <qti-assessment-item-ref identifier="multi-choice" href="unification-multi-choice.qti.xml" />
+      <qti-assessment-item-ref identifier="collision-choice" href="unification-collision-choice.qti.xml" />
+      <qti-assessment-item-ref identifier="partial-response" href="unification-partial-response.qti.xml" />
+      <qti-assessment-item-ref identifier="declaration-mismatch" href="unification-declaration-mismatch.qti.xml" />
+      <qti-assessment-item-ref identifier="order-mismatch" href="unification-order-mismatch.qti.xml" />
+      <qti-assessment-item-ref identifier="legacy-ordered" href="unification-legacy-ordered.qti.xml" />
+      <qti-assessment-item-ref identifier="multi-text-entry" href="unification-multi-text-entry.qti.xml" />
+      <qti-assessment-item-ref identifier="extended-text" href="unification-extended-text.qti.xml" />
+      <qti-assessment-item-ref identifier="image-correct" href="unification-image-correct.qti.xml" />
+      <qti-assessment-item-ref identifier="image-explanation" href="unification-image-explanation.qti.xml" />
+      <qti-assessment-item-ref identifier="no-correct-no-explanation" href="unification-no-correct-no-explanation.qti.xml" />
+      <qti-assessment-item-ref identifier="multiple-values" href="unification-multiple-values.qti.xml" />
+    </qti-assessment-section>
+  </qti-test-part>
+</qti-assessment-test>

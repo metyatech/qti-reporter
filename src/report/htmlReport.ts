@@ -4,20 +4,19 @@ import { JSDOM } from 'jsdom';
 
 import {
   parseAssessmentItem,
-  parseAssessmentItemForScoring,
-  parseCorrectResponses,
-  ParsedAssessmentItem,
+  type ParsedAssessmentItem,
+  type InteractionInfo,
   type RubricCriterion,
 } from '../qti/assessmentItem.js';
 import { resolveExplanationAssets, resolveItemAssets } from '../qti/assetResolver.js';
 import {
   parseAssessmentResult,
   ParsedAssessmentResult,
+  ParsedItemResponse,
   ParsedItemResult,
 } from '../qti/assessmentResult.js';
 import { AssessmentTimeLimit, parseAssessmentTest } from '../qti/assessmentTest.js';
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
-import { applyResponsesToPromptHtmlReadonly } from './cloze.js';
 import { escapeHtml } from './htmlEscape.js';
 
 export interface HtmlReportInputPaths {
@@ -109,66 +108,241 @@ interface ResolvedStyle {
   externalStylePath: string | null;
 }
 
-function buildChoiceHtmlMap(item: ParsedAssessmentItem): Map<string, string> {
-  const map = new Map<string, string>();
-  const dom = new JSDOM(item.questionHtml);
-  const choices = dom.window.document.querySelectorAll('simple-choice');
-  choices.forEach((choice) => {
-    const identifier = choice.getAttribute('identifier');
-    if (identifier) {
-      map.set(identifier, choice.innerHTML);
-    }
-  });
-  return map;
-}
-
-function formatChoiceResponses(item: ParsedAssessmentItem, responses: string[]): string {
-  const choiceHtmlMap = buildChoiceHtmlMap(item);
-  const selectedChoices = new Set(responses);
-  const choiceRows = item.choices.map((choice) => {
-    const isSelected = selectedChoices.has(choice.identifier);
-    const rowClass = isSelected
-      ? 'choice-response-option choice-response-selected'
-      : 'choice-response-option';
-    const marker = isSelected ? '●' : '○';
-    const selectedLabel = isSelected ? '<span class="choice-response-label">学生の回答</span>' : '';
-    const choiceHtml = choiceHtmlMap.get(choice.identifier) ?? escapeHtml(choice.text);
-    return `<li class="${rowClass}"><span class="choice-response-marker" aria-hidden="true">${marker}</span><span class="choice-response-text">${choiceHtml}</span>${selectedLabel}</li>`;
-  });
-  const unmatchedRows = responses
-    .filter(
-      (response) =>
-        !choiceHtmlMap.has(response) && !item.choices.some((c) => c.identifier === response)
-    )
-    .map(
-      () =>
-        '<li class="choice-response-option choice-response-selected choice-response-unmatched"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">選択肢本文を取得できません</span><span class="choice-response-label">学生の回答</span></li>'
-    );
-  return `<ul class="choice-response-list">${[...choiceRows, ...unmatchedRows].join('')}</ul>`;
-}
-
-function formatCandidateResponses(item: ParsedAssessmentItem, responses: string[]): string {
-  if (responses.length === 0) {
-    return '<p class="response-empty">（無回答）</p>';
-  }
-  if (item.choices.length > 0) {
-    return formatChoiceResponses(item, responses);
-  }
-  const renderedResponses = responses.map((response) => {
-    return escapeHtml(response);
-  });
-  const joined = renderedResponses.join('\n');
-  return `<pre class="response-text response-pre">${joined}</pre>`;
-}
-
 function sanitizeAttrSegment(value: string): string {
   return value.replace(/[^A-Za-z0-9._-]/g, '-');
 }
 
+function buildSubmittedAnswerHtml(
+  item: ParsedAssessmentItem,
+  itemResult: ParsedItemResult
+): string {
+  if (item.interactions.length === 0) {
+    return formatDescriptiveResponse(itemResult.responses);
+  }
+  const rows = item.interactions
+    .map((interaction) => renderCandidateResponseSection(item, itemResult.responses, interaction))
+    .join('');
+  return `<div class="candidate-response-per-interaction">${rows}</div>`;
+}
+
+function formatDescriptiveResponse(responses: ParsedItemResponse[]): string {
+  if (responses.length === 0) {
+    return '<p class="response-empty">（無回答）</p>';
+  }
+  const joined = responses
+    .map((response) => response.value)
+    .map((value) => escapeHtml(value))
+    .join('\n');
+  return `<pre class="response-text response-pre">${joined}</pre>`;
+}
+
+function getSubmittedValuesForInteraction(
+  responses: ParsedItemResponse[],
+  interaction: InteractionInfo
+): string[] {
+  const directId = interaction.declarationIdentifier;
+  if (directId) {
+    const matched = responses.filter((entry) => entry.responseIdentifier === directId);
+    if (matched.length > 0) {
+      return matched.map((entry) => entry.value);
+    }
+  }
+  if (interaction.id && interaction.id !== directId) {
+    const matched = responses.filter((entry) => entry.responseIdentifier === interaction.id);
+    if (matched.length > 0) {
+      return matched.map((entry) => entry.value);
+    }
+  }
+  if (directId === 'RESPONSE' && interaction.declarationValueIndex !== null) {
+    const legacyId = `RESPONSE_${interaction.declarationValueIndex + 1}`;
+    const matched = responses.filter((entry) => entry.responseIdentifier === legacyId);
+    if (matched.length > 0) {
+      return matched.map((entry) => entry.value);
+    }
+  }
+  return [];
+}
+
+function renderCandidateResponseSection(
+  item: ParsedAssessmentItem,
+  responses: ParsedItemResponse[],
+  interaction: InteractionInfo
+): string {
+  const idAttr = interaction.id ? ` data-interaction-id="${escapeHtml(interaction.id)}"` : '';
+  const submittedValues = getSubmittedValuesForInteraction(responses, interaction);
+
+  if (interaction.type === 'choice') {
+    return `<div class="candidate-response-interaction"${idAttr}>${renderChoiceCandidateBody(interaction, submittedValues, item.questionHtml)}</div>`;
+  }
+  if (interaction.type === 'text-entry' || interaction.type === 'extended-text') {
+    return `<div class="candidate-response-interaction"${idAttr}>${renderTextCandidateBody(interaction, submittedValues)}</div>`;
+  }
+  return `<div class="candidate-response-interaction"${idAttr}>${renderDescriptiveTextCandidateBody(submittedValues)}</div>`;
+}
+
+function renderDescriptiveTextCandidateBody(values: string[]): string {
+  if (values.length === 0) {
+    return '<p class="response-empty">（無回答）</p>';
+  }
+  const joined = values.map((value) => escapeHtml(value)).join('\n');
+  return `<pre class="response-text response-pre">${joined}</pre>`;
+}
+
+function renderTextCandidateBody(interaction: InteractionInfo, values: string[]): string {
+  const idLabel = interaction.id
+    ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
+    : '';
+  if (values.length === 0) {
+    return `${idLabel}<p class="response-empty">（無回答）</p>`;
+  }
+  if (interaction.type === 'extended-text') {
+    const escaped = values.map((value) => escapeHtml(value)).join('\n');
+    return `${idLabel}<pre class="response-text response-pre">${escaped}</pre>`;
+  }
+  // text-entry: render each value as a read-only cloze input so existing CSS
+  // (`.cloze-input.qti-blank-input[readonly]`) and tests keep working.
+  const inputs = values
+    .map((value) => {
+      const escaped = escapeHtml(value);
+      const size = Math.max(6, value.length);
+      return `<input class="cloze-input qti-blank-input cloze-input-readonly" type="text" value="${escaped}" size="${size}" readonly data-interaction-id="${escapeHtml(interaction.id)}" />`;
+    })
+    .join('');
+  return `${idLabel}${inputs}`;
+}
+
+function buildChoiceInnerHtmlMap(questionHtml: string): Map<string, string> {
+  const map = new Map<string, string>();
+  try {
+    const dom = new JSDOM(`<div id="root">${questionHtml}</div>`);
+    const root = dom.window.document.getElementById('root');
+    if (!root) return map;
+    const choices = Array.from(root.querySelectorAll('simple-choice'));
+    choices.forEach((choice) => {
+      const identifier = choice.getAttribute('identifier');
+      if (identifier) {
+        map.set(identifier, choice.innerHTML);
+      }
+    });
+  } catch {
+    // ignore parse errors; the per-interaction rows fall back to plain text
+  }
+  return map;
+}
+
+function renderChoiceCandidateBody(
+  interaction: InteractionInfo,
+  submittedValues: string[],
+  questionHtml: string
+): string {
+  const submittedSet = new Set(submittedValues);
+  const isMultiple = interaction.cardinality === 'multiple';
+  const inputType = isMultiple ? 'checkbox' : 'radio';
+  const name = `qti-${sanitizeAttrSegment(interaction.id || 'unknown')}`;
+  const choiceInnerHtml = buildChoiceInnerHtmlMap(questionHtml);
+
+  const submittedLabel = interaction.id
+    ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
+    : '';
+  if (submittedValues.length === 0) {
+    return `${submittedLabel}<p class="response-empty">（無回答）</p>`;
+  }
+
+  const rows = interaction.choices.map((choice) => {
+    const isSelected = submittedSet.has(choice.identifier);
+    const optionClasses = ['choice-response-option'];
+    if (isSelected) optionClasses.push('choice-response-selected');
+    const marker = isSelected ? '●' : '○';
+    const labelTag = isSelected ? '<span class="choice-response-label">学生の回答</span>' : '';
+    const labelInner = choiceInnerHtml.get(choice.identifier) ?? escapeHtml(choice.text);
+    // Use the choice text as the radio/checkbox `value` so the internal
+    // choice identifier never appears in the candidate-response body.
+    const radioValue = choice.text.replace(/\s+/g, ' ').trim();
+    return `<li class="${optionClasses.join(' ')}"><span class="choice-response-marker" aria-hidden="true">${marker}</span><span class="choice-response-text"><label><input type="${inputType}" name="${escapeHtml(name)}" value="${escapeHtml(radioValue)}"${isSelected ? ' checked' : ''} disabled>${labelInner}</label></span>${labelTag}</li>`;
+  });
+
+  const unmatched = submittedValues
+    .filter((value) => !interaction.choices.some((choice) => choice.identifier === value))
+    .map(
+      () =>
+        '<li class="choice-response-option choice-response-selected choice-response-unmatched"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">選択肢本文を取得できません</span><span class="choice-response-label">学生の回答</span></li>'
+    );
+
+  return `${submittedLabel}<ul class="choice-response-list">${[...rows, ...unmatched].join('')}</ul>`;
+}
+
+function buildCorrectAnswerHtml(item: ParsedAssessmentItem): string | null {
+  const hasAnyCorrect = item.interactions.some(
+    (interaction) => interaction.correctResponse.length > 0
+  );
+  if (!hasAnyCorrect) {
+    return null;
+  }
+  const rows = item.interactions
+    .filter((interaction) => interaction.correctResponse.length > 0)
+    .map((interaction) => renderCorrectAnswerSection(interaction, item.questionHtml))
+    .join('');
+  if (rows.length === 0) {
+    return null;
+  }
+  return `<div class="correct-answer-per-interaction">${rows}</div>`;
+}
+
+function renderCorrectAnswerSection(interaction: InteractionInfo, questionHtml: string): string {
+  const idAttr = interaction.id ? ` data-interaction-id="${escapeHtml(interaction.id)}"` : '';
+  if (interaction.type === 'choice') {
+    return `<div class="correct-answer-interaction"${idAttr}>${renderChoiceCorrectBody(interaction, questionHtml)}</div>`;
+  }
+  return `<div class="correct-answer-interaction"${idAttr}>${renderTextCorrectBody(interaction)}</div>`;
+}
+
+function renderTextCorrectBody(interaction: InteractionInfo): string {
+  const label = interaction.id
+    ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
+    : '';
+  if (interaction.correctResponse.length === 0) {
+    return `${label}<p class="response-empty">（正解情報なし）</p>`;
+  }
+  if (interaction.type === 'extended-text') {
+    const joined = interaction.correctResponse.map((value) => escapeHtml(value)).join('\n');
+    return `${label}<pre class="response-text response-pre">${joined}</pre>`;
+  }
+  // text-entry: render each correct value as a read-only cloze input so the
+  // existing styling and tests keep working.
+  const inputs = interaction.correctResponse
+    .map((value) => {
+      const escaped = escapeHtml(value);
+      const size = Math.max(6, value.length);
+      return `<input class="cloze-input qti-blank-input cloze-input-readonly" type="text" value="${escaped}" size="${size}" readonly data-interaction-id="${escapeHtml(interaction.id)}" />`;
+    })
+    .join('');
+  return `${label}${inputs}`;
+}
+
+function renderChoiceCorrectBody(interaction: InteractionInfo, questionHtml: string): string {
+  const label = interaction.id
+    ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
+    : '';
+  const correctIds = new Set(interaction.correctResponse);
+  const choiceInnerHtml = buildChoiceInnerHtmlMap(questionHtml);
+  const rows = interaction.choices
+    .filter((choice) => correctIds.has(choice.identifier))
+    .map((choice) => {
+      const labelInner = choiceInnerHtml.get(choice.identifier) ?? escapeHtml(choice.text);
+      return `<li class="choice-response-option choice-response-selected"><span class="choice-response-marker" aria-hidden="true">●</span><span class="choice-response-text">${labelInner}</span><span class="choice-response-label">正解</span></li>`;
+    });
+  if (rows.length === 0) {
+    return `${label}<p class="response-empty">（正解情報なし）</p>`;
+  }
+  return `${label}<ul class="choice-response-list">${rows.join('')}</ul>`;
+}
+
 function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
-  if (!item.choices.length && !item.questionHtml.includes('qti-blank-input')) {
-    // descriptive or other non-cloze/non-choice items: ensure extended-text
-    // placeholders turn into an empty textarea for the retake case.
+  const hasClozeInputs = item.questionHtml.includes('qti-blank-input');
+  if (!item.choices.length && !hasClozeInputs) {
+    // Descriptive items without cloze inputs need a textarea as the response
+    // surface, including the case where the renderer has emitted a
+    // `qti-extended-text-interaction` placeholder.
     return wrapRetryQuestionBody(stripExtendedTextForRetry(item.questionHtml));
   }
   const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
@@ -176,14 +350,16 @@ function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
   if (!root) {
     return wrapRetryQuestionBody(item.questionHtml);
   }
-  // 1) Convert choice interaction to native radio list.
   const choiceWrappers = Array.from(root.querySelectorAll('.choice-interaction'));
   choiceWrappers.forEach((wrapper) => {
-    const radioName = `qti-retry-${sanitizeAttrSegment(item.identifier)}-RESPONSE`;
+    const interactionId = wrapper.getAttribute('data-interaction-id') ?? '';
+    const radioName = `qti-retry-${sanitizeAttrSegment(item.identifier)}-${sanitizeAttrSegment(interactionId)}`;
+    const interaction = item.interactions.find((entry) => entry.id === interactionId);
+    const inputType = interaction?.cardinality === 'multiple' ? 'checkbox' : 'radio';
     const choices = Array.from(wrapper.querySelectorAll('simple-choice'));
     const list = dom.window.document.createElement('ul');
     list.className = 'choice-retry';
-    list.setAttribute('data-retry-choice-list', item.identifier);
+    list.setAttribute('data-retry-choice-list', `${item.identifier}:${interactionId}`);
     if (choices.length === 0) {
       wrapper.replaceWith(list);
       return;
@@ -191,11 +367,8 @@ function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
     choices.forEach((choice) => {
       const label = dom.window.document.createElement('label');
       const input = dom.window.document.createElement('input');
-      input.type = 'radio';
+      input.type = inputType;
       input.name = radioName;
-      // Use the choice text as the radio's `value` so the internal choice
-      // identifier never appears in the retake body (not as text, not as an
-      // attribute). The visible text is rendered into a sibling span.
       input.value = (choice.textContent ?? '').trim();
       input.className = 'choice-retry-radio';
       const labelSpan = dom.window.document.createElement('span');
@@ -211,8 +384,6 @@ function buildRetryQuestionHtml(item: ParsedAssessmentItem): string {
     wrapper.replaceWith(list);
   });
 
-  // 2) Strip readonly/disabled/value from cloze inputs and rename the class
-  // so external CSS can style retake vs read-only inputs independently.
   const clozeInputs = Array.from(root.querySelectorAll('input.qti-blank-input'));
   clozeInputs.forEach((input) => {
     input.removeAttribute('readonly');
@@ -234,78 +405,13 @@ function wrapRetryQuestionBody(innerHtml: string): string {
 }
 
 function stripExtendedTextForRetry(html: string): string {
-  // Replace any extended-text placeholder with an empty textarea so the retake
-  // case is editable. The renderer does not emit a textarea by default for
-  // `qti-extended-text-interaction` in the report path, so we keep the
-  // container if no placeholder is present (i.e. descriptive item with no
-  // existing response surface).
   if (!html.includes('qti-extended-placeholder') && !html.includes('qti-extended-text')) {
-    // Add an empty textarea as the response surface.
     return `${html}<textarea class="retake-textarea" data-retry-textarea="true" aria-label="answer"></textarea>`;
   }
   return html.replace(
     /<span\b[^>]*class="[^"]*\bqti-extended-placeholder\b[^"]*"[^>]*>[\s\S]*?<\/span>/g,
     '<textarea class="retake-textarea" data-retry-textarea="true" aria-label="answer"></textarea>'
   );
-}
-
-function buildSubmittedAnswerHtml(item: ParsedAssessmentItem, responses: string[]): string {
-  if (item.choices.length > 0) {
-    return formatChoiceResponses(item, responses);
-  }
-  if (item.questionHtml.includes('qti-blank-input')) {
-    const filled = applyResponsesToPromptHtmlReadonly(item.questionHtml, responses);
-    return `<div class="candidate-response-html">${filled}</div>`;
-  }
-  return formatCandidateResponses(item, responses);
-}
-
-function buildCorrectAnswerHtml(
-  item: ParsedAssessmentItem,
-  correctResponses: ReturnType<typeof parseCorrectResponses>
-): string | null {
-  const choiceCorrect = correctResponses.find(
-    (response) => response.interactionType === 'choice' && response.values.length > 0
-  );
-  const clozeCorrect = correctResponses.filter(
-    (response) => response.interactionType === 'text' && response.values.length > 0
-  );
-  if (!choiceCorrect && clozeCorrect.length === 0) {
-    return null;
-  }
-
-  if (item.choices.length > 0 && choiceCorrect) {
-    const correctId = choiceCorrect.values[0];
-    const matched = item.choices.find((c) => c.identifier === correctId);
-    if (!matched) return null;
-    // Render the choice text using the same choice-inner HTML as the
-    // question body (with `code-inline` markup preserved), so the student
-    // sees the same label as the original question.
-    const choiceInnerHtml = lookupChoiceInnerHtml(item, correctId) ?? escapeHtml(matched.text);
-    return `<div class="correct-answer-content"><span class="correct-answer-text">${choiceInnerHtml}</span></div>`;
-  }
-
-  if (item.questionHtml.includes('qti-blank-input') && clozeCorrect.length > 0) {
-    const correctValues = clozeCorrect.flatMap((entry) => entry.values);
-    if (correctValues.length === 0) return null;
-    const filled = applyResponsesToPromptHtmlReadonly(item.questionHtml, correctValues);
-    return `<div class="correct-answer-content">${filled}</div>`;
-  }
-
-  return null;
-}
-
-function lookupChoiceInnerHtml(item: ParsedAssessmentItem, identifier: string): string | null {
-  try {
-    const dom = new JSDOM(`<div id="root">${item.questionHtml}</div>`);
-    const root = dom.window.document.getElementById('root');
-    if (!root) return null;
-    const choices = Array.from(root.querySelectorAll('simple-choice'));
-    const match = choices.find((choice) => choice.getAttribute('identifier') === identifier);
-    return match ? match.innerHTML : null;
-  } catch {
-    return null;
-  }
 }
 
 function buildExplanationHtml(
@@ -317,85 +423,16 @@ function buildExplanationHtml(
   if (!explanationHtml) {
     return null;
   }
+  // The renderer's `explanationHtml` already carries the report-style class
+  // surface (code-block, code-block-code, hljs, data-code-lang, code-inline).
+  // We resolve local image assets only; we never rehighlight the body.
   const resolved = resolveExplanationAssets(
     explanationHtml,
     itemPath,
     itemIdentifier,
     outputDirPath
   );
-  return applyReportCodeHighlighting(resolved.html);
-}
-
-function applyReportCodeHighlighting(html: string): string {
-  // Mirror the report path's class injection for `<pre><code>` and inline
-  // `<code>` blocks so the explanation body uses the same `.code-block`,
-  // `.code-block-code`, `data-code-lang`, and `.code-inline` surface as the
-  // question body. The hljs markup itself is produced by the scorer path's
-  // `renderNodeForScoring`, which we re-emit verbatim.
-  if (html.length === 0) {
-    return html;
-  }
-  const dom = new JSDOM(`<div id="root">${html}</div>`);
-  const root = dom.window.document.getElementById('root');
-  if (!root) {
-    return html;
-  }
-
-  const codeBlocks = Array.from(root.querySelectorAll('pre > code'));
-  codeBlocks.forEach((code) => {
-    const pre = code.parentElement;
-    if (!pre) return;
-    const codeOpen = code.outerHTML.match(/^<code\b[^>]*>/)?.[0] ?? '<code>';
-    const codeClasses = (code.getAttribute('class') ?? '').split(/\s+/).filter((c) => c.length > 0);
-    if (!codeClasses.includes('code-block-code')) {
-      codeClasses.push('code-block-code');
-    }
-    code.setAttribute('class', codeClasses.join(' '));
-
-    const preClasses = (pre.getAttribute('class') ?? '').split(/\s+/).filter((c) => c.length > 0);
-    if (!preClasses.includes('code-block')) {
-      preClasses.push('code-block');
-    }
-    if (!preClasses.includes('hljs')) {
-      preClasses.push('hljs');
-    }
-    pre.setAttribute('class', preClasses.join(' '));
-
-    const explicitLang = readLanguageFromOpenTag(codeOpen);
-    const dataLang =
-      code.getAttribute('data-code-lang') ?? pre.getAttribute('data-code-lang') ?? '';
-    const language = (explicitLang ?? dataLang ?? 'plain').trim() || 'plain';
-    if (!pre.getAttribute('data-code-lang')) {
-      pre.setAttribute('data-code-lang', language);
-    }
-    if (!code.getAttribute('data-code-lang')) {
-      code.setAttribute('data-code-lang', language);
-    }
-  });
-
-  const inlineCodes = Array.from(root.querySelectorAll('code:not(pre code):not(.code-block-code)'));
-  inlineCodes.forEach((code) => {
-    const existing = (code.getAttribute('class') ?? '').split(/\s+/).filter((c) => c.length > 0);
-    if (!existing.includes('code-inline')) {
-      existing.push('code-inline');
-    }
-    code.setAttribute('class', existing.join(' '));
-  });
-
-  return root.innerHTML;
-}
-
-function readLanguageFromOpenTag(openTag: string): string | null {
-  const dataMatch = openTag.match(/\bdata-(?:lang|language|code-lang)\s*=\s*"([^"]*)"/i);
-  if (dataMatch) return dataMatch[1];
-  const classMatch = openTag.match(/\bclass\s*=\s*"([^"]*)"/i);
-  if (!classMatch) return null;
-  const tokens = classMatch[1].split(/\s+/);
-  for (const token of tokens) {
-    const match = token.match(/^(?:language|lang)-([A-Za-z0-9_-]+)$/);
-    if (match) return match[1];
-  }
-  return null;
+  return resolved.html;
 }
 
 function formatItemComment(comment: string | null): string | null {
@@ -764,8 +801,6 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
 
   const items: ItemReportModel[] = assessmentTest.itemRefs.map((itemRef, itemIndex) => {
     const parsedItem = parseAssessmentItem(itemRef.itemPath, itemRef.identifier);
-    const parsedScoring = parseAssessmentItemForScoring(itemRef.itemPath);
-    const correctResponses = parseCorrectResponses(itemRef.itemPath);
     const itemResult = assessmentResult.itemResults.get(parsedItem.identifier);
     if (!itemResult) {
       throw new Error(`Missing itemResult for ${parsedItem.identifier}`);
@@ -776,27 +811,19 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
       parsedItem.identifier,
       outputDirPath
     );
-    // The retake body is the asset-resolved question body, stripped of any
-    // pre-filled response and any readonly/disabled state on cloze inputs,
-    // with choice items rendered as native radio inputs.
     const itemForRetry: ParsedAssessmentItem = {
       ...parsedItem,
       questionHtml: resolvedAssets.html,
     };
     const retryQuestionHtml = buildRetryQuestionHtml(itemForRetry);
-    // The submitted-answer body lives inside the existing inner
-    // `<details class="candidate-response-block">` and shows the actually
-    // submitted value (read-only cloze inputs, choice text, or descriptive
-    // text). It uses the asset-resolved HTML too, so question images resolve
-    // identically to the retake body.
     const itemForSubmission: ParsedAssessmentItem = {
       ...parsedItem,
       questionHtml: resolvedAssets.html,
     };
-    const submittedAnswerHtml = buildSubmittedAnswerHtml(itemForSubmission, itemResult.responses);
-    const correctAnswerHtml = buildCorrectAnswerHtml(parsedItem, correctResponses);
+    const submittedAnswerHtml = buildSubmittedAnswerHtml(itemForSubmission, itemResult);
+    const correctAnswerHtml = buildCorrectAnswerHtml(parsedItem);
     const explanationHtml = buildExplanationHtml(
-      parsedScoring.candidateExplanationHtml,
+      parsedItem.explanationHtml,
       itemRef.itemPath,
       parsedItem.identifier,
       outputDirPath

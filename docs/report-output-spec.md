@@ -20,11 +20,17 @@ The reporter can draw from the following inputs:
 - Test-level time limit from `qti-assessment-test` or `qti-test-part`
   `qti-time-limits@max-time`, when present.
 - Item-level variables from `assessmentResult/itemResult`:
-  `RESPONSE`, per-item `SCORE`, rubric outcome variables
-  (`RUBRIC_{index}_MET`).
+  per-item `SCORE`, rubric outcome variables
+  (`RUBRIC_{index}_MET`), and per-`responseVariable` candidate
+  responses.
 - Question content from `qti-assessment-item`:
-  prompt text, options, correct responses (if defined), scorer rubrics, and
-  modal feedback explanations.
+  prompt text, choices, correct responses, scorer rubrics, and
+  modal feedback explanations. The reporter uses
+  `qti-html-renderer` as the single source of truth for parsing
+  these: the renderer's `interactions[]` (each with declaration
+  identifier, declaration value index, cardinality, base type,
+  correct response values, and the interaction's own choice list)
+  drives every binding decision.
 - Question ordering from `qti-assessment-test` (required input).
 
 ## HTML report format (per respondent)
@@ -121,12 +127,62 @@ Do not display any other fields beyond the five sections above.
 - The toggle row must show: `item score / item maximum score`.
 - Inside each item block, the candidate response section is also collapsible.
 
-### Rendering guidance
+### Per-interaction rendering
 
-- Present content in a readable layout suitable for on-screen review.
-- Rendering style is up to the implementation, but must prioritize clarity.
-- Inline code must remain inline in prose and choice labels. It must not be
-  promoted into centered or standalone block-like layout by report CSS.
+The candidate response inner details and the correct-answer inner details
+are rendered **per interaction**, keyed by `data-interaction-id`. The
+interactions list is sourced from the renderer's
+`ParsedItemForReport.interactions`, and each interaction carries:
+
+- `id` — the response-identifier on the interaction element
+- `type` — `choice`, `text-entry`, `extended-text`, or `other`
+- `declarationIdentifier` — the `qti-response-declaration` identifier that
+  bound to this interaction (or `null` for unmatched / legacy paths)
+- `declarationValueIndex` — 0-based position into the declaration's values
+  for the legacy ordered `RESPONSE` distribution (or `null` for direct
+  matches)
+- `cardinality`, `baseType` — from the declaration, normalized
+- `correctResponse` — the per-declaration values in document order
+- `choices` — the interaction's own `qti-simple-choice` children
+- `maxChoices` — parsed from `max-choices`, for choice interactions
+
+The reporter renders one row per interaction. Each row carries the
+interaction's `id` as `data-interaction-id` on the wrapping element so
+consumers can target it from CSS or scripts.
+
+### Submission-to-interaction binding rules
+
+For each interaction, the reporter resolves the candidate's submitted
+values from `itemResult.responses` using this precedence:
+
+1. **Direct match on `declarationIdentifier`** — when the
+   `responseVariable` identifier equals
+   `interaction.declarationIdentifier`, all `<value>` elements in
+   that `responseVariable` (in document order) are bound to the
+   interaction.
+2. **Fallback to the interaction's own `id`** — when no
+   `declarationIdentifier` was bound (e.g. `null`) and the interaction
+   has its own `id`, the reporter looks up the `responseVariable` by
+   `id`. This handles the case where the result XML uses the
+   interaction element's response-identifier directly without a
+   matching declaration.
+3. **Legacy ordered `RESPONSE` distribution** — when the renderer
+   reports `declarationIdentifier === "RESPONSE"` with
+   `declarationValueIndex !== null`, the reporter maps
+   `RESPONSE_${declarationValueIndex + 1}` to a `responseVariable`
+   in the result XML. The renderer is the only authority on when
+   this legacy distribution applies.
+
+The reporter does not perform any positional distribution by
+`RESPONSE_N` numeric suffix outside of the legacy path. The renderer
+is responsible for binding the legacy distribution values.
+
+### Multi-value preservation
+
+Each `<value>` element inside a `<candidateResponse>` is preserved as
+its own record in the parser, so a `cardinality="multiple"` response
+is never collapsed to a single string. In the HTML and CSV outputs,
+multiple values for the same interaction are joined with `\n`.
 
 ### Output path and naming
 
@@ -183,16 +239,17 @@ must be treated as stable for external CSS.
 - Code selectors: `.code-inline`, `.code-block`, `.code-block-code`
 - Rubric selectors: `.rubric-section`, `.rubric-table`, `.criterion-text`, `.criterion-points`, `.criterion-status`
 - Comment selectors: `.comment-section`, `.comment-content`, `.comment-text`, `.comment-pre`
-- Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.response-text`, `.response-pre`, `.response-empty`
+- Candidate response selectors: `.candidate-response-block`, `.candidate-response-content`, `.candidate-response-per-interaction`, `.candidate-response-interaction`, `.response-interaction-label`, `.response-empty`, `.response-text`, `.response-pre`
 - Choice response selectors: `.choice-response-list`, `.choice-response-option`, `.choice-response-selected`, `.choice-response-marker`, `.choice-response-text`, `.choice-response-label`, `.choice-response-unmatched`
 - Interaction placeholder selectors: `.interaction-placeholder`, `.choice-interaction`
 - Retry question body selector: `.retry-question-block`
 - Retry choice wrapper selector: `.choice-retry`
 - Read-only cloze input selector: `.cloze-input.cloze-input-readonly`
 - Answer & explanation section selectors: `.answer-explanation-block`,
-  `.correct-answer-block`
+  `.correct-answer-block`, `.correct-answer-per-interaction`, `.correct-answer-interaction`
 - Section data attributes: `data-answer-section="explanation"`,
   `data-answer-section="correct"`
+- Interaction binding attribute: `data-interaction-id="<interaction id>"`
 
 ### Styling data attributes
 
@@ -220,28 +277,42 @@ External CSS may also rely on the following data attributes:
   explanation body rendered inside `.answer-explanation-block`) are copied
   the same way as question images, into the same `assets/<itemIdentifier>/`
   directory, with the same `src` rewrite.
+- Local images inside the question body (rendered as part of the
+  retake / candidate-response bodies when they re-use the question body)
+  are copied too, under the same `assets/<itemIdentifier>/` directory.
 
 ### Candidate response rendering
 
-- Candidate responses are rendered without collapsing whitespace.
-- Line breaks in responses are preserved as entered.
-- The default renderer uses a whitespace-preserving block:
-  `<pre class="response-text response-pre">...</pre>`
-- For choice items, the candidate response section renders the available
-  options as a choice list instead of a raw response identifier. Response values
-  are sourced from `candidateResponse/value` identifiers such as `CHOICE_1` and
-  matched to the corresponding `qti-simple-choice`. The selected option uses
-  `.choice-response-selected`, a `●` marker, and the text label `学生の回答`.
-  Unselected options use a `○` marker. Internal choice response identifiers such
-  as `CHOICE_1` must not be shown as candidate-response text. Matched option
-  content is rendered with the same report HTML semantics as the problem choice,
-  including inline code markup. If a response identifier cannot be matched to an
-  option, the selected row must show `選択肢本文を取得できません` instead of echoing
-  the unmatched identifier.
-- For cloze items (blank inputs), the candidate response section renders the
-  question HTML with input fields filled with the candidate responses.
-  Inputs use `.cloze-input` and `.qti-blank-input` and their `size` attribute
-  expands based on the response length.
+- Candidate responses are rendered per interaction, keyed by
+  `data-interaction-id`. Each interaction block is a
+  `.candidate-response-interaction` element.
+- For choice interactions, the response section renders a list of
+  all available options as a `ul.choice-response-list` with
+  `li.choice-response-option` rows. The selected option (when present)
+  carries `.choice-response-selected`, a `●` marker, and the label
+  `学生の回答`. Unselected options use a `○` marker. When no value was
+  submitted for the interaction, the block renders `（無回答）` instead of
+  the option list, even when the item overall has submitted values for
+  other interactions. Internal choice response identifiers such as
+  `CHOICE_A` must not be shown as candidate-response text. When a
+  submitted identifier cannot be matched to any option, the row
+  shows `選択肢本文を取得できません` instead of echoing the unmatched
+  identifier. The radio or checkbox `name` is per interaction, in the
+  form `qti-${sanitizeAttrSegment(interaction.id)}`, so two interactions
+  in the same item that share the same internal choice identifier do
+  not share a `name`.
+- For text-entry interactions, the response section renders
+  read-only `input.cloze-input.qti-blank-input.cloze-input-readonly`
+  elements with the submitted value as the `value` attribute and a
+  `size` that grows with the response length.
+- For extended-text interactions, the response section renders a
+  `<pre class="response-text response-pre">` with the submitted value.
+  Whitespace, indentation, and blank lines are preserved verbatim
+  (no `<br>` tags are inserted).
+- For items that have no `interactions[]` (e.g. pure descriptive items
+  with no interaction element), the response section renders the
+  submitted values as a `<pre class="response-text response-pre">`
+  with `\n`-joined values, or `（無回答）` when there are no values.
 - The question body inside the 問題 section is editable for re-attempt: cloze
   inputs are not pre-filled with the candidate response, native radio inputs
   are not pre-checked, and descriptive items render an empty textarea. The
@@ -264,6 +335,17 @@ External CSS may also rely on the following data attributes:
   language from the code content using server-side auto-detection.
 - The generated markup includes highlight token classes (for example
   `hljs-keyword`, `hljs-string`) and requires only CSS at runtime.
+
+### Explanation body contract
+
+- The explanation body is rendered by `qti-html-renderer` and is
+  used verbatim by the reporter. The reporter does not run any
+  additional code-highlighter pass on the explanation body; the
+  `code-block`, `code-block-code`, `hljs`, `data-code-lang`, and
+  `code-inline` classes produced by the renderer are part of the
+  stable contract.
+- Only the image-asset rewrite step (`resolveExplanationAssets`) is
+  applied to the explanation body before it is written into the report.
 
 ## CSV report format (aggregated across respondents)
 
@@ -308,23 +390,23 @@ External CSS may also rely on the following data attributes:
 
 Columns are ordered as follows.
 
-| Column name        | Type             | Required | Description / source                                                                                                                                                 |
-| ------------------ | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `candidate_number` | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateId` (used as-is; `context@sourcedId` is never parsed). Missing value is an error.                    |
-| `candidate_name`   | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateName`.                                                                                               |
-| `test_title`       | string           | required | `qti-assessment-test@title`.                                                                                                                                         |
-| `total_score`      | number           | required | `testResult/outcomeVariable identifier="SCORE"` when present; otherwise the sum of item scores.                                                                      |
-| `total_max_score`  | number           | required | Sum of per-item maximum scores derived from scorer rubrics.                                                                                                          |
-| `item_order`       | number (integer) | required | 1-based index of the item in `qti-assessment-item-ref` order.                                                                                                        |
-| `item_identifier`  | string           | required | `qti-assessment-item-ref@identifier`.                                                                                                                                |
-| `item_title`       | string           | required | `qti-assessment-item@title`. Falls back to `item_identifier` if missing.                                                                                             |
-| `item_score`       | number           | required | `itemResult/outcomeVariable identifier="SCORE"` when present; otherwise rubric-based computed score.                                                                 |
-| `item_max_score`   | number           | required | Sum of rubric criterion points (`qti-rubric-block view="scorer"`).                                                                                                   |
-| `rubric_outcomes`  | string           | required | Per-criterion achievement encoded as `index:true` or `index:false` pairs joined by `;` in criterion order (example: `1:true;2:false`).                               |
-| `rubric_points`    | string           | required | Per-criterion points encoded as `index:points` pairs joined by `;` in criterion order (example: `1:2;2:1`).                                                          |
-| `response_values`  | string           | required | Candidate responses from `responseVariable identifier="RESPONSE"`. Multiple values are joined by `\n` in assessment result order. Empty when no response is present. |
-| `response_labels`  | string           | required | Response values rendered for readability. For choice items, each line is `CHOICE_ID: choice text`. For non-choice items, identical to `response_values`.             |
-| `comment`          | string           | required | `itemResult/outcomeVariable identifier="COMMENT"` when present; otherwise empty.                                                                                     |
+| Column name        | Type             | Required | Description / source                                                                                                                                                                                                                                           |
+| ------------------ | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `candidate_number` | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateId` (used as-is; `context@sourcedId` is never parsed). Missing value is an error.                                                                                                              |
+| `candidate_name`   | string           | required | `context/sessionIdentifier@identifier` where `sourceID=candidateName`.                                                                                                                                                                                         |
+| `test_title`       | string           | required | `qti-assessment-test@title`.                                                                                                                                                                                                                                   |
+| `total_score`      | number           | required | `testResult/outcomeVariable identifier="SCORE"` when present; otherwise the sum of item scores.                                                                                                                                                                |
+| `total_max_score`  | number           | required | Sum of per-item maximum scores derived from scorer rubrics.                                                                                                                                                                                                    |
+| `item_order`       | number (integer) | required | 1-based index of the item in `qti-assessment-item-ref` order.                                                                                                                                                                                                  |
+| `item_identifier`  | string           | required | `qti-assessment-item-ref@identifier`.                                                                                                                                                                                                                          |
+| `item_title`       | string           | required | `qti-assessment-item@title`. Falls back to `item_identifier` if missing.                                                                                                                                                                                       |
+| `item_score`       | number           | required | `itemResult/outcomeVariable identifier="SCORE"` when present; otherwise rubric-based computed score.                                                                                                                                                           |
+| `item_max_score`   | number           | required | Sum of rubric criterion points (`qti-rubric-block view="scorer"`).                                                                                                                                                                                             |
+| `rubric_outcomes`  | string           | required | Per-criterion achievement encoded as `index:true` or `index:false` pairs joined by `;` in criterion order (example: `1:true;2:false`).                                                                                                                         |
+| `rubric_points`    | string           | required | Per-criterion points encoded as `index:points` pairs joined by `;` in criterion order (example: `1:2;2:1`).                                                                                                                                                    |
+| `response_values`  | string           | required | Per-interaction candidate responses sourced from the renderer's `interactions` and the result's `responseVariable`s (see binding rules above). Multiple values per interaction are joined with `\n` in interaction order. Empty when no responses are present. |
+| `response_labels`  | string           | required | Per-interaction response values rendered for readability. For choice interactions, each line is `CHOICE_ID: choice text` (the choice text comes from the renderer's `interaction.choices`). For non-choice interactions, the line is the raw value.            |
+| `comment`          | string           | required | `itemResult/outcomeVariable identifier="COMMENT"` when present; otherwise empty.                                                                                                                                                                               |
 
 ### Rubric encoding details
 
@@ -338,10 +420,16 @@ Columns are ordered as follows.
 
 ### Response encoding details
 
-- The exporter targets `responseVariable identifier="RESPONSE"`.
-- Multiple `<value>` elements are supported and are emitted in order.
-- Line breaks inside responses are preserved as LF (`\n`) within the CSV cell.
-- If no candidate response exists, emit an empty string.
+- The exporter iterates the renderer's `interactions[]` and applies the
+  per-interaction binding rules documented above. For each interaction
+  that yields one or more values, the value(s) are joined with `\n` into
+  a single CSV cell. Multiple interactions in the same item contribute
+  their own cells, also joined with `\n`, preserving the renderer's
+  interaction order.
+- When the same interaction produces multiple submitted values
+  (e.g. a `cardinality="multiple"` response), all values are joined
+  with `\n` inside that interaction's cell.
+- If no candidate response exists for any interaction, the cell is empty.
 - The literal `（無回答）` is not used in CSV; it is HTML-only presentation.
 
 ### Score computation rules

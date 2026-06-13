@@ -1,10 +1,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { parseAssessmentItem, ParsedAssessmentItem } from '../qti/assessmentItem.js';
+import {
+  parseAssessmentItem,
+  ParsedAssessmentItem,
+  InteractionInfo,
+} from '../qti/assessmentItem.js';
 import {
   parseAssessmentResult,
   ParsedAssessmentResult,
+  ParsedItemResponse,
   ParsedItemResult,
 } from '../qti/assessmentResult.js';
 import { parseAssessmentTest } from '../qti/assessmentTest.js';
@@ -29,6 +34,7 @@ interface CsvItemModel {
   itemResult: ParsedItemResult;
   itemOrder: number;
   itemScore: number;
+  resolvedResponses: ParsedItemResponse[];
 }
 
 const CSV_FILE_NAME = 'report.csv';
@@ -60,34 +66,101 @@ function escapeCsvField(value: string): string {
   return `"${escapedQuotes}"`;
 }
 
-function buildChoiceTextMap(item: ParsedAssessmentItem): Map<string, string> {
-  const map = new Map<string, string>();
-  item.choices.forEach((choice) => {
-    map.set(choice.identifier, choice.text);
-  });
-  return map;
-}
-
-function formatResponseValues(responses: string[]): string {
-  if (responses.length === 0) {
-    return '';
-  }
-  return responses.join('\n');
-}
-
-function formatResponseLabels(item: ParsedAssessmentItem, responses: string[]): string {
-  if (responses.length === 0) {
-    return '';
-  }
-  const choiceTextMap = buildChoiceTextMap(item);
-  const rendered = responses.map((response) => {
-    const choiceText = choiceTextMap.get(response);
-    if (!choiceText) {
-      return response;
+function getSubmittedValuesForInteraction(
+  responses: ParsedItemResponse[],
+  interaction: InteractionInfo
+): string[] {
+  const directId = interaction.declarationIdentifier;
+  if (directId) {
+    const matched = responses
+      .filter((entry) => entry.responseIdentifier === directId)
+      .map((entry) => entry.value);
+    if (matched.length > 0) {
+      return matched;
     }
-    return `${response}: ${choiceText}`;
-  });
-  return rendered.join('\n');
+  }
+  // 2. Fallback: responseVariable identifier == interaction.id.
+  if (interaction.id && interaction.id !== directId) {
+    const matched = responses
+      .filter((entry) => entry.responseIdentifier === interaction.id)
+      .map((entry) => entry.value);
+    if (matched.length > 0) {
+      return matched;
+    }
+  }
+  // 3. Legacy ordered RESPONSE distribution.
+  if (directId === 'RESPONSE' && interaction.declarationValueIndex !== null) {
+    const legacyId = `RESPONSE_${interaction.declarationValueIndex + 1}`;
+    const matched = responses
+      .filter((entry) => entry.responseIdentifier === legacyId)
+      .map((entry) => entry.value);
+    if (matched.length > 0) {
+      return matched;
+    }
+  }
+  return [];
+}
+
+function formatResponseValuesForItem(model: CsvItemModel): string {
+  if (model.item.interactions.length === 0) {
+    if (model.resolvedResponses.length === 0) {
+      return '';
+    }
+    return model.resolvedResponses.map((entry) => entry.value).join('\n');
+  }
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  for (const interaction of model.item.interactions) {
+    // Two interactions may bind to the same responseVariable (e.g. two
+    // text-entry interactions sharing `response-identifier="RESPONSE"`); emit
+    // each responseVariable's values only once.
+    const dedupeKey = interaction.declarationIdentifier ?? interaction.id;
+    if (!dedupeKey || seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    const values = getSubmittedValuesForInteraction(model.resolvedResponses, interaction);
+    if (values.length === 0) {
+      continue;
+    }
+    if (values.length === 1) {
+      lines.push(values[0]);
+    } else {
+      lines.push(values.join('\n'));
+    }
+  }
+  return lines.join('\n');
+}
+
+function formatResponseLabelsForItem(model: CsvItemModel): string {
+  if (model.item.interactions.length === 0) {
+    if (model.resolvedResponses.length === 0) {
+      return '';
+    }
+    return model.resolvedResponses.map((entry) => entry.value).join('\n');
+  }
+  const lines: string[] = [];
+  const seen = new Set<string>();
+  for (const interaction of model.item.interactions) {
+    const dedupeKey = interaction.declarationIdentifier ?? interaction.id;
+    if (!dedupeKey || seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    const values = getSubmittedValuesForInteraction(model.resolvedResponses, interaction);
+    if (values.length === 0) {
+      continue;
+    }
+    for (const value of values) {
+      const matchedChoice = interaction.choices.find((choice) => choice.identifier === value);
+      if (matchedChoice) {
+        lines.push(`${value}: ${matchedChoice.text}`);
+      } else {
+        lines.push(value);
+      }
+    }
+  }
+  return lines.join('\n');
 }
 
 function formatRubricOutcomes(item: ParsedAssessmentItem, itemResult: ParsedItemResult): string {
@@ -149,8 +222,8 @@ function buildCsvRow(
   totalMaxScore: number,
   model: CsvItemModel
 ): string {
-  const responseValues = formatResponseValues(model.itemResult.responses);
-  const responseLabels = formatResponseLabels(model.item, model.itemResult.responses);
+  const responseValues = formatResponseValuesForItem(model);
+  const responseLabels = formatResponseLabelsForItem(model);
   const rubricOutcomes = formatRubricOutcomes(model.item, model.itemResult);
   const rubricPoints = formatRubricPoints(model.item);
   const comment = model.itemResult.comment ?? '';
@@ -234,6 +307,7 @@ export function generateCsvReportFromFiles(paths: CsvReportInputPaths): Generate
       itemResult,
       itemOrder: index + 1,
       itemScore,
+      resolvedResponses: itemResult.responses,
     };
   });
 

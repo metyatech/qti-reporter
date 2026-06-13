@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="multiple-values" title="Multiple Values for Single Variable" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="identifier" cardinality="multiple">
+    <qti-correct-response>
+      <qti-value>CHOICE_A</qti-value>
+      <qti-value>CHOICE_B</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>Select all that apply.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="2">
+      <qti-simple-choice identifier="CHOICE_A">Alpha</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">Beta</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_C">Gamma</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] All correct values</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

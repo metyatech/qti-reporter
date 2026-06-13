@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="partial-response" title="Partial Response" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE_A" base-type="identifier" cardinality="single">
+    <qti-correct-response>
+      <qti-value>CHOICE_A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="RESPONSE_B" base-type="identifier" cardinality="single">
+    <qti-correct-response>
+      <qti-value>CHOICE_B</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>First.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE_A" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Yes</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">No</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-p>Second.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE_B" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Yes</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">No</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] First</qti-p>
+      <qti-p>[1] Second</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

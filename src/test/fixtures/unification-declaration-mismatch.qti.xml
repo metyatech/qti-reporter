@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="declaration-mismatch" title="Declaration vs Body Mismatch" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="DECLARED_FIRST" base-type="string" cardinality="single">
+    <qti-correct-response>
+      <qti-value>declared</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-response-declaration identifier="DECLARED_SECOND" base-type="string" cardinality="single" />
+  <qti-item-body>
+    <qti-p>The body refers to interactions in reverse declaration order.</qti-p>
+    <qti-text-entry-interaction response-identifier="DECLARED_SECOND" />
+    <qti-text-entry-interaction response-identifier="DECLARED_FIRST" />
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] First decl is correct</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>

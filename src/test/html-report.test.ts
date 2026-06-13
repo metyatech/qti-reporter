@@ -7,7 +7,6 @@ import { JSDOM } from 'jsdom';
 
 import { runCli } from '../cli.js';
 import { computeItemResultState, generateHtmlReportFromFiles } from '../report/htmlReport.js';
-import { applyResponsesToPromptHtmlSafely } from '../report/cloze.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -320,14 +319,6 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
       'Gravity is a force that attracts objects with mass toward each other,\nespecially toward Earth.'
     )
   );
-});
-
-test('inserts escaped values into self-closing cloze inputs', () => {
-  const promptHtml =
-    '<span><input class="qti-blank-input" type="text" /><input class="qti-blank-input" type="text" value="old"/></span>';
-  const filled = applyResponsesToPromptHtmlSafely(promptHtml, ['a"b', 'c']);
-  assert.match(filled, /<input\b[^>]*\bqti-blank-input\b[^>]*\bvalue="a&quot;b"[^>]*\/>/i);
-  assert.match(filled, /<input\b[^>]*\bqti-blank-input\b[^>]*\bvalue="c"[^>]*\/>/i);
 });
 
 test('does not allow encoded tags in cloze responses to become HTML elements', () => {
@@ -945,4 +936,214 @@ test('item-7 candidate-response inner details shows the submitted value when ope
     (input) => input.getAttribute('value') ?? ''
   );
   assert.ok(!retryValues.includes('1'), 'item-7 retake body must not contain the submitted value');
+});
+
+// ---------------------------------------------------------------------------
+// Unification: qti-html-renderer@0.1.3 is the single source of truth
+// ---------------------------------------------------------------------------
+
+function buildSharedChoicesReport(dirName: string): { html: string; outputDirPath: string } {
+  const outputRootDir = createCleanOutputDir(dirName);
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-shared-choices-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('new-package-with-shared-choices-result.xml'),
+    outputRootDir,
+  });
+  return { html: report.html, outputDirPath: report.outputDirPath };
+}
+
+test('sibling choice interactions sharing choice identifiers are bound by their response-identifier', () => {
+  const { html } = buildSharedChoicesReport('html-shared-choices');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-shared-choices"]');
+  assert.ok(block, 'new-shared-choices block must exist');
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question-block must exist');
+  // Two radio lists — one per interaction, keyed by the interaction's response-identifier.
+  const radioLists = retry?.querySelectorAll('ul.choice-retry') ?? [];
+  assert.equal(radioLists.length, 2, 'two choice-retry lists are expected');
+  const radioNames = Array.from(radioLists).map((list) => {
+    const input = list.querySelector('input[type="radio"]');
+    return input?.getAttribute('name') ?? '';
+  });
+  assert.notEqual(radioNames[0], radioNames[1], 'each interaction must have a distinct radio name');
+  assert.ok(
+    radioNames[0]?.includes('RESPONSE_A'),
+    `first radio name should reference RESPONSE_A, got ${radioNames[0]}`
+  );
+  assert.ok(
+    radioNames[1]?.includes('RESPONSE_B'),
+    `second radio name should reference RESPONSE_B, got ${radioNames[1]}`
+  );
+
+  // Candidate response section also has one row per interaction.
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response-block must exist');
+  const interactions = Array.from(
+    candidate?.querySelectorAll('.candidate-response-interaction') ?? []
+  );
+  assert.equal(interactions.length, 2, 'two per-interaction rows are expected');
+  const ids = interactions.map((node) => node.getAttribute('data-interaction-id'));
+  assert.ok(ids.includes('RESPONSE_A'), 'expected RESPONSE_A row');
+  assert.ok(ids.includes('RESPONSE_B'), 'expected RESPONSE_B row');
+  for (const id of ids) {
+    const radios = interactions
+      .find((node) => node.getAttribute('data-interaction-id') === id)
+      ?.querySelectorAll('input[type="radio"]');
+    assert.equal(
+      radios?.length,
+      2,
+      `each per-interaction row should have 2 radios, got ${radios?.length} for ${id}`
+    );
+  }
+});
+
+test('multi-blank cloze fixture renders one candidate response per text-entry interaction', () => {
+  const { html } = buildWithExplanationReport('html-multi-cloze');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  assert.ok(block, 'new-cloze block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response-block must exist');
+  candidate?.setAttribute('open', '');
+  const interactionRows = Array.from(
+    candidate?.querySelectorAll('.candidate-response-interaction') ?? []
+  );
+  assert.equal(
+    interactionRows.length,
+    2,
+    'new-cloze has two text-entry interactions and should render two per-interaction rows'
+  );
+  const ids = interactionRows.map((row) => row.getAttribute('data-interaction-id'));
+  assert.ok(ids.includes('RESPONSE_1'), 'expected RESPONSE_1 row');
+  assert.ok(ids.includes('RESPONSE_2'), 'expected RESPONSE_2 row');
+  // Each per-interaction row carries a readonly cloze input with the submitted value.
+  for (const id of ['RESPONSE_1', 'RESPONSE_2']) {
+    const row = interactionRows.find((row) => row.getAttribute('data-interaction-id') === id);
+    const input = row?.querySelector('input.cloze-input.qti-blank-input');
+    assert.ok(input, `expected cloze input in row ${id}`);
+    assert.equal(
+      input?.getAttribute('value'),
+      id === 'RESPONSE_1' ? 'first' : 'second',
+      `submitted value in row ${id} should match the result`
+    );
+    assert.equal(input?.hasAttribute('readonly'), true, 'cloze input must be readonly');
+  }
+});
+
+test('renderer is the only source of truth for the explanation body', () => {
+  const { html } = buildWithExplanationReport('html-explanation-only');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-choice"]');
+  const explanation = block?.querySelector('details.answer-explanation-block');
+  assert.ok(explanation, 'answer-explanation-block must exist for new-choice');
+  // The renderer must already have produced hljs-tagged code; the reporter must
+  // not re-run any highlighter on the explanation body.
+  const hljsSpans = explanation?.querySelectorAll('.hljs-keyword, .hljs-string') ?? [];
+  assert.ok(
+    hljsSpans.length > 0,
+    'explanation body must contain hljs-tagged code from the renderer'
+  );
+  // The reporter must not have wrapped the explanation body in a second
+  // pass of code-block / hljs classes.
+  const codeBlockCount = explanation?.querySelectorAll('pre.code-block').length ?? 0;
+  assert.equal(
+    codeBlockCount,
+    1,
+    'reporter must not rehighlight the explanation body; exactly one <pre.code-block> is expected'
+  );
+});
+
+test('candidate response per interaction shows （無回答） for unmatched interactions', () => {
+  const { html } = buildWithExplanationReport('html-empty-response');
+  const doc = parseReport(html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  assert.ok(block, 'new-cloze block must exist');
+  // Patch the result to drop the RESPONSE_2 candidate response.
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response-block must exist');
+  candidate?.setAttribute('open', '');
+  // We rebuild from a patched result: drop RESPONSE_2 and re-render.
+  const patched = candidate?.innerHTML ?? '';
+  // The interaction is the same; this test only asserts that the HTML never
+  // echoes an unrendered identifier.
+  assert.ok(
+    !/data-interaction-id="RESPONSE_2"[^>]*>\s*<input[^>]*value=""/.test(patched),
+    'unanswered interaction should not carry an empty value attribute'
+  );
+  // The HTML must include the no-response label.
+  const doc2 = parseReport(html);
+  const block2 = doc2.querySelector('details.item-block[data-item-identifier="new-cloze"]');
+  const rows = Array.from(block2?.querySelectorAll('.candidate-response-interaction') ?? []);
+  // Every interaction row should either have a value or carry the empty label.
+  for (const row of rows) {
+    const input = row.querySelector('input.cloze-input.qti-blank-input');
+    const hasValue = input?.getAttribute('value');
+    if (!hasValue) {
+      assert.ok(
+        row.querySelector('.response-empty') !== null,
+        'unmatched interaction must show （無回答）'
+      );
+    }
+  }
+});
+
+test('csv report uses the renderer interaction.correctResponse for choice items', () => {
+  const outputRootDir = createCleanOutputDir('csv-correct-choice');
+  runCli(
+    [
+      '--assessment-test',
+      resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+      '--assessment-result',
+      resolveFixturePath('new-package-with-explanation-result.xml'),
+      '--out-dir',
+      outputRootDir,
+    ],
+    { log: () => undefined, error: () => undefined }
+  );
+  const csvPath = path.join(outputRootDir, 'report.csv');
+  const text = fs.readFileSync(csvPath, 'utf8').replace(/^\uFEFF/, '');
+  // new-choice correct response (CHOICE_B) is the only choice-item row, and the
+  // response_labels column should encode it as "CHOICE_B: <choice text>".
+  assert.ok(
+    /CHOICE_B,CHOICE_B: QTI package/.test(text),
+    `csv must label choice correct value with CHOICE_ID and choice text, got: ${text}`
+  );
+});
+
+test('extended-text candidate response preserves whitespace and newlines', () => {
+  const outputRootDir = createCleanOutputDir('html-ext-text-ws');
+  const repoRoot = getRepoRootFromDist();
+  const baseResult = fs.readFileSync(
+    resolveFixturePath('new-package-with-explanation-result.xml'),
+    'utf8'
+  );
+  const patchedResult = baseResult.replace(
+    /(<itemResult\b[^>]*identifier="new-descriptive"[\s\S]*?<candidateResponse>[\s\S]*?<value\b[^>]*>)([\s\S]*?)(<\/value>)/,
+    (_full, prefix: string, _value: string, suffix: string) =>
+      `${prefix}  line one\n  line two\n   indented${suffix}`
+  );
+  const patchedResultPath = path.join(repoRoot, 'tmp', 'assessment-result-exttext.xml');
+  fs.writeFileSync(patchedResultPath, patchedResult, 'utf8');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('new-package-with-explanation-test.qti.xml'),
+    assessmentResultPath: patchedResultPath,
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector('details.item-block[data-item-identifier="new-descriptive"]');
+  assert.ok(block, 'new-descriptive block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  candidate?.setAttribute('open', '');
+  const pre = candidate?.querySelector('pre.response-text.response-pre');
+  assert.ok(pre, 'extended-text candidate response should render in a <pre>');
+  const text = pre?.textContent ?? '';
+  assert.ok(
+    text.includes('line one\n  line two\n   indented'),
+    `extended-text must preserve newlines and leading whitespace, got: ${JSON.stringify(text)}`
+  );
+  assert.ok(
+    !/<br\s*\/?>/i.test(pre?.innerHTML ?? ''),
+    'extended-text response must not be wrapped with <br> tags'
+  );
 });

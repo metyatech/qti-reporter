@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qti-assessment-item identifier="image-correct" title="Local Image in Correct Block" adaptive="false" time-dependent="false" xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0">
+  <qti-response-declaration identifier="RESPONSE" base-type="identifier" cardinality="single">
+    <qti-correct-response>
+      <qti-value>CHOICE_A</qti-value>
+    </qti-correct-response>
+  </qti-response-declaration>
+  <qti-item-body>
+    <qti-p>Pick the right shape.</qti-p>
+    <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
+      <qti-simple-choice identifier="CHOICE_A">Triangle</qti-simple-choice>
+      <qti-simple-choice identifier="CHOICE_B">Square</qti-simple-choice>
+    </qti-choice-interaction>
+    <qti-p><qti-img src="images/sample.svg" alt="sample" /></qti-p>
+    <qti-rubric-block view="scorer">
+      <qti-p>[1] Triangle is correct</qti-p>
+    </qti-rubric-block>
+  </qti-item-body>
+</qti-assessment-item>
