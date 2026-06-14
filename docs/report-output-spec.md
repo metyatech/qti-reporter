@@ -153,16 +153,20 @@ consumers can target it from CSS or scripts.
 ### Submission-to-interaction binding rules
 
 The interaction `id` is the renderer-emitted value of the
-`response-identifier` attribute on the interaction element. It is the
-canonical key for distinguishing interactions in a single item, but it
-is **not guaranteed unique** (two interactions can share the same id).
-The reporter's authoritative key for distinguishing such siblings is
-the `interactionIndex` — the 0-based position of the interaction in
-`item.interactions`. The interaction `id` is still part of the binding
-protocol: `resolveSubmittedValues` uses it as a lookup fallback in both
-the legacy ordered and direct-match rules below. The id is not,
-however, the sole scope key — when sibling interactions share an id, the
-reporter scopes them by `interactionIndex`.
+`response-identifier` attribute on the interaction element. The
+interaction ID is part of the `responseVariable` lookup protocol — the
+binding key for both the legacy ordered and direct-match rules below —
+but it is **not** the canonical key for uniquely identifying an
+interaction instance. The canonical key for distinguishing sibling
+interactions in the same item is the `interactionIndex` — the 0-based
+position of the interaction in `item.interactions`. Two interactions
+in the same item can share the same `id` (e.g. duplicate
+`response-identifier="RESPONSE"`, or two interactions with no
+`response-identifier` at all), and the reporter never relies on the id
+alone to disambiguate them. The `id` is still part of the binding
+protocol: `resolveSubmittedValues` uses it as a lookup branch in both
+the legacy ordered and direct-match rules below; it is just not the
+sole scope key.
 
 For each interaction, the reporter resolves the candidate's submitted
 values from `itemResult.responses` using the rules in

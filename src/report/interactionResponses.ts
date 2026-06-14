@@ -33,14 +33,16 @@
  *
  * Display id vs unique key
  * ------------------------
- * The interaction `id` is the renderer's `response-identifier` value. It is
- * the canonical key for distinguishing interactions in a single item, but
- * it is NOT guaranteed unique (two interactions can share the same id).
- * When sibling interactions share an id, the reporter scopes them by
- * `interactionIndex`. The binding layer (`resolveSubmittedValues`) does use
- * `interaction.id` as a lookup fallback in both the legacy ordered and
- * direct-match rules, so the id is part of the binding protocol — just not
- * the sole scope key.
+ * The interaction `id` is the renderer's `response-identifier` value. The
+ * interaction ID is the `responseVariable` lookup protocol's binding key
+ * — both the legacy ordered and direct-match rules below use it as a
+ * lookup branch — but it is NOT the canonical key for uniquely identifying
+ * an interaction instance. The canonical key for distinguishing sibling
+ * interactions in the same item is the 0-based `interactionIndex` (the
+ * position in `item.interactions`). The binding layer
+ * (`resolveSubmittedValues`) DOES use `interaction.id` as a lookup branch
+ * in both the legacy ordered and direct-match rules, so the id is part
+ * of the binding protocol — it is just not the sole scope key.
  */
 import type { InteractionInfo } from '../qti/assessmentItem.js';
 import type { ParsedItemResponse } from '../qti/assessmentResult.js';
@@ -108,14 +110,16 @@ function findResponse(
  * Resolve a renderer's `InteractionInfo` to the candidate's submitted
  * `string[]` for that interaction.
  *
- * The interaction `id` is the renderer's `response-identifier` value. It is
- * the canonical key for distinguishing interactions in a single item, but
- * it is NOT guaranteed unique (two interactions can share the same id).
- * When sibling interactions share an id, the reporter scopes them by
- * `interactionIndex` (0-based position in `item.interactions`). The
- * binding layer (`resolveSubmittedValues`) DOES use `interaction.id` as a
- * lookup fallback in both the legacy ordered and direct-match rules, so
- * the id is part of the binding protocol — just not the sole scope key.
+ * The interaction `id` is the renderer's `response-identifier` value. The
+ * interaction ID is part of the `responseVariable` lookup protocol — the
+ * binding key for both the legacy ordered and direct-match rules below —
+ * but it is NOT the canonical key for uniquely identifying an interaction
+ * instance. The canonical key for distinguishing sibling interactions in
+ * the same item is the 0-based `interactionIndex` (the position in
+ * `item.interactions`). The binding layer DOES use `interaction.id` as a
+ * lookup branch in both the legacy ordered and direct-match rules, so
+ * the id is part of the binding protocol — it is just not the sole scope
+ * key.
  *
  * The resolver picks the rules based on the renderer's
  * `declarationValueIndex`:

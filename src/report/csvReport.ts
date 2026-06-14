@@ -10,6 +10,7 @@ import {
 } from '../qti/assessmentResult.js';
 import { parseAssessmentTest } from '../qti/assessmentTest.js';
 import { resolveSubmittedValues, responseDedupeKey } from './interactionResponses.js';
+import { dropEmptyResponseValues } from './responseValues.js';
 
 export interface CsvReportInputPaths {
   assessmentTestPath: string;
@@ -68,7 +69,14 @@ function formatResponseValuesForItem(model: CsvItemModel): string {
     if (model.resolvedResponses.length === 0) {
       return '';
     }
-    return model.resolvedResponses.flatMap((entry) => entry.values).join('\n');
+    // Descriptive (no-interaction) items: drop strictly-empty values so the
+    // CSV cell never gets a leading newline or an empty leading line when
+    // the candidate submitted e.g. `["", "answer"]`.
+    const kept = dropEmptyResponseValues(model.resolvedResponses.flatMap((entry) => entry.values));
+    if (kept.length === 0) {
+      return '';
+    }
+    return kept.join('\n');
   }
   const lines: string[] = [];
   const seen = new Set<string>();
@@ -83,7 +91,13 @@ function formatResponseValuesForItem(model: CsvItemModel): string {
       continue;
     }
     seen.add(dedupeKey);
-    const values = resolveSubmittedValues(model.resolvedResponses, interaction);
+    // Drop strictly-empty values before the join so `["", "CHOICE_A"]`
+    // produces `"CHOICE_A"` and never a leading newline / empty label
+    // cell. The `length === 0` early-out below then also catches the
+    // empty-only case correctly.
+    const values = dropEmptyResponseValues(
+      resolveSubmittedValues(model.resolvedResponses, interaction)
+    );
     if (values.length === 0) {
       continue;
     }
@@ -101,7 +115,14 @@ function formatResponseLabelsForItem(model: CsvItemModel): string {
     if (model.resolvedResponses.length === 0) {
       return '';
     }
-    return model.resolvedResponses.flatMap((entry) => entry.values).join('\n');
+    // Descriptive (no-interaction) items: drop strictly-empty values so the
+    // CSV cell never gets a leading newline when the candidate submitted
+    // e.g. `["", "answer"]`.
+    const kept = dropEmptyResponseValues(model.resolvedResponses.flatMap((entry) => entry.values));
+    if (kept.length === 0) {
+      return '';
+    }
+    return kept.join('\n');
   }
   const lines: string[] = [];
   const seen = new Set<string>();
@@ -111,7 +132,11 @@ function formatResponseLabelsForItem(model: CsvItemModel): string {
       continue;
     }
     seen.add(dedupeKey);
-    const values = resolveSubmittedValues(model.resolvedResponses, interaction);
+    // Drop strictly-empty values before the join so `["", "CHOICE_A"]`
+    // produces `"CHOICE_A: <text>"` (no leading empty label cell).
+    const values = dropEmptyResponseValues(
+      resolveSubmittedValues(model.resolvedResponses, interaction)
+    );
     if (values.length === 0) {
       continue;
     }

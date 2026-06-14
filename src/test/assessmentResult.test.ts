@@ -241,3 +241,166 @@ test('non-empty values preserve whitespace, tabs, and newlines (no trim)', () =>
     'whitespace, tabs, and newlines must be preserved verbatim (no trim)'
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mixed paired/self-closing <value> form tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('self-closing then paired → values: ["", "beta"]', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="mixed-sc-then-paired" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value/>
+          <value>beta</value>
+        </candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('mixed-sc-then-paired');
+  assert.ok(itemResult, 'itemResult must exist');
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, ['', 'beta']);
+});
+
+test('paired then self-closing → values: ["alpha", ""]', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="mixed-paired-then-sc" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value>alpha</value>
+          <value/>
+        </candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('mixed-paired-then-sc');
+  assert.ok(itemResult);
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, ['alpha', '']);
+});
+
+test('self-closing, paired, self-closing → values: ["", "beta", ""]', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="mixed-sc-paired-sc" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value/>
+          <value>beta</value>
+          <value/>
+        </candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('mixed-sc-paired-sc');
+  assert.ok(itemResult);
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, ['', 'beta', '']);
+});
+
+test('empty paired, paired, self-closing-with-space, paired → values: ["", "beta", "", "delta"]', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="mixed-empty-paired-sc-paired" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value></value>
+          <value>beta</value>
+          <value />
+          <value>delta</value>
+        </candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('mixed-empty-paired-sc-paired');
+  assert.ok(itemResult);
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, ['', 'beta', '', 'delta']);
+});
+
+test('paired <value data-test="x">alpha</value> — attribute must not bleed into value', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="paired-with-attr" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse><value data-test="x">alpha</value></candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('paired-with-attr');
+  assert.ok(itemResult);
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, ['alpha']);
+});
+
+test('self-closing <value data-test="x" /> — attribute must not bleed into value', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="self-closing-with-attr" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse><value data-test="x" /></candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('self-closing-with-attr');
+  assert.ok(itemResult);
+  assert.equal(itemResult?.responses.length, 1);
+  assert.equal(itemResult?.responses[0]?.responseIdentifier, 'RESPONSE');
+  assert.deepEqual(itemResult?.responses[0]?.values, ['']);
+});
+
+test('whitespace/tab/newline/CRLF preserved across multiple values', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="ws-multi" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+      <responseVariable identifier="RESPONSE" baseType="string" cardinality="single">
+        <candidateResponse>
+          <value>	answer  with  spaces
+  </value>
+          <value>line one
+  	indented
+  blank above</value>
+          <value>crlf&#x0d;&#x0a;lf
+  end</value>
+        </candidateResponse>
+      </responseVariable>
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>0</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  const result = parseAssessmentResult(resultPath);
+  const itemResult = result.itemResults.get('ws-multi');
+  assert.ok(itemResult);
+  const values = itemResult?.responses[0]?.values ?? [];
+  assert.equal(values.length, 3);
+  assert.equal(values[0], '\tanswer  with  spaces\n  ');
+  assert.equal(values[1], 'line one\n  \tindented\n  blank above');
+  // CRLF (&#x0d;&#x0a;) normalized to LF
+  assert.equal(values[2], 'crlf\nlf\n  end');
+});

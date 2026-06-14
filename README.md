@@ -48,23 +48,24 @@ match) and is called by both the HTML and CSV reports.
 `InteractionInfo.id` is the renderer-emitted value of the
 `response-identifier` attribute on the interaction element. It is
 displayed to the reader (as the per-interaction label, in
-`data-interaction-id`, and in CSV `response_labels`) but it is **not**
-a unique key. Two `qti-choice-interaction` elements in the same item
-can carry the same `id` (e.g. duplicate `response-identifier="RESPONSE"`,
-or two interactions with no `response-identifier` at all). The reporter's
-authoritative key for distinguishing such siblings is the
+`data-interaction-id`, and in CSV `response_labels`). The interaction ID
+is the `responseVariable` lookup protocol's binding key — both the
+legacy ordered and direct-match rules in `resolveSubmittedValues` use
+it as a lookup branch — but it is **not** the canonical key for
+uniquely identifying an interaction instance. The canonical key for
+distinguishing sibling interactions in the same item is the
 `interactionIndex` — the 0-based position of the interaction in
-`item.interactions`. The candidate-response and retry-question
+`item.interactions`. Two `qti-choice-interaction` elements in the same
+item can carry the same `id` (e.g. duplicate
+`response-identifier="RESPONSE"`, or two interactions with no
+`response-identifier` at all), and the reporter never relies on the id
+alone to disambiguate them. The candidate-response and retry-question
 radio/checkbox names are built as
 `qti-candidate-<itemIdentifier>-<interactionIndex>-<interactionId>` /
 `qti-retry-<itemIdentifier>-<interactionIndex>-<interactionId>` (each
 segment sanitized with `replace(/[^A-Za-z0-9._-]/g, '-')`), so two
 siblings in the same item never share a browser radio/checkbox group
-even when their `id` is identical or empty. The shared
-`src/report/interactionResponses.ts` binding layer (`resolveSubmittedValues`)
-does use `interaction.id` as a lookup fallback in both the legacy ordered
-and direct-match rules, so the id is part of the binding protocol — it
-is just not the sole scope key.
+even when their `id` is identical or empty.
 
 ## Setup
 

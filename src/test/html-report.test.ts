@@ -1463,3 +1463,341 @@ test('item answer bodies are built with exactly one JSDOM parse in htmlReport.ts
     `htmlReport.ts must construct JSDOM exactly once (one per item); found ${matches.length} occurrences.`
   );
 });
+
+// ---------------------------------------------------------------------------
+// Per-interaction empty-value handling in choice candidates (renderChoiceCandidateBody)
+// ---------------------------------------------------------------------------
+//
+// The HTML `renderChoiceCandidateBody` in `src/report/htmlReport.ts` calls
+// `dropEmptyResponseValues(submittedValues)` before deciding whether to render
+// `（無回答）`, before building the `submittedSet`, and before computing
+// `unmatched` rows. These tests exercise the 5 cases from the task spec and
+// assert scoped to `.candidate-response-interaction[data-interaction-id="RESPONSE"]`
+// inside the patched item block, never to whole-report text.
+
+function buildUnificationReportFromPatchedResult(
+  dirName: string,
+  itemIdentifier: string,
+  candidateResponseXml: string
+): { html: string; block: Element; wrapper: Element; doc: Document } {
+  const repoRoot = getRepoRootFromDist();
+  const outputRootDir = createCleanOutputDir(dirName);
+  const baseResultXml = fs.readFileSync(resolveFixturePath('unification-result.xml'), 'utf8');
+  // Replace the `<candidateResponse>...</candidateResponse>` (paired) or
+  // `<candidateResponse />` (self-closing) inside the targeted itemResult
+  // with the test-supplied snippet. The base `<responseVariable>` shell
+  // (identifier, baseType, cardinality) is kept intact so
+  // `resolveSubmittedValues` still binds the values to the correct
+  // interaction. Anchored to the FIRST candidateResponse in the targeted
+  // itemResult block, so the regex never crosses into a sibling item.
+  const patched = baseResultXml.replace(
+    new RegExp(
+      `(<itemResult\\b[^>]*identifier="${itemIdentifier}"[\\s\\S]*?<candidateResponse\\b[^>]*>)([\\s\\S]*?)(<\\/candidateResponse>)`
+    ),
+    (_full, prefix: string, _inner: string, suffix: string) =>
+      `${prefix}${candidateResponseXml}${suffix}`
+  );
+  let patchedXml = patched;
+  if (patchedXml === baseResultXml) {
+    // Try the self-closing form next.
+    patchedXml = baseResultXml.replace(
+      new RegExp(
+        `(<itemResult\\b[^>]*identifier="${itemIdentifier}"[\\s\\S]*?)<candidateResponse\\s*\\/>`
+      ),
+      (_full, prefix: string) =>
+        `${prefix}<candidateResponse>${candidateResponseXml}</candidateResponse>`
+    );
+  }
+  assert.notEqual(
+    patchedXml,
+    baseResultXml,
+    `patch must change the candidateResponse for item "${itemIdentifier}"`
+  );
+  const patchedPath = path.join(repoRoot, 'tmp', `unification-choice-empty-${itemIdentifier}.xml`);
+  fs.writeFileSync(patchedPath, patchedXml, 'utf8');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('unification-test.qti.xml'),
+    assessmentResultPath: patchedPath,
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+  const block = findItemBlock(doc, itemIdentifier);
+  assert.ok(block, `${itemIdentifier} block must exist`);
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, `${itemIdentifier} candidate-response block must exist`);
+  candidate?.setAttribute('open', '');
+  const wrapper = block?.querySelector(
+    '.candidate-response-interaction[data-interaction-id="RESPONSE"]'
+  );
+  assert.ok(wrapper, `${itemIdentifier} RESPONSE wrapper must exist`);
+  return { html: report.html, block, wrapper, doc };
+}
+
+function findItemBlock(doc: Document, identifier: string): Element | null {
+  return doc.querySelector(`details.item-block[data-item-identifier="${identifier}"]`);
+}
+
+test('choice-empty single-choice: values: [""] renders （無回答） with no unmatched row and no checked radio', () => {
+  // A single-choice interaction submitted with only `<value/>` must fall
+  // into the `（無回答）` branch (no `choice-response-list` at all, no
+  // checked input). The patch uses self-closing `<value/>` inside
+  // `<candidateResponse>...</candidateResponse>`.
+  const { wrapper } = buildUnificationReportFromPatchedResult(
+    'html-choice-empty-blank',
+    'choice-empty',
+    '<value/>'
+  );
+  const text = wrapper.textContent ?? '';
+  assert.ok(text.includes('（無回答）'), `RESPONSE wrapper must include （無回答）, got: ${text}`);
+  assert.equal(
+    wrapper.querySelectorAll('li.choice-response-unmatched').length,
+    0,
+    'no .choice-response-unmatched row must be rendered for an empty-only submission'
+  );
+  assert.equal(
+    wrapper.querySelectorAll('input[type="radio"]:checked').length,
+    0,
+    'no radio must be checked for an empty-only submission'
+  );
+});
+
+test('choice-empty single-choice: values: ["", "CHOICE_A"] keeps only the real choice as checked, no unmatched, no （無回答）', () => {
+  // An empty slot mixed with a real choice must drop the empty slot
+  // (no `（無回答）`, no phantom unmatched row) and leave exactly one
+  // radio checked, corresponding to CHOICE_A's text "Alpha".
+  const { wrapper } = buildUnificationReportFromPatchedResult(
+    'html-choice-empty-mixed-single',
+    'choice-empty',
+    '<value/><value>CHOICE_A</value>'
+  );
+  const text = wrapper.textContent ?? '';
+  assert.ok(
+    !text.includes('（無回答）'),
+    `RESPONSE wrapper must not include （無回答） for a mixed ['', 'CHOICE_A'] submission, got: ${text}`
+  );
+  assert.equal(
+    wrapper.querySelectorAll('li.choice-response-unmatched').length,
+    0,
+    'no .choice-response-unmatched row must be rendered when the only empty slot is dropped'
+  );
+  const checkedRadios = Array.from(wrapper.querySelectorAll('input[type="radio"]:checked'));
+  assert.equal(
+    checkedRadios.length,
+    1,
+    `exactly one radio must be checked for CHOICE_A, got ${checkedRadios.length}`
+  );
+  const checkedValue = checkedRadios[0]?.getAttribute('value') ?? '';
+  assert.equal(
+    checkedValue,
+    'Alpha',
+    `the checked radio value must be the choice text "Alpha", got: ${checkedValue}`
+  );
+});
+
+test('choice-empty-multiple: values: ["", "CHOICE_A", "CHOICE_B"] keeps both real choices checked, no unmatched, no （無回答）', () => {
+  // A multiple-choice interaction with an empty slot must drop the empty
+  // slot and keep the two real choices checked. Uses a dedicated
+  // `cardinality="multiple"` fixture (single-choice QTI 3 declarations
+  // would reject a 2-value submission).
+  const { wrapper } = buildUnificationReportFromPatchedResult(
+    'html-choice-empty-mixed-multiple',
+    'choice-empty-multiple',
+    '<value/><value>CHOICE_A</value><value>CHOICE_B</value>'
+  );
+  const text = wrapper.textContent ?? '';
+  assert.ok(
+    !text.includes('（無回答）'),
+    `RESPONSE wrapper must not include （無回答） for a mixed ['', 'CHOICE_A', 'CHOICE_B'] submission, got: ${text}`
+  );
+  assert.equal(
+    wrapper.querySelectorAll('li.choice-response-unmatched').length,
+    0,
+    'no .choice-response-unmatched row must be rendered for a multi-choice submission with a dropped empty slot'
+  );
+  const checked = Array.from(wrapper.querySelectorAll('input[type="checkbox"]:checked'));
+  assert.equal(
+    checked.length,
+    2,
+    `two checkboxes must be checked (CHOICE_A and CHOICE_B), got ${checked.length}`
+  );
+  const checkedValues = checked.map((input) => input.getAttribute('value') ?? '').sort();
+  assert.deepEqual(
+    checkedValues,
+    ['Alpha', 'Beta'],
+    `checked checkbox values must be the choice texts "Alpha" and "Beta", got: ${checkedValues.join(', ')}`
+  );
+});
+
+test('choice-empty single-choice: values: ["UNKNOWN"] renders exactly one unmatched row with the diagnostic text and no checked radio', () => {
+  // A submitted identifier that is not a real choice must still surface
+  // a single "選択肢本文を取得できません" unmatched row, and must NOT
+  // fall into the `（無回答）` branch (the submission was non-empty).
+  const { wrapper } = buildUnificationReportFromPatchedResult(
+    'html-choice-empty-unknown',
+    'choice-empty',
+    '<value>UNKNOWN</value>'
+  );
+  const text = wrapper.textContent ?? '';
+  assert.ok(
+    !text.includes('（無回答）'),
+    `RESPONSE wrapper must not include （無回答） for an UNKNOWN submission, got: ${text}`
+  );
+  const unmatched = Array.from(wrapper.querySelectorAll('li.choice-response-unmatched'));
+  assert.equal(
+    unmatched.length,
+    1,
+    `exactly one .choice-response-unmatched row must be rendered for an UNKNOWN submission, got ${unmatched.length}`
+  );
+  const unmatchedText = unmatched[0]?.textContent ?? '';
+  assert.ok(
+    unmatchedText.includes('選択肢本文を取得できません'),
+    `unmatched row must include "選択肢本文を取得できません", got: ${unmatchedText}`
+  );
+  assert.equal(
+    wrapper.querySelectorAll('input[type="radio"]:checked').length,
+    0,
+    'no radio must be checked when the only submitted value is UNKNOWN'
+  );
+});
+
+test('duplicate-ids: per-interaction empty handling is independent when both interactions share id="RESPONSE"', () => {
+  // The duplicate-ids fixture has two single-choice interactions, both
+  // bound to `response-identifier="RESPONSE"` against a single shared
+  // `qti-response-declaration` (cardinality=single, base-type=identifier).
+  // Both interactions therefore direct-match the same declaration and
+  // receive the same parsed value array. We patch the result so the
+  // shared `<value/>` is mixed with a real choice (`<value>CHOICE_A</value>`),
+  // giving `["", "CHOICE_A"]`. The `dropEmptyResponseValues` call inside
+  // `renderChoiceCandidateBody` is per-interaction, so:
+  //  - each wrapper must drop the empty slot and keep CHOICE_A checked,
+  //  - no wrapper may render `（無回答）` (the per-interaction kept set is
+  //    non-empty),
+  //  - no wrapper may render an `.choice-response-unmatched` row (the only
+  //    kept value CHOICE_A is a real choice in both interactions),
+  //  - the two wrappers must remain independent (no text bleed, distinct
+  //    radio names) so the duplicate-id fixture continues to work end to
+  //    end.
+  // This is the per-interaction empty-handling regression test the task
+  // spec asks for: the empty drop is computed per-interaction even when
+  // two interactions share an identifier and a single declaration.
+  const repoRoot = getRepoRootFromDist();
+  const outputRootDir = createCleanOutputDir('html-choice-empty-duplicate-ids');
+  const baseResultXml = fs.readFileSync(resolveFixturePath('unification-result.xml'), 'utf8');
+  // The duplicate-ids itemResult carries a single `<responseVariable
+  // identifier="RESPONSE">` block with one paired `<candidateResponse>`.
+  // Replace its inner value with `<value/><value>CHOICE_A</value>`.
+  const patched = baseResultXml.replace(
+    /(<itemResult\b[^>]*identifier="duplicate-ids"[\s\S]*?<candidateResponse>)([\s\S]*?)(<\/candidateResponse>)/,
+    (_full, prefix: string, _inner: string, suffix: string) =>
+      `${prefix}<value/><value>CHOICE_A</value>${suffix}`
+  );
+  assert.notEqual(patched, baseResultXml, 'patch must change the duplicate-ids candidateResponse');
+  const patchedPath = path.join(repoRoot, 'tmp', 'unification-choice-empty-duplicate-ids.xml');
+  fs.writeFileSync(patchedPath, patched, 'utf8');
+
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('unification-test.qti.xml'),
+    assessmentResultPath: patchedPath,
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+  const block = findItemBlock(doc, 'duplicate-ids');
+  assert.ok(block, 'duplicate-ids block must exist');
+  const candidate = block?.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'duplicate-ids candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+
+  // Two per-interaction wrappers, one per choice interaction. The
+  // reporter must keep them independent even when the same identifier
+  // is shared.
+  const wrappers = Array.from(block?.querySelectorAll('.candidate-response-interaction') ?? []);
+  assert.equal(
+    wrappers.length,
+    2,
+    `duplicate-ids must render two per-interaction wrappers, got ${wrappers.length}`
+  );
+
+  // Per-wrapper scoped assertions. Each wrapper has the same parsed
+  // values `["", "CHOICE_A"]` (because both interactions share the same
+  // RESPONSE declaration), so per-wrapper the contract is identical:
+  // drop the empty, check CHOICE_A, no unmatched row, no （無回答）.
+  // Independence is asserted at the level of per-wrapper text + per-
+  // wrapper radio names.
+  const firstRowRadios = Array.from(wrappers[0]?.querySelectorAll('input[type="radio"]') ?? []);
+  const secondRowRadios = Array.from(wrappers[1]?.querySelectorAll('input[type="radio"]') ?? []);
+  const firstRowChecked = firstRowRadios.filter((radio) => radio.hasAttribute('checked'));
+  const secondRowChecked = secondRowRadios.filter((radio) => radio.hasAttribute('checked'));
+  assert.equal(
+    firstRowChecked.length,
+    1,
+    `first wrapper must hold exactly one checked radio (CHOICE_A after the empty drop), got ${firstRowChecked.length}`
+  );
+  assert.equal(
+    secondRowChecked.length,
+    1,
+    `second wrapper must hold exactly one checked radio (CHOICE_A after the empty drop), got ${secondRowChecked.length}`
+  );
+  // The checked radio value is the CHOICE text from THAT interaction's
+  // own qti-simple-choice. duplicate-ids has two interactions that share
+  // `id="RESPONSE"` and `identifier="CHOICE_A"` but with DIFFERENT text
+  // bindings: the first interaction's CHOICE_A text is "Alpha" and the
+  // second interaction's CHOICE_A text is "Gamma". Both renderers must
+  // resolve the checked text per interaction, never via a global
+  // fallback. This is the load-bearing independence assertion.
+  assert.equal(
+    firstRowChecked[0]?.getAttribute('value'),
+    'Alpha',
+    `first wrapper checked value must be "Alpha" (first interaction's CHOICE_A text), got: ${firstRowChecked[0]?.getAttribute('value')}`
+  );
+  assert.equal(
+    secondRowChecked[0]?.getAttribute('value'),
+    'Gamma',
+    `second wrapper checked value must be "Gamma" (second interaction's CHOICE_A text, NOT "Alpha" from the first), got: ${secondRowChecked[0]?.getAttribute('value')}`
+  );
+
+  // No wrapper may contain the diagnostic unmatched-row text.
+  for (const wrapper of wrappers) {
+    const unmatchedCount = wrapper.querySelectorAll('li.choice-response-unmatched').length;
+    assert.equal(
+      unmatchedCount,
+      0,
+      `wrapper must not contain any .choice-response-unmatched row, got ${unmatchedCount}`
+    );
+    const wrapperText = wrapper.textContent ?? '';
+    assert.ok(
+      !wrapperText.includes('（無回答）'),
+      `wrapper must not contain （無回答） (the per-interaction kept set is non-empty), got: ${wrapperText}`
+    );
+  }
+
+  // Independence: the two wrappers must use distinct radio names so the
+  // browser does not collapse them into a single group, and the choice
+  // texts (Alpha/Beta for the first interaction, Gamma/Delta for the
+  // second) must not bleed across wrappers.
+  const firstName = firstRowChecked[0]?.getAttribute('name') ?? '';
+  const secondName = secondRowChecked[0]?.getAttribute('name') ?? '';
+  assert.notEqual(
+    firstName,
+    secondName,
+    `duplicate-id wrappers must use distinct radio names; got ${firstName} and ${secondName}`
+  );
+  const firstText = wrappers[0]?.textContent ?? '';
+  const secondText = wrappers[1]?.textContent ?? '';
+  assert.ok(
+    firstText.includes('Alpha') && firstText.includes('Beta'),
+    `first wrapper must include Alpha/Beta, got: ${firstText}`
+  );
+  assert.ok(
+    !firstText.includes('Gamma') && !firstText.includes('Delta'),
+    `first wrapper must not include Gamma/Delta, got: ${firstText}`
+  );
+  assert.ok(
+    secondText.includes('Gamma') && secondText.includes('Delta'),
+    `second wrapper must include Gamma/Delta, got: ${secondText}`
+  );
+  assert.ok(
+    !secondText.includes('Alpha') && !secondText.includes('Beta'),
+    `second wrapper must not include Alpha/Beta, got: ${secondText}`
+  );
+});

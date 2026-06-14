@@ -318,6 +318,68 @@ test('legacy ordered RESPONSE distribution routes RESPONSE_N to the renderer-bou
   );
 });
 
+test('legacy ordered RESPONSE distribution with trailing empty <value/> keeps alpha/beta binding', () => {
+  // The `legacy-ordered` item has a single RESPONSE declaration with
+  // cardinality=ordered and two text-entry interactions RESPONSE_1 /
+  // RESPONSE_2. The result XML for this item now carries a trailing
+  // self-closing `<value/>` after `<value>beta</value>` inside the same
+  // `<candidateResponse>`, so the parser's mixed-form handling must
+  // preserve document order and yield `["alpha", "beta", ""]`. The
+  // renderer's legacy distribution still binds declarationValueIndex=0
+  // to RESPONSE_1 and declarationValueIndex=1 to RESPONSE_2; the third
+  // (empty) entry is not consumed by any interaction. This regression
+  // test pins the per-wrapper binding even when the candidate response
+  // array contains an extra trailing empty value.
+  const html = generateUnificationReport('unification-legacy-trailing-empty');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'legacy-ordered');
+  assert.ok(block, 'legacy-ordered block must exist');
+  const candidate = block.querySelector('details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  // Exactly two per-interaction wrappers — one for RESPONSE_1, one for
+  // RESPONSE_2. The trailing empty `<value/>` in the result must NOT
+  // spawn a third wrapper, and the existing alpha/beta entries must
+  // still be routed to RESPONSE_1 (idx 0) and RESPONSE_2 (idx 1).
+  const wrappers = Array.from(candidate.querySelectorAll('.candidate-response-interaction'));
+  assert.equal(
+    wrappers.length,
+    2,
+    `legacy ordered item must have two per-interaction wrappers even with a trailing empty <value/>; got ${wrappers.length}`
+  );
+  // Document order: RESPONSE_1 first, RESPONSE_2 second.
+  const firstId = wrappers[0]?.getAttribute('data-interaction-id');
+  const secondId = wrappers[1]?.getAttribute('data-interaction-id');
+  assert.equal(firstId, 'RESPONSE_1', `first wrapper must be RESPONSE_1; got ${firstId}`);
+  assert.equal(secondId, 'RESPONSE_2', `second wrapper must be RESPONSE_2; got ${secondId}`);
+  // Each wrapper must contain exactly one cloze input, and the input
+  // value must be the value at the corresponding declarationValueIndex.
+  const firstWrapperInputs =
+    wrappers[0]?.querySelectorAll('input.cloze-input.qti-blank-input') ?? [];
+  const secondWrapperInputs =
+    wrappers[1]?.querySelectorAll('input.cloze-input.qti-blank-input') ?? [];
+  assert.equal(
+    firstWrapperInputs.length,
+    1,
+    `RESPONSE_1 wrapper must contain exactly one cloze input; got ${firstWrapperInputs.length}`
+  );
+  assert.equal(
+    secondWrapperInputs.length,
+    1,
+    `RESPONSE_2 wrapper must contain exactly one cloze input; got ${secondWrapperInputs.length}`
+  );
+  assert.equal(
+    firstWrapperInputs[0]?.getAttribute('value'),
+    'alpha',
+    `RESPONSE_1 wrapper input must carry value="alpha" (declarationValueIndex=0); got ${firstWrapperInputs[0]?.getAttribute('value')}`
+  );
+  assert.equal(
+    secondWrapperInputs[0]?.getAttribute('value'),
+    'beta',
+    `RESPONSE_2 wrapper input must carry value="beta" (declarationValueIndex=1); got ${secondWrapperInputs[0]?.getAttribute('value')}`
+  );
+});
+
 test('distinct RESPONSE_1 and RESPONSE_2 declarations bind directly without legacy distribution', () => {
   // legacy-distinct-vars has two separate RESPONSE_1 / RESPONSE_2 declarations
   // (cardinality=single each) and two text-entry interactions. Unlike
@@ -1187,5 +1249,210 @@ test('empty interaction id: candidate-response and retry keep interaction index 
   assert.ok(
     retryNames[1]?.startsWith('qti-retry-empty-ids-1-') ?? false,
     `second retry list name must start with qti-retry-empty-ids-1-, got: ${retryNames[1]}`
+  );
+});
+
+test('mixed-order: choice→text-entry→choice keeps original interactionIndex across candidate, correct, and retry', () => {
+  // The `mixed-order` fixture has THREE interactions:
+  //   interaction[0] = choice (RESPONSE_A, First Alpha / First Beta, no correctResponse)
+  //   interaction[1] = text-entry (TEXT_FILL, no correctResponse)
+  //   interaction[2] = choice (RESPONSE_B, Third Gamma / Third Delta, correctResponse=CHOICE_A)
+  // The candidate answered CHOICE_A on interaction[0], "text-fill-value" on
+  // interaction[1], and CHOICE_B (wrong) on interaction[2].
+  // This test pins the contract that the original `interactionIndex` is
+  // preserved across all three blocks (candidate-response, correct-answer,
+  // retry-question) even when the middle interaction is a text-entry. A
+  // naive post-filter re-index would collapse the indices to 0,1 and break
+  // both the correct-answer row and the retry-question list ordering.
+  const html = generateUnificationReport('unification-mixed-order');
+  const doc = parseReport(html);
+  const block = findItemBlock(doc, 'mixed-order');
+  assert.ok(block, 'mixed-order block must exist');
+
+  // --- Candidate-response block ---
+  const candidate = sliceFromItem(doc, 'mixed-order', 'details.candidate-response-block');
+  assert.ok(candidate, 'candidate-response block must exist');
+  candidate?.setAttribute('open', '');
+  const candidateWrappers = Array.from(
+    candidate?.querySelectorAll('.candidate-response-interaction') ?? []
+  );
+  assert.equal(
+    candidateWrappers.length,
+    3,
+    `candidate-response must contain exactly 3 wrappers (one per interaction), got ${candidateWrappers.length}`
+  );
+
+  // Wrapper 0: choice RESPONSE_A, candidate chose CHOICE_A → "First Alpha"
+  assert.equal(
+    candidateWrappers[0]?.getAttribute('data-candidate-name'),
+    'qti-candidate-mixed-order-0',
+    `wrapper 0 data-candidate-name must encode original index 0`
+  );
+  assert.equal(
+    candidateWrappers[0]?.getAttribute('data-interaction-id'),
+    'RESPONSE_A',
+    `wrapper 0 data-interaction-id must be RESPONSE_A`
+  );
+  const wrapper0Text = candidateWrappers[0]?.textContent ?? '';
+  assert.ok(
+    wrapper0Text.includes('First Alpha'),
+    `wrapper 0 must include "First Alpha" (candidate chose CHOICE_A), got: ${wrapper0Text}`
+  );
+  assert.ok(
+    wrapper0Text.includes('First Beta'),
+    `wrapper 0 must include "First Beta" (other choice text in the same interaction), got: ${wrapper0Text}`
+  );
+  assert.ok(
+    !wrapper0Text.includes('Third Gamma'),
+    `wrapper 0 must not include "Third Gamma" (from the third interaction), got: ${wrapper0Text}`
+  );
+  assert.ok(
+    !wrapper0Text.includes('Third Delta'),
+    `wrapper 0 must not include "Third Delta" (from the third interaction), got: ${wrapper0Text}`
+  );
+
+  // Wrapper 1: text-entry TEXT_FILL, candidate answered "text-fill-value"
+  assert.equal(
+    candidateWrappers[1]?.getAttribute('data-candidate-name'),
+    'qti-candidate-mixed-order-1',
+    `wrapper 1 data-candidate-name must encode original index 1`
+  );
+  assert.equal(
+    candidateWrappers[1]?.getAttribute('data-interaction-id'),
+    'TEXT_FILL',
+    `wrapper 1 data-interaction-id must be TEXT_FILL`
+  );
+  // The text-entry candidate response is rendered into a readonly
+  // <input class="cloze-input qti-blank-input"> via the `value`
+  // attribute (the input is read-only and has no inner text, so
+  // `textContent` of the wrapper only contains the label, not the
+  // candidate's value). Read the candidate's value back from the
+  // input's `value` attribute instead of `textContent`.
+  const wrapper1Input = candidateWrappers[1]?.querySelector('input.cloze-input.qti-blank-input');
+  assert.ok(
+    wrapper1Input,
+    'wrapper 1 must render a cloze <input> for the text-entry candidate response'
+  );
+  assert.equal(
+    wrapper1Input?.getAttribute('value'),
+    'text-fill-value',
+    `wrapper 1 cloze input value attribute must equal the candidate's "text-fill-value", got: ${wrapper1Input?.getAttribute('value')}`
+  );
+
+  // Wrapper 2: choice RESPONSE_B, candidate chose CHOICE_B → "Third Delta"
+  assert.equal(
+    candidateWrappers[2]?.getAttribute('data-candidate-name'),
+    'qti-candidate-mixed-order-2',
+    `wrapper 2 data-candidate-name must encode original index 2`
+  );
+  assert.equal(
+    candidateWrappers[2]?.getAttribute('data-interaction-id'),
+    'RESPONSE_B',
+    `wrapper 2 data-interaction-id must be RESPONSE_B`
+  );
+  const wrapper2Text = candidateWrappers[2]?.textContent ?? '';
+  assert.ok(
+    wrapper2Text.includes('Third Delta'),
+    `wrapper 2 must include "Third Delta" (candidate chose CHOICE_B), got: ${wrapper2Text}`
+  );
+  assert.ok(
+    !wrapper2Text.includes('First Alpha'),
+    `wrapper 2 must not include "First Alpha" (from the first interaction), got: ${wrapper2Text}`
+  );
+  assert.ok(
+    !wrapper2Text.includes('First Beta'),
+    `wrapper 2 must not include "First Beta" (from the first interaction), got: ${wrapper2Text}`
+  );
+
+  // --- Correct-answer block ---
+  // Only interaction[2] has a correctResponse, so the block must contain
+  // exactly one wrapper, and it must keep the ORIGINAL interactionIndex=2
+  // (not a post-filter index 0).
+  const correct = sliceFromItem(doc, 'mixed-order', 'details.correct-answer-block');
+  assert.ok(correct, 'correct-answer block must exist (interaction[2] has a qti-correct-response)');
+  correct?.setAttribute('open', '');
+  const correctWrappers = Array.from(
+    correct?.querySelectorAll('.correct-answer-interaction') ?? []
+  );
+  assert.equal(
+    correctWrappers.length,
+    1,
+    `correct-answer block must contain exactly 1 wrapper (only interaction[2] has a correctResponse), got ${correctWrappers.length}`
+  );
+  assert.equal(
+    correctWrappers[0]?.getAttribute('data-candidate-name'),
+    'qti-candidate-mixed-order-2',
+    `single correct-answer wrapper must encode the ORIGINAL interaction index 2 (not post-filter 0), got: ${correctWrappers[0]?.getAttribute(
+      'data-candidate-name'
+    )}`
+  );
+  assert.equal(
+    correctWrappers[0]?.getAttribute('data-interaction-id'),
+    'RESPONSE_B',
+    `single correct-answer wrapper data-interaction-id must be RESPONSE_B`
+  );
+  const correctText = correctWrappers[0]?.textContent ?? '';
+  assert.ok(
+    correctText.includes('Third Gamma'),
+    `correct-answer wrapper must include "Third Gamma" (correct answer for interaction[2] is CHOICE_A), got: ${correctText}`
+  );
+  assert.ok(
+    !correctText.includes('First Alpha'),
+    `correct-answer wrapper must not include "First Alpha" (from the first interaction), got: ${correctText}`
+  );
+  assert.ok(
+    !correctText.includes('First Beta'),
+    `correct-answer wrapper must not include "First Beta" (from the first interaction), got: ${correctText}`
+  );
+  assert.ok(
+    !correctText.includes('text-fill-value'),
+    `correct-answer wrapper must not include "text-fill-value" (from the text-entry interaction), got: ${correctText}`
+  );
+
+  // --- Retry-question block ---
+  // The text-entry does not produce a choice-retry list, so the block
+  // must contain exactly 2 lists — one per CHOICE interaction — keyed by
+  // the ORIGINAL interactionIndex 0 and 2 (NOT 0 and 1; the latter would
+  // indicate a naive re-index that ignored the text-entry).
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry-question block must exist');
+  const retryLists = Array.from(retry?.querySelectorAll('ul.choice-retry') ?? []);
+  assert.equal(
+    retryLists.length,
+    2,
+    `retry-question block must contain exactly 2 choice lists (one per choice interaction — text-entry does not produce one), got ${retryLists.length}`
+  );
+  const retryFirstInputNames = retryLists.map(
+    (list) => list.querySelector('input[type="radio"]')?.getAttribute('name') ?? ''
+  );
+  // Sanity: the two lists' name prefixes must NOT be a choice-only
+  // 0,1 sequence (that would mean the text-entry interaction was
+  // collapsed/ignored when assigning indices).
+  const firstHasIndex0 = retryFirstInputNames[0]?.startsWith('qti-retry-mixed-order-0-') ?? false;
+  const secondHasIndex1 = retryFirstInputNames[1]?.startsWith('qti-retry-mixed-order-1-') ?? false;
+  assert.ok(
+    !(firstHasIndex0 && secondHasIndex1),
+    `retry-question lists must not use a choice-only 0,1 sequence (text-entry in between must keep its index); got: ${retryFirstInputNames.join(
+      ', '
+    )}`
+  );
+  // The two lists' name prefixes must include 0 and 2 (in some order).
+  const startsWithIndex0 = retryFirstInputNames.some((n) =>
+    n.startsWith('qti-retry-mixed-order-0-')
+  );
+  const startsWithIndex2 = retryFirstInputNames.some((n) =>
+    n.startsWith('qti-retry-mixed-order-2-')
+  );
+  assert.ok(
+    startsWithIndex0,
+    `one retry-question list name must start with qti-retry-mixed-order-0-, got: ${retryFirstInputNames.join(
+      ', '
+    )}`
+  );
+  assert.ok(
+    startsWithIndex2,
+    `one retry-question list name must start with qti-retry-mixed-order-2- (original interaction index 2 — NOT 1), got: ${retryFirstInputNames.join(
+      ', '
+    )}`
   );
 });

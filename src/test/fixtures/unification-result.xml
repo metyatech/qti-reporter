@@ -103,6 +103,7 @@
       <candidateResponse>
         <value>alpha</value>
         <value>beta</value>
+        <value/>
       </candidateResponse>
     </responseVariable>
     <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
@@ -272,16 +273,61 @@ blank line above</value>
     </outcomeVariable>
   </itemResult>
   <itemResult identifier="index-shift" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
-    <responseVariable identifier="RESPONSE" baseType="identifier" cardinality="single">
+    <responseVariable identifier="RESPONSE" base-type="identifier" cardinality="single">
       <candidateResponse>
         <value>CHOICE_A</value>
       </candidateResponse>
     </responseVariable>
-    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+    <outcomeVariable identifier="SCORE" base-type="float" cardinality="single">
       <value>1</value>
     </outcomeVariable>
-    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+    <outcomeVariable identifier="RUBRIC_1_MET" base-type="boolean" cardinality="single">
       <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="mixed-order" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE_A" base-type="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_A</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="TEXT_FILL" base-type="string" cardinality="single">
+      <candidateResponse>
+        <value>text-fill-value</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="RESPONSE_B" base-type="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_B</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" base-type="float" cardinality="single">
+      <value>1</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" base-type="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="choice-empty" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" base-type="identifier" cardinality="single">
+      <candidateResponse />
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" base-type="float" cardinality="single">
+      <value>0</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" base-type="boolean" cardinality="single">
+      <value>false</value>
+    </outcomeVariable>
+  </itemResult>
+  <itemResult identifier="choice-empty-multiple" datestamp="2026-06-13T00:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="RESPONSE" base-type="identifier" cardinality="multiple">
+      <candidateResponse />
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" base-type="float" cardinality="single">
+      <value>0</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" base-type="boolean" cardinality="single">
+      <value>false</value>
     </outcomeVariable>
   </itemResult>
 </assessmentResult>

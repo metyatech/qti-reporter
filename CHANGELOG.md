@@ -9,11 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Mixed paired and self-closing `<value>` forms keep document order.** A `<candidateResponse>` that mixes paired `<value>...</value>` with self-closing `<value/>`, `<value />`, or empty `<value></value>` siblings now yields values in their original document order, with empty-string positions preserved (e.g. `<value/>` then `<value>beta</value>` produces `["", "beta"]`, and `<value>alpha</value>` then `<value/>` produces `["alpha", ""]`). Whitespace-only and tab/newline-only values are still kept verbatim.
+
 - **Correct-answer interaction index drift.** The previous `buildCorrectAnswerHtml` used the post-filter `index` when calling `renderCorrectAnswerSection`, so a choice interaction with no correct response caused the next interaction to render at the wrong index (and pick up the previous interaction's choice text/image). The fix preserves the original `interactionIndex` from `item.interactions` through the filter.
 
 - **Empty candidate values are now treated as "no answer".** `<value></value>`, `<value />`, and `<value/>` in the result XML are now recognized uniformly; the parser records them as `""` and the HTML layer drops them. Whitespace-only and tab/newline-only values are kept verbatim (no `trim()`).
 
 ### Changed
+
+- **Empty candidate values are labeled "no answer" and dropped from CSV `response_values` / `response_labels`.** A choice interaction whose candidate response is missing or self-closing now renders that row as `（無回答）` (no answer) instead of an unmatched entry, and the CSV report omits empty values from both `response_values` and `response_labels`. Whitespace-only values are still preserved verbatim (no `trim()`).
+
+- **Interaction `id` is a binding-protocol field, not the canonical sibling key.** The interaction `id` (the `response-identifier` on the interaction element) remains the per-interaction display label and participates in the `responseVariable` lookup protocol (legacy ordered and direct-match bindings in `resolveSubmittedValues`), but it is NOT the canonical key for distinguishing sibling interactions. The canonical key is the 0-based `interactionIndex` (the position of the interaction in `item.interactions`); two siblings in the same item may share an `id` (duplicate or empty `response-identifier`) and are still resolved independently.
+
+- **Choice → text-entry → choice interactions keep the original `interactionIndex`.** When a choice interaction with no correct response is followed by a text-entry interaction with no correct response and then another choice interaction, the candidate-response, correct-answer, and retry-question wrappers for every interaction keep the original `interactionIndex`. The trailing choice's text, image, and binding no longer drift into the first choice's values when an intermediate text-entry interaction has no correct response. This case is locked in by a dedicated regression fixture.
 
 - **Item-level JSDOM parse.** The candidate-response, correct-answer, and retry-question bodies for a single item now share a single `new JSDOM()` parse of the item's `questionHtml`. Choice render info, candidate response HTML, correct answer HTML, and the retry body are all derived from the same parsed root (the retry body mutates a `cloneNode(true)` copy). Descriptive items with no choice interaction and no cloze input do not parse JSDOM at all.
 

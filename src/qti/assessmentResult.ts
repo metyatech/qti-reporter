@@ -157,12 +157,27 @@ function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
       continue;
     }
     const candidateResponseXml = paired ? paired[1] : '';
-    // Match both paired `<value>...</value>` and self-closing `<value\s*/>`.
-    // A single regex with a single capture group lets the empty and
-    // self-closing forms collapse to a single inner-content string. The
-    // self-closing alternative has no capture, so its inner content is the
-    // empty string. Document order of `<value>` siblings is preserved.
-    const valuePattern = /<value\b[^>]*>([\s\S]*?)<\/value>|<value\b[^>]*\/>/g;
+    // Match paired `<value>...</value>` and self-closing `<value\s*/>` in
+    // document order, even when the two forms are interleaved inside the
+    // same `<candidateResponse>`. The self-closing alternative is tried
+    // FIRST so that `<value/>` (and `<value .../>`) cannot be swallowed by
+    // the paired alternative: a naive `<value\b[^>]*>([\s\S]*?)<\/value>|
+    // <value\b[^>]*\/>` regex lets the paired branch greedily consume the
+    // `<value/>` open tag plus surrounding whitespace and pull the next
+    // sibling's `<value>...</value>` into the inner capture (e.g. it
+    // produced `["\n  <value>beta"]` for `<value/>\n  <value>beta</value>`).
+    //
+    // The paired alternative therefore carries a negative lookahead
+    // `(?![^>]*\/>)` that rejects the open tag whenever it self-closes,
+    // forcing those tokens onto the first alternative. The self-closing
+    // alternative has no capture group, so its recorded value is the empty
+    // string `""` (length 0, no content match). Empty paired `<value></value>`
+    // is still matched by the paired alternative with an empty capture
+    // group, also yielding `""`. Document order of `<value>` siblings is
+    // preserved across both alternatives, and `""` entries are NOT filtered
+    // at parse time — the downstream HTML/CSV layer decides what "empty"
+    // means for display.
+    const valuePattern = /<value\b[^>]*\/>|<value\b(?![^>]*\/>)[^>]*>([\s\S]*?)<\/value>/g;
     const values: string[] = [];
     let valueMatch: RegExpExecArray | null = valuePattern.exec(candidateResponseXml);
     while (valueMatch) {

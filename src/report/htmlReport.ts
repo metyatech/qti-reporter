@@ -19,6 +19,7 @@ import { AssessmentTimeLimit, parseAssessmentTest } from '../qti/assessmentTest.
 import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
 import { escapeHtml } from './htmlEscape.js';
 import { resolveSubmittedValues } from './interactionResponses.js';
+import { dropEmptyResponseValues } from './responseValues.js';
 
 export interface HtmlReportInputPaths {
   assessmentTestPath: string;
@@ -232,19 +233,11 @@ interface ChoiceRenderInfo {
 }
 
 /**
- * A candidate value is "no answer" only when it is the strictly-empty string.
- * The parser already normalizes CRLF/CR to LF, so a length-0 string is the
- * single no-answer marker. Whitespace-only values (spaces, tabs, newlines)
- * and values with leading/trailing whitespace are real answers and are kept
- * verbatim — this helper never trims.
+ * Empty-value filtering is delegated to `./responseValues.js` — the shared
+ * rule is `value.length === 0`. Whitespace-only values (spaces, tabs,
+ * newlines) and values with leading/trailing whitespace are NOT considered
+ * empty and are kept verbatim; the shared helper never trims.
  */
-function isEmptyResponseValue(value: string): boolean {
-  return value.length === 0;
-}
-
-function dropEmptyResponseValues(values: string[]): string[] {
-  return values.filter((value) => !isEmptyResponseValue(value));
-}
 
 function resolveChoiceInnerHtml(
   choiceInnerHtmlByIdentifier: Map<string, string>,
@@ -348,7 +341,13 @@ function renderChoiceCandidateBody(
   submittedValues: string[],
   choiceRenderInfo: ChoiceRenderInfo[]
 ): string {
-  const submittedSet = new Set(submittedValues);
+  // Drop strictly-empty values (`<value/>` / `<value></value>`) so an
+  // empty-only submission falls into the `（無回答）` branch below, and
+  // so any empty slot mixed with real choices does not produce a phantom
+  // "選択肢本文を取得できません" unmatched row. Whitespace-only values
+  // are kept verbatim (e.g. `" "` remains a real unmatched choice).
+  const keptValues = dropEmptyResponseValues(submittedValues);
+  const submittedSet = new Set(keptValues);
   const isMultiple = interaction.cardinality === 'multiple';
   const inputType = isMultiple ? 'checkbox' : 'radio';
   const name = `qti-candidate-${sanitizeAttrSegment(itemIdentifier)}-${index}-${sanitizeAttrSegment(interaction.id ?? '')}`;
@@ -358,7 +357,7 @@ function renderChoiceCandidateBody(
   const submittedLabel = interaction.id
     ? `<p class="response-interaction-label">${escapeHtml(interaction.id)}</p>`
     : '';
-  if (submittedValues.length === 0) {
+  if (keptValues.length === 0) {
     return `${submittedLabel}<p class="response-empty">（無回答）</p>`;
   }
 
@@ -377,7 +376,7 @@ function renderChoiceCandidateBody(
     return `<li class="${optionClasses.join(' ')}"><span class="choice-response-marker" aria-hidden="true">${marker}</span><span class="choice-response-text"><label><input type="${inputType}" name="${escapeHtml(name)}" value="${escapeHtml(radioValue)}"${isSelected ? ' checked' : ''} disabled>${labelInner}</label></span>${labelTag}</li>`;
   });
 
-  const unmatched = submittedValues
+  const unmatched = keptValues
     .filter((value) => !interaction.choices.some((choice) => choice.identifier === value))
     .map(
       () =>
