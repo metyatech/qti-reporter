@@ -245,12 +245,79 @@ used by the CSV report. The form is selected by the renderer's
   must report a `declarationIdentifier`; otherwise the CSV is
   intentionally lossy for the unmatched case.
 
+### Empty value handling across parser, binding, and display
+
+Empty `<value/>` elements (and the equivalent `<value />` and
+`<value></value>` forms) follow a strict three-stage contract. Each
+stage has a single responsibility; the contract is intentionally
+narrow so that downstream rendering never has to guess whether a
+given value is a "real" empty answer or a sentinel for "no answer".
+
+1. **Parser** — `parseCandidateResponses` in
+   `src/qti/assessmentResult.ts`. The parser preserves every
+   `<value>` element in document order, regardless of form. The three
+   input forms `<value></value>`, `<value />`, and `<value/>` all
+   produce the empty string `""` in the resulting `string[]`, and that
+   empty position is kept — the parser NEVER removes it from the
+   array. CRLF and bare CR endings inside the value text are
+   normalized to LF so the downstream join logic can use `\n`
+   deterministically; spaces, tabs, newlines, and indentation inside
+   the value text are preserved verbatim. The parser does not know
+   about "no answer" — the empty string is just another value in the
+   record, and the parser is the only stage that touches the input
+   XML directly.
+2. **Binding** — `resolveSubmittedValues` in
+   `src/report/interactionResponses.ts`. The binding layer uses the
+   parser's array positions verbatim. For the legacy ordered
+   `RESPONSE` distribution, it returns
+   `[values[declarationValueIndex]]` directly, so a value at that
+   index of `""` produces `[""]` and the renderer-side
+   `declarationValueIndex` for the next interaction still routes to
+   the correct array slot — a head-empty entry in the parser's array
+   never causes a tail entry to drift onto the wrong interaction. For
+   the direct-match case, the binding layer returns the parser's full
+   `string[]` for the matched `responseVariable`. The binding layer
+   does NOT filter empty values; it preserves whatever the parser
+   produced. Keeping empties through the binding stage is what makes
+   the index alignment in the legacy ordered distribution
+   deterministic — the alternative (filter at the binding stage)
+   would shift subsequent indices.
+3. **HTML/CSV display** — the shared helpers
+   `isEmptyResponseValue` and `dropEmptyResponseValues` in
+   `src/report/responseValues.ts`. The HTML report
+   (`src/report/htmlReport.ts`) and the CSV report
+   (`src/report/csvReport.ts`) both call
+   `dropEmptyResponseValues` after the binding stage; this is the
+   ONLY stage that drops empty values. The rule is strict: only
+   strictly empty strings (`value.length === 0`) are removed. The
+   helper never calls `trim()`; whitespace-only, tab-only, and
+   newline-only values are real answers and stay in the output. In
+   the HTML report, an interaction whose filtered submission is
+   empty renders the `（無回答）` (no answer) label instead of an
+   option list or cloze input. In the CSV report, the empty value is
+   excluded from the `response_values` and `response_labels` cells,
+   so the cells never carry leading/trailing newlines or empty lines.
+
+The contract is intentionally three-stage: if a value is empty, the
+parser keeps it (so binding can use the index), and the display layer
+removes it (so the user sees "no answer" instead of an empty cell).
+Cutting this chain in the middle — for example, dropping empties at
+the parser or binding layer — would either lose index alignment for
+the legacy ordered distribution or leak empties into the rendered
+HTML/CSV.
+
 ### Multi-value preservation
 
 Each `<value>` element inside a `<candidateResponse>` is preserved as
 its own record in the parser, so a `cardinality="multiple"` response
-is never collapsed to a single string. In the HTML and CSV outputs,
-multiple values for the same interaction are joined with `\n`.
+is never collapsed to a single string. The binding layer carries the
+full `string[]` forward in the direct-match case and the single
+indexed value in the legacy ordered case (see the binding rules
+above). The HTML and CSV outputs then join the multiple values for
+the same interaction with `\n` after the display stage's
+`dropEmptyResponseValues` filter has been applied — see the
+[Empty value handling](#empty-value-handling-across-parser-binding-and-display)
+section for the full three-stage contract.
 
 ### Output path and naming
 

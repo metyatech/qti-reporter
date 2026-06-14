@@ -16,7 +16,7 @@
     "format:check": "prettier --check .",
     "verify": "npm run format && npm run lint && npm test && npm run build",
     "prepare": "husky && npm run build",
-    "test": "npm run build && node --test dist/test/assessment-test.test.js dist/test/assessmentResult.test.js dist/test/cli.test.js dist/test/csv-report.test.js dist/test/html-report.test.js dist/test/interactionResponses.test.js dist/test/unification.test.js dist/test/xml.test.js",
+    "test": "npm run build && node scripts/run-tests.mjs",
     "start": "npm run build && node dist/cli.js"
   },
   "repository": {

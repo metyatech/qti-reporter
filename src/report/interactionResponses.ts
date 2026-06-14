@@ -110,6 +110,24 @@ function findResponse(
  * Resolve a renderer's `InteractionInfo` to the candidate's submitted
  * `string[]` for that interaction.
  *
+ * STAGE 2 of 3 — BINDING. This function is the SECOND stage of the
+ * three-stage empty-value contract documented in
+ * `docs/report-output-spec.md` ("Empty value handling across parser,
+ * binding, and display"). The binding stage owns ONLY the
+ * parser-array → per-interaction-array mapping; it does NOT classify
+ * a value as "no answer", and it does NOT filter empty values. Stage
+ * 1 (the parser) already produced the array in document order with
+ * empty positions kept; stage 3 (`dropEmptyResponseValues` in
+ * `responseValues.ts`) is the only stage that drops empty values.
+ *
+ * In particular, the legacy ordered branch returns
+ * `[values[declarationValueIndex]]` directly, so a value of `""` at
+ * the index produces `[""]` (not `[]`). This keeps the index
+ * alignment deterministic: a head-empty entry in the parser's array
+ * never causes a tail entry to drift onto the wrong interaction. The
+ * direct-match branch returns the parser's full `string[]` (after a
+ * `.slice()` copy), preserving any empty positions the parser kept.
+ *
  * The interaction `id` is the renderer's `response-identifier` value. The
  * interaction ID is part of the `responseVariable` lookup protocol — the
  * binding key for both the legacy ordered and direct-match rules below —
@@ -135,7 +153,8 @@ function findResponse(
  *    2. Else if a `responseVariable` exists with
  *       `responseIdentifier === interaction.declarationIdentifier`,
  *       return `[values[declarationValueIndex]]` — exactly one value, or
- *       `[]` if out of range.
+ *       `[]` if out of range. A value of `""` at the index produces
+ *       `[""]`; this is the binding stage's keep-not-filter contract.
  *    3. Else `[]`.
  * 2. **Direct match** — when `declarationValueIndex === null`:
  *    1. If a `responseVariable` exists with
@@ -149,7 +168,9 @@ function findResponse(
  * arrays on `ParsedItemResponse` are never mutated). A return value of
  * `[]` (never `undefined`) means "no candidate response for this
  * interaction" — renderers can treat that as the per-interaction
- * `（無回答）` slot.
+ * `（無回答）` slot. A return value of `[""]` (or any `string[]` whose
+ * elements include `""`) is the legitimate "empty answer at this index"
+ * case; the display stage is responsible for the final drop.
  */
 export function resolveSubmittedValues(
   responses: ParsedItemResponse[],

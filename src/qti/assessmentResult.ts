@@ -120,6 +120,25 @@ function parseOutcomeVariableString(xml: string, identifier: string): string | n
 }
 
 function parseCandidateResponses(itemXml: string): ParsedItemResponse[] {
+  // STAGE 1 of 3 — PARSER. This function is the FIRST stage of the
+  // three-stage empty-value contract documented in
+  // `docs/report-output-spec.md` ("Empty value handling across parser,
+  // binding, and display"). Stage 1 owns ONLY the input XML → array
+  // conversion; it must NEVER classify a value as "no answer", and it
+  // must NEVER remove an empty value from the array — those concerns
+  // belong to stages 2 (binding, in `interactionResponses.ts`) and 3
+  // (display, in `responseValues.ts`).
+  //
+  // Contract for the parser stage:
+  //   * every `<value>` element is preserved in document order;
+  //   * `<value></value>`, `<value />`, and `<value/>` all produce `""`;
+  //   * empty positions in the array are KEPT (the binding layer relies
+  //     on this for the legacy ordered `RESPONSE` distribution's index
+  //     alignment);
+  //   * CRLF / bare CR endings are normalized to LF;
+  //   * spaces, tabs, newlines, and indentation inside the value text
+  //     are preserved verbatim.
+  //
   // The result XML uses both the explicit
   // `<candidateResponse>...</candidateResponse>` form and the self-closing
   // `<candidateResponse/>` (or `<candidateResponse />`) form. We accept all

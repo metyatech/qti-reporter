@@ -17,6 +17,9 @@ not parse Markdown time-limit notation and does not use time limits for scoring.
 
 - Input QTI spec: `docs/input-qti-spec.md`
 - Output report spec: `docs/report-output-spec.md`
+  - See the [Empty value handling](docs/report-output-spec.md#empty-value-handling-across-parser-binding-and-display)
+    section for the three-stage contract (parser keeps, binding keeps,
+    display drops) used for empty `<value/>` elements.
 
 ## Renderer integration
 
