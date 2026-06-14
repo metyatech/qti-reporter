@@ -17,7 +17,6 @@ if (!fs.existsSync(distTestDir)) {
 const { discoverTests } = await import(discoverModuleUrl);
 const testFiles = discoverTests({
   distDir: distTestDir,
-  excludeNames: ['suite.test.js'],
 });
 
 if (testFiles.length === 0) {

@@ -131,7 +131,8 @@ npm start -- --assessment-test src/test/fixtures/assessment-test.qti.xml --asses
 
 ## Development Commands
 
-- Build:
+- Build (always deletes `dist/` first, then compiles, so stale JavaScript from
+  deleted or renamed sources never lingers in `dist/`):
 
 ```bash
 npm run build

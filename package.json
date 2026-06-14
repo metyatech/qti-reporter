@@ -10,11 +10,12 @@
     "doc": "docs"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "clean": "node scripts/clean-dist.mjs",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit && eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run format && npm run lint && npm test && npm run build",
+    "verify": "npm run format && npm run lint && npm test",
     "prepare": "husky && npm run build",
     "test": "npm run build && node scripts/run-tests.mjs",
     "start": "npm run build && node dist/cli.js"
