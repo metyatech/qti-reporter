@@ -8,20 +8,20 @@
   </qti-response-declaration>
   <qti-response-declaration identifier="TEXT_FILL" base-type="string" cardinality="single" />
   <qti-item-body>
-    <qti-p>Select the first option.</qti-p>
+    <p>Select the first option.</p>
     <qti-choice-interaction response-identifier="RESPONSE_A">
       <qti-simple-choice identifier="CHOICE_A">First Alpha</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">First Beta</qti-simple-choice>
     </qti-choice-interaction>
-    <qti-p>Fill in the blank.</qti-p>
+    <p>Fill in the blank.</p>
     <qti-text-entry-interaction response-identifier="TEXT_FILL" expected-length="20" />
-    <qti-p>Select the third option.</qti-p>
+    <p>Select the third option.</p>
     <qti-choice-interaction response-identifier="RESPONSE_B">
       <qti-simple-choice identifier="CHOICE_A">Third Gamma</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Third Delta</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Mixed order test</qti-p>
+      <p>[1] Mixed order test</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

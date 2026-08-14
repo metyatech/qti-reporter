@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assessmentResult xmlns="http://www.imsglobal.org/xsd/imsqti_result_v3p0">
+  <context sourcedId="canonical-user">
+    <sessionIdentifier sourceID="candidateId" identifier="0042" />
+    <sessionIdentifier sourceID="candidateName" identifier="Canonical Tester" />
+  </context>
+  <testResult identifier="canonical-presentation-test" datestamp="2026-08-14T09:00:00+09:00">
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>2</value>
+    </outcomeVariable>
+  </testResult>
+  <itemResult identifier="canonical-presentation" datestamp="2026-08-14T09:00:00+09:00" sessionStatus="final">
+    <responseVariable identifier="CHOICE_RESPONSE" baseType="identifier" cardinality="single">
+      <candidateResponse>
+        <value>CHOICE_A</value>
+      </candidateResponse>
+    </responseVariable>
+    <responseVariable identifier="CLOZE_RESPONSE" baseType="string" cardinality="single">
+      <candidateResponse>
+        <value>A</value>
+      </candidateResponse>
+    </responseVariable>
+    <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+      <value>2</value>
+    </outcomeVariable>
+    <outcomeVariable identifier="RUBRIC_1_MET" baseType="boolean" cardinality="single">
+      <value>true</value>
+    </outcomeVariable>
+  </itemResult>
+</assessmentResult>

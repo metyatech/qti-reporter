@@ -12,11 +12,11 @@
   </qti-response-declaration>
   <qti-response-declaration identifier="THIRD" base-type="string" cardinality="single" />
   <qti-item-body>
-    <qti-p>First = <qti-text-entry-interaction response-identifier="FIRST" /></qti-p>
-    <qti-p>Second = <qti-text-entry-interaction response-identifier="SECOND" /></qti-p>
-    <qti-p>Third = <qti-text-entry-interaction response-identifier="THIRD" /></qti-p>
+    <p>First = <qti-text-entry-interaction response-identifier="FIRST" /></p>
+    <p>Second = <qti-text-entry-interaction response-identifier="SECOND" /></p>
+    <p>Third = <qti-text-entry-interaction response-identifier="THIRD" /></p>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Three blanks</qti-p>
+      <p>[1] Three blanks</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

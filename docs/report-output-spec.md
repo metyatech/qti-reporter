@@ -31,6 +31,11 @@ The reporter can draw from the following inputs:
   identifier, declaration value index, cardinality, base type,
   correct response values, and the interaction's own choice list)
   drives every binding decision.
+- Presentation markup uses canonical ordinary HTML elements (`p`, `div`,
+  `span`, headings, emphasis, links, lists, tables, `pre`, `code`, `img`,
+  `br`, `hr`, and other HTML flow content). QTI semantic elements remain
+  qti-prefixed. Authored attributes, child order, and rich HTML nested in
+  choices or code blocks are preserved in the HTML report.
 - Question ordering from `qti-assessment-test` (required input).
 
 ## HTML report format (per respondent)
@@ -595,7 +600,7 @@ Columns are ordered as follows.
 
 ### Rubric encoding details
 
-- Criterion order is the order of `qti-p` elements inside
+- Criterion order is the order of `p` elements inside
   `qti-rubric-block view="scorer"`.
 - Each criterion index is 1-based.
 - `rubric_outcomes` uses `true` and `false` literals.

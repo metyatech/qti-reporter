@@ -6,14 +6,14 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>Pick the right shape.</qti-p>
+    <p>Pick the right shape.</p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Triangle</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Square</qti-simple-choice>
     </qti-choice-interaction>
-    <qti-p><qti-img src="images/sample.svg" alt="sample" /></qti-p>
+    <p><img src="images/sample.svg" alt="sample" /></p>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Triangle is correct</qti-p>
+      <p>[1] Triangle is correct</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

@@ -296,7 +296,12 @@ test('renders item blocks in assessment-test order with rubric mapping', () => {
     !item8Html.includes('&lt;input class=cloze-input'),
     'multi-code cloze inputs must be restored'
   );
-  assert.ok(item8Html.includes('data-code-lang="css"'), 'cloze CSS blocks should resolve language');
+  assert.ok(
+    item8Html.includes('.modal {') &&
+      item8Html.includes('data-interaction-id="RESPONSE_1"') &&
+      item8Html.includes('data-interaction-id="RESPONSE_2"'),
+    'canonical multi-blank code must preserve both blank positions inside code'
+  );
 
   assert.ok(html.includes('Select the correct sum'));
   assert.ok(html.includes('Avoid common mistake'));
@@ -797,6 +802,100 @@ test('answer-explanation inner details is collapsed by default and carries the e
   assert.ok(
     src.startsWith('./assets/new-choice/sample.svg'),
     `image src must be rewritten to ./assets/new-choice/sample.svg, got ${src}`
+  );
+});
+
+test('canonical presentation HTML survives report rendering through qti-html-renderer 0.2.0', () => {
+  const outputRootDir = createCleanOutputDir('html-canonical-presentation');
+  const report = generateHtmlReportFromFiles({
+    assessmentTestPath: resolveFixturePath('canonical-presentation-test.qti.xml'),
+    assessmentResultPath: resolveFixturePath('canonical-presentation-result.xml'),
+    outputRootDir,
+  });
+  const doc = parseReport(report.html);
+  const block = doc.querySelector(
+    'details.item-block[data-item-identifier="canonical-presentation"]'
+  );
+  assert.ok(block, 'canonical-presentation item block must exist');
+
+  const retry = block?.querySelector('.retry-question-block');
+  assert.ok(retry, 'retry question body must exist');
+
+  const authoredSpan = retry?.querySelector('p span.answer');
+  assert.ok(authoredSpan, 'authored answer span must be preserved');
+  assert.equal(
+    authoredSpan?.getAttribute('style'),
+    'display:inline-block;min-width:4em;border:1px solid #000;text-align:center;background:transparent;',
+    'authored span style must be preserved'
+  );
+  assert.equal(authoredSpan?.getAttribute('class'), 'answer');
+  assert.equal(authoredSpan?.getAttribute('data-slot'), 'a');
+  assert.equal(authoredSpan?.getAttribute('aria-label'), 'answer');
+
+  const codeBlocks = Array.from(retry?.querySelectorAll('pre code') ?? []);
+  const codeWithSpan = codeBlocks.find((code) => code.querySelector('span[style]'));
+  assert.ok(codeWithSpan, 'nested authored span code block must exist');
+  const nestedSpan = codeWithSpan?.querySelector('span[style]');
+  assert.equal(nestedSpan?.parentElement, codeWithSpan, 'nested span must remain inside code');
+  assert.equal(codeWithSpan?.textContent, 'foo A bar');
+  assert.equal(
+    codeWithSpan?.querySelectorAll('span[class^="hljs-"]').length,
+    0,
+    'nested HTML code must not be replaced by syntax-highlighter markup'
+  );
+
+  const codeWithCloze = codeBlocks.find((code) =>
+    code.querySelector('input[data-interaction-id="CLOZE_RESPONSE"]')
+  );
+  assert.ok(codeWithCloze, 'canonical cloze code block must exist');
+  const clozeChildren = Array.from(codeWithCloze?.childNodes ?? []);
+  assert.equal(clozeChildren.length, 3, 'cloze code must keep text-input-text order');
+  assert.equal(clozeChildren[0]?.textContent, 'foo ');
+  assert.equal(
+    (clozeChildren[1] as Element | undefined)?.getAttribute('data-interaction-id'),
+    'CLOZE_RESPONSE'
+  );
+  assert.equal(clozeChildren[2]?.textContent, ' bar');
+
+  const image = retry?.querySelector('img');
+  assert.ok(image, 'bare img must be preserved');
+  assert.equal(image?.getAttribute('src'), './assets/canonical-presentation/sample.svg');
+  assert.ok(retry?.querySelector('br'), 'bare br must be preserved');
+  assert.ok(retry?.querySelector('hr'), 'bare hr must be preserved');
+  assert.equal(
+    fs.existsSync(
+      path.join(report.outputDirPath, 'assets', 'canonical-presentation', 'sample.svg')
+    ),
+    true,
+    'canonical image asset must be copied'
+  );
+
+  const rubric = block?.querySelector('table.rubric-table');
+  assert.ok(rubric, 'scorer rubric table must exist');
+  assert.equal(rubric?.querySelector('.criterion-text')?.textContent, 'criterion');
+  assert.equal(rubric?.querySelector('.criterion-points')?.textContent, '2');
+
+  const choices = retry?.querySelector('.choice-retry');
+  assert.ok(choices, 'choice interaction retry body must exist');
+  assert.ok(choices?.querySelector('strong'), 'rich choice strong markup must be preserved');
+  assert.ok(choices?.querySelector('em'), 'rich choice em markup must be preserved');
+  assert.ok(choices?.querySelector('a[href="#choice"]'), 'rich choice link must be preserved');
+
+  const correct = block?.querySelector('details.correct-answer-block');
+  assert.ok(correct, 'correct-answer block must exist');
+  assert.ok(correct?.querySelector('strong'), 'correct rich choice HTML must be preserved');
+
+  const explanation = block?.querySelector('details.answer-explanation-block');
+  assert.ok(explanation, 'candidate explanation block must exist');
+  assert.ok(explanation?.querySelector('strong'), 'explanation strong markup must be preserved');
+  assert.ok(
+    explanation?.querySelector('span.explanation-mark'),
+    'explanation span markup must be preserved'
+  );
+  assert.equal(explanation?.querySelectorAll('ul li').length, 2);
+  assert.ok(
+    explanation?.querySelector('code.code-inline'),
+    'explanation code markup must be preserved'
   );
 });
 

@@ -3,12 +3,12 @@
   <qti-response-declaration identifier="RESPONSE_A" base-type="string" cardinality="single" />
   <qti-response-declaration identifier="RESPONSE_B" base-type="string" cardinality="single" />
   <qti-item-body>
-    <qti-p>First.</qti-p>
+    <p>First.</p>
     <qti-text-entry-interaction response-identifier="RESPONSE_A" />
-    <qti-p>Second.</qti-p>
+    <p>Second.</p>
     <qti-text-entry-interaction response-identifier="RESPONSE_B" />
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Two blanks</qti-p>
+      <p>[1] Two blanks</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

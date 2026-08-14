@@ -7,11 +7,11 @@
   </qti-response-declaration>
   <qti-response-declaration identifier="DECLARED_SECOND" base-type="string" cardinality="single" />
   <qti-item-body>
-    <qti-p>The body refers to interactions in reverse declaration order.</qti-p>
+    <p>The body refers to interactions in reverse declaration order.</p>
     <qti-text-entry-interaction response-identifier="DECLARED_SECOND" />
     <qti-text-entry-interaction response-identifier="DECLARED_FIRST" />
     <qti-rubric-block view="scorer">
-      <qti-p>[1] First decl is correct</qti-p>
+      <p>[1] First decl is correct</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

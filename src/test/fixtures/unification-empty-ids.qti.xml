@@ -6,18 +6,18 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>First question — empty `response-identifier`.</qti-p>
+    <p>First question — empty `response-identifier`.</p>
     <qti-choice-interaction max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Yes</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">No</qti-simple-choice>
     </qti-choice-interaction>
-    <qti-p>Second question — empty `response-identifier`.</qti-p>
+    <p>Second question — empty `response-identifier`.</p>
     <qti-choice-interaction>
       <qti-simple-choice identifier="CHOICE_A">Yes</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">No</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] First interaction correct is Yes</qti-p>
+      <p>[1] First interaction correct is Yes</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

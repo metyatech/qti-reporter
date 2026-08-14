@@ -523,7 +523,7 @@ test('multiple choice interaction shows all correct values in the correct-answer
 });
 
 test('local image in correct-answer block is copied to assets/ and the src is rewritten', () => {
-  // image-correct has a qti-img in the question body. The local image must
+  // image-correct has a img in the question body. The local image must
   // be copied to assets/<itemIdentifier>/<fileName> and the src in the
   // rendered HTML must be the output-relative path.
   const outputRootDir = createCleanOutputDir('unification-image-correct');
@@ -547,7 +547,7 @@ test('local image in correct-answer block is copied to assets/ and the src is re
 });
 
 test('local image INSIDE a simple choice is copied to assets/ and resolves in the correct-answer block', () => {
-  // image-correct-choice-internal places a qti-img inside a
+  // image-correct-choice-internal places a img inside a
   // qti-simple-choice (CHOICE_A) which is the correct answer. The image
   // must be copied to assets/<itemIdentifier>/<fileName> and the rendered
   // correct-answer block must reference ./assets/<itemIdentifier>/sample.svg
@@ -630,7 +630,7 @@ test('local image INSIDE a simple choice is copied to assets/ and resolves in th
 });
 
 test('local image in explanation is copied and the explanation body preserves the renderer hljs markup', () => {
-  // image-explanation carries a qti-img inside qti-modal-feedback plus a
+  // image-explanation carries a img inside qti-modal-feedback plus a
   // highlighted code block. The reporter must NOT rehighlight the body; the
   // existing hljs-keyword etc. tokens must survive untouched.
   const outputRootDir = createCleanOutputDir('unification-image-explanation');

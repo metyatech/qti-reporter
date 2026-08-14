@@ -7,11 +7,11 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>Fill in the blanks.</qti-p>
+    <p>Fill in the blanks.</p>
     <qti-text-entry-interaction response-identifier="RESPONSE_1" />
     <qti-text-entry-interaction response-identifier="RESPONSE_2" />
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Two blanks</qti-p>
+      <p>[1] Two blanks</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

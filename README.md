@@ -23,7 +23,7 @@ not parse Markdown time-limit notation and does not use time limits for scoring.
 
 ## Renderer integration
 
-qti-reporter uses `qti-html-renderer@^0.1.3` as the single source of truth
+qti-reporter uses `qti-html-renderer@^0.2.0` as the single source of truth
 for item XML parsing. The reporter calls
 `renderQtiItemForReport(xml, expectedIdentifier, options)` once per item
 and reads `interactions[].correctResponse`, `interactions[].id`,
@@ -45,6 +45,21 @@ shape is `{ responseIdentifier, values: string[] }` and never carries
 `declarationValueIndex`. The shared `src/report/interactionResponses.ts`
 module centralises the binding rules (legacy ordered index and direct
 match) and is called by both the HTML and CSV reports.
+
+### Canonical presentation HTML
+
+Assessment item presentation content uses ordinary HTML elements: `p`, `div`,
+`span`, `h1`–`h6`, `em`, `strong`, `del`, `a`, `blockquote`, lists, tables,
+`pre`, `code`, `img`, `br`, `hr`, and other HTML flow content. QTI semantics
+remain qti-prefixed, including `qti-assessment-item`, `qti-item-body`,
+`qti-rubric-block`, interactions, `qti-modal-feedback`, and
+`qti-content-body`.
+
+Code blocks use canonical `<pre><code>...</code></pre>` markup. Authored HTML
+attributes and child order are preserved, including inline answer markup and
+HTML nested inside code blocks. qti-reporter delegates QTI-to-HTML rendering,
+interaction binding, and code-block handling to `qti-html-renderer`; it does
+not maintain a separate presentation renderer or compatibility format.
 
 ### Interaction `id` is a display attribute, not a unique key
 

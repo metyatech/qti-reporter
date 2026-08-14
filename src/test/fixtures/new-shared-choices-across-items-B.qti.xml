@@ -6,13 +6,13 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>Item B: which one?</qti-p>
+    <p>Item B: which one?</p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Item B first</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Item B second</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Item B correct</qti-p>
+      <p>[1] Item B correct</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

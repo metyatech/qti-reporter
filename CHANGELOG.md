@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Canonical QTI 3 presentation HTML.** qti-reporter now consumes
+  `qti-html-renderer@^0.2.0` and uses ordinary HTML presentation elements such
+  as `p`, `span`, `pre`, `code`, `img`, `br`, and `hr`. QTI semantic elements
+  remain qti-prefixed; retired qti-prefixed presentation aliases are no longer
+  supported.
+
 - **Empty candidate values are labeled "no answer" and dropped from CSV `response_values` / `response_labels`.** A choice interaction whose candidate response is missing or self-closing now renders that row as `（無回答）` (no answer) instead of an unmatched entry, and the CSV report omits empty values from both `response_values` and `response_labels`. Whitespace-only values are still preserved verbatim (no `trim()`).
 
 - **Interaction `id` is a binding-protocol field, not the canonical sibling key.** The interaction `id` (the `response-identifier` on the interaction element) remains the per-interaction display label and participates in the `responseVariable` lookup protocol (legacy ordered and direct-match bindings in `resolveSubmittedValues`), but it is NOT the canonical key for distinguishing sibling interactions. The canonical key is the 0-based `interactionIndex` (the position of the interaction in `item.interactions`); two siblings in the same item may share an `id` (duplicate or empty `response-identifier`) and are still resolved independently.
@@ -156,7 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `src/test/interactionResponses.test.ts`, and
   `src/test/assessmentResult.test.ts` covering the per-interaction
   binding rules (legacy and direct), the no-rehighlight contract, the
-  asset-copying for the correct-answer (with a `<qti-img>` inside a
+  asset-copying for the correct-answer (with a `<img>` inside a
   choice) and explanation bodies, the per-interaction radio/checkbox
   grouping, the cross-item name uniqueness, the legacy ordered CSV
   row layout, the duplicate-id, empty-id, and empty-candidate-response

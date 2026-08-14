@@ -6,18 +6,18 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>First question.</qti-p>
+    <p>First question.</p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Alpha</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Beta</qti-simple-choice>
     </qti-choice-interaction>
-    <qti-p>Second question sharing CHOICE_A as the identifier.</qti-p>
+    <p>Second question sharing CHOICE_A as the identifier.</p>
     <qti-choice-interaction response-identifier="COLLISION" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Gamma</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Delta</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] First picks Alpha</qti-p>
+      <p>[1] First picks Alpha</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

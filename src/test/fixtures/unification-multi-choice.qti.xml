@@ -7,14 +7,14 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>Select all that apply.</qti-p>
+    <p>Select all that apply.</p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="3">
       <qti-simple-choice identifier="CHOICE_A">First</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Second</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_C">Third</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] First and Third are correct</qti-p>
+      <p>[1] First and Third are correct</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

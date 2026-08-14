@@ -12,22 +12,22 @@
   </qti-response-declaration>
   <qti-outcome-declaration identifier="FEEDBACK" cardinality="single" base-type="identifier" />
   <qti-item-body>
-    <qti-p>Two independent choice interactions share the same internal identifiers.</qti-p>
-    <qti-p>Question 1: <qti-choice-interaction response-identifier="RESPONSE_A" max-choices="1">
+    <p>Two independent choice interactions share the same internal identifiers.</p>
+    <p>Question 1: <qti-choice-interaction response-identifier="RESPONSE_A" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">First question's first choice</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">First question's second choice</qti-simple-choice>
-    </qti-choice-interaction></qti-p>
-    <qti-p>Question 2: <qti-choice-interaction response-identifier="RESPONSE_B" max-choices="1">
+    </qti-choice-interaction></p>
+    <p>Question 2: <qti-choice-interaction response-identifier="RESPONSE_B" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Second question's first choice</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">Second question's second choice</qti-simple-choice>
-    </qti-choice-interaction></qti-p>
+    </qti-choice-interaction></p>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Picks CHOICE_A for the first question and CHOICE_B for the second</qti-p>
+      <p>[1] Picks CHOICE_A for the first question and CHOICE_B for the second</p>
     </qti-rubric-block>
   </qti-item-body>
   <qti-modal-feedback identifier="EXPLANATION" outcome-identifier="FEEDBACK" show-hide="show">
     <qti-content-body>
-      <qti-p>Reasoning: each interaction's choice list is independent even when the identifiers are reused.</qti-p>
+      <p>Reasoning: each interaction's choice list is independent even when the identifiers are reused.</p>
     </qti-content-body>
   </qti-modal-feedback>
 </qti-assessment-item>

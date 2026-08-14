@@ -11,19 +11,19 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>First.</qti-p>
+    <p>First.</p>
     <qti-choice-interaction response-identifier="RESPONSE_A" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Yes</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">No</qti-simple-choice>
     </qti-choice-interaction>
-    <qti-p>Second.</qti-p>
+    <p>Second.</p>
     <qti-choice-interaction response-identifier="RESPONSE_B" max-choices="1">
       <qti-simple-choice identifier="CHOICE_A">Yes</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_B">No</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] First</qti-p>
-      <qti-p>[1] Second</qti-p>
+      <p>[1] First</p>
+      <p>[1] Second</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

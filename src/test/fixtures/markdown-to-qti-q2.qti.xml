@@ -6,9 +6,9 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>Fill <qti-text-entry-interaction response-identifier="RESPONSE" /> here.</qti-p>
+    <p>Fill <qti-text-entry-interaction response-identifier="RESPONSE" /> here.</p>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Correct text entered.</qti-p>
+      <p>[1] Correct text entered.</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

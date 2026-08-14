@@ -63,6 +63,18 @@ Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 - `qti-item-body` containing the prompt and interaction(s) as QTI flow content.
 - `qti-response-declaration` aligned to the interaction(s) used.
 
+### Presentation content
+
+Presentation content inside `qti-item-body`, `qti-simple-choice`, and
+`qti-content-body` uses canonical ordinary HTML elements such as `p`, `div`,
+`span`, `h1`–`h6`, `em`, `strong`, `del`, `a`, `blockquote`, lists, tables,
+`pre`, `code`, `img`, `br`, and `hr`. QTI semantics remain qti-prefixed,
+including interactions and `qti-rubric-block`.
+
+Code blocks use `<pre><code>...</code></pre>`. Authored HTML attributes and
+child order are part of the presentation input and are preserved in the
+report. Retired qti-prefixed presentation aliases are not accepted.
+
 ### Question types
 
 | Type                      | `qti-response-declaration`                       | Interaction                                                               | Correct response                             |
@@ -73,28 +85,25 @@ Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 
 ### Cloze inside code blocks
 
-`qti-text-entry-interaction` may appear inside code-oriented flow content.
-In particular, the following structure is treated as valid input:
+`qti-text-entry-interaction` may appear inside a canonical code block. In
+particular, the following structure is treated as valid input:
 
-- `qti-pre` containing multiple `qti-code` fragments
-- `qti-text-entry-interaction` inserted between those fragments
+- `pre` containing one `code` element
+- `qti-text-entry-interaction` nested at the blank position
 
 Example pattern:
 
 ```xml
-<qti-pre>
-  <qti-code>opacity: </qti-code>
-  <qti-text-entry-interaction response-identifier="RESPONSE_1"/>
-  <qti-code>;</qti-code>
-</qti-pre>
+<pre>
+  <code>opacity: <qti-text-entry-interaction response-identifier="RESPONSE_1"/>;</code>
+</pre>
 ```
 
 Renderer expectations:
 
-- The full `qti-pre` block is normalized into a single `<pre><code>...</code></pre>`
-  before syntax highlighting.
-- Any `qti-text-entry-interaction` within the block is rendered as a cloze
-  textbox and must not break the surrounding `<code>` structure.
+- The canonical `<pre><code>...</code></pre>` structure is preserved.
+- The nested `qti-text-entry-interaction` is rendered as a cloze textbox at
+  its authored position inside `<code>` and is not replaced by highlighting.
 
 ### Explanation output
 
@@ -148,7 +157,7 @@ submitted value is rendered only inside the 受験者の回答 section.
 
 ### Scoring rubric blocks
 
-- `## Scoring` maps to `qti-rubric-block view="scorer"` with one `qti-p` per criterion.
+- `## Scoring` maps to `qti-rubric-block view="scorer"` with one `p` per criterion.
 
 Scoring rubric line format:
 

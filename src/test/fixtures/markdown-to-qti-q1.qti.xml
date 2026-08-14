@@ -6,13 +6,13 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>Choose the correct answer.</qti-p>
+    <p>Choose the correct answer.</p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-simple-choice identifier="CHOICE_1">Correct</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_2">Incorrect</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Correct choice selected.</qti-p>
+      <p>[1] Correct choice selected.</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>

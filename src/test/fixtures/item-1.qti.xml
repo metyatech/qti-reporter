@@ -6,14 +6,14 @@
     </qti-correct-response>
   </qti-response-declaration>
   <qti-item-body>
-    <qti-p>What is 1 + 1?</qti-p>
+    <p>What is 1 + 1?</p>
     <qti-choice-interaction response-identifier="RESPONSE" max-choices="1">
       <qti-simple-choice identifier="CHOICE_1">1</qti-simple-choice>
       <qti-simple-choice identifier="CHOICE_2">2</qti-simple-choice>
     </qti-choice-interaction>
     <qti-rubric-block view="scorer">
-      <qti-p>[1] Select the correct sum</qti-p>
-      <qti-p>[1] Avoid common mistake</qti-p>
+      <p>[1] Select the correct sum</p>
+      <p>[1] Avoid common mistake</p>
     </qti-rubric-block>
   </qti-item-body>
 </qti-assessment-item>
