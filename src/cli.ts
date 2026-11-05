@@ -300,10 +300,34 @@ function resolveCliPath(inputPath: string): string {
   return fs.existsSync(resolvedUnescapedPath) ? resolvedUnescapedPath : resolvedPath;
 }
 
-const isDirectRun = process.argv[1]
-  ? path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
-  : false;
+function isDirectRun(entryPath: string | undefined): boolean {
+  if (!entryPath) {
+    return false;
+  }
 
-if (isDirectRun) {
+  const resolvedEntryPath = path.resolve(entryPath);
+  try {
+    if (!fs.statSync(resolvedEntryPath).isFile()) {
+      return false;
+    }
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+    ) {
+      return false;
+    }
+    throw error;
+  }
+
+  return (
+    fs.realpathSync.native(resolvedEntryPath) ===
+    fs.realpathSync.native(fileURLToPath(import.meta.url))
+  );
+}
+
+if (isDirectRun(process.argv[1])) {
   process.exitCode = runCli(process.argv.slice(2));
 }

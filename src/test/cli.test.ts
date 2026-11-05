@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { runCli } from '../cli.js';
 
@@ -28,6 +30,153 @@ function createCleanOutputDir(dirName: string): string {
   fs.mkdirSync(outputDir, { recursive: true });
   return outputDir;
 }
+
+function findHtmlFiles(directory: string): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    return entry.isDirectory()
+      ? findHtmlFiles(entryPath)
+      : entry.isFile() && entry.name.endsWith('.html')
+        ? [entryPath]
+        : [];
+  });
+}
+
+function findFilesNamed(directory: string, fileName: string): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    return entry.isDirectory()
+      ? findFilesNamed(entryPath, fileName)
+      : entry.isFile() && entry.name === fileName
+        ? [entryPath]
+        : [];
+  });
+}
+
+function createTempRoot(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'qti-reporter-cli-'));
+}
+
+function removeOwnedSymlink(aliasPath: string, repoRoot: string): void {
+  if (!fs.existsSync(aliasPath)) {
+    return;
+  }
+  assert.equal(fs.lstatSync(aliasPath).isSymbolicLink(), true);
+  assert.equal(fs.realpathSync.native(aliasPath), fs.realpathSync.native(repoRoot));
+  fs.unlinkSync(aliasPath);
+}
+
+function removeOwnedTempRoot(tempRoot: string): void {
+  const resolvedRoot = path.resolve(tempRoot);
+  const resolvedTempDir = path.resolve(os.tmpdir());
+  assert.equal(path.dirname(resolvedRoot), resolvedTempDir);
+  fs.rmSync(resolvedRoot, { recursive: true, force: true });
+  assert.equal(fs.existsSync(resolvedRoot), false);
+}
+
+test('runs the built CLI through a directory symlink and its physical path', () => {
+  const repoRoot = getRepoRootFromDist();
+  const physicalCliPath = path.join(repoRoot, 'dist', 'cli.js');
+  const tempRoot = createTempRoot();
+  const aliasRoot = path.join(tempRoot, 'repo-link');
+
+  try {
+    fs.symlinkSync(repoRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
+    const aliasedCliPath = path.join(aliasRoot, 'dist', 'cli.js');
+    assert.equal(
+      fs.realpathSync.native(aliasedCliPath),
+      fs.realpathSync.native(physicalCliPath),
+      'the alias and physical CLI paths must resolve to the same file'
+    );
+
+    for (const [name, cliPath] of [
+      ['physical', physicalCliPath],
+      ['alias', aliasedCliPath],
+    ] as const) {
+      const outputDir = path.join(tempRoot, `${name}-output`);
+      const result = spawnSync(
+        process.execPath,
+        [
+          cliPath,
+          '--assessment-test',
+          resolveFixturePath('assessment-test.qti.xml'),
+          '--assessment-result',
+          resolveFixturePath('assessment-result.xml'),
+          '--out-dir',
+          outputDir,
+        ],
+        { encoding: 'utf8' }
+      );
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.error, undefined);
+
+      const csvPath = path.join(outputDir, 'report.csv');
+      assert.equal(fs.existsSync(csvPath), true, `${name} path must generate report.csv`);
+      const csv = fs.readFileSync(csvPath, 'utf8').replace(/^\uFEFF/, '');
+      assert.match(csv.split(/\r?\n/, 1)[0], /candidate_number/);
+      assert.match(csv, /0007/);
+      assert.ok(
+        findHtmlFiles(outputDir).some((htmlPath) => path.basename(htmlPath).includes('0007')),
+        `${name} path must generate HTML for candidate 0007`
+      );
+      assert.match(result.stdout, /Generated HTML:/);
+      assert.match(result.stdout, /Generated CSV:/);
+    }
+  } finally {
+    removeOwnedSymlink(aliasRoot, repoRoot);
+    removeOwnedTempRoot(tempRoot);
+  }
+});
+
+test('does not run the CLI when its module is imported, including a missing argv entry', () => {
+  const repoRoot = getRepoRootFromDist();
+  const cliPath = path.join(repoRoot, 'dist', 'cli.js');
+  const tempRoot = createTempRoot();
+  const importScript = path.join(tempRoot, 'import-cli.mjs');
+  const importPath = pathToFileURL(cliPath).href;
+  const missingArgvPath = path.join(tempRoot, 'does-not-exist.mjs');
+
+  try {
+    fs.writeFileSync(
+      importScript,
+      `process.argv[1] = ${JSON.stringify(missingArgvPath)};\n` +
+        `const cli = await import(${JSON.stringify(importPath)});\n` +
+        `console.log(typeof cli.runCli);\n`,
+      'utf8'
+    );
+    const result = spawnSync(process.execPath, [importScript], { encoding: 'utf8' });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), 'function');
+    assert.doesNotMatch(result.stdout, /Generated (?:HTML|CSV):/);
+    assert.equal(fs.existsSync(path.join(tempRoot, 'report.csv')), false);
+  } finally {
+    removeOwnedTempRoot(tempRoot);
+  }
+});
+
+test('reports invalid arguments when the built CLI is invoked through a directory symlink', () => {
+  const repoRoot = getRepoRootFromDist();
+  const tempRoot = createTempRoot();
+  const aliasRoot = path.join(tempRoot, 'repo-link');
+
+  try {
+    fs.symlinkSync(repoRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
+    const result = spawnSync(
+      process.execPath,
+      [path.join(aliasRoot, 'dist', 'cli.js'), '--assessment-test'],
+      { encoding: 'utf8' }
+    );
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Missing value for --assessment-test/);
+    assert.deepEqual(findFilesNamed(tempRoot, 'report.csv'), []);
+  } finally {
+    removeOwnedSymlink(aliasRoot, repoRoot);
+    removeOwnedTempRoot(tempRoot);
+  }
+});
 
 test('reports missing assessment-test path with a clear error message', () => {
   const missingPath = ensureMissingPath('missing-assessment-test.xml');
