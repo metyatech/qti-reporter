@@ -20,6 +20,7 @@ import { DEFAULT_STYLE_ELEMENT, EXTERNAL_STYLE_FILE_NAME } from './styles.js';
 import { escapeHtml } from './htmlEscape.js';
 import { resolveSubmittedValues } from './interactionResponses.js';
 import { dropEmptyResponseValues } from './responseValues.js';
+import { resolveReportTotals } from './resolveReportTotals.js';
 
 export interface HtmlReportInputPaths {
   assessmentTestPath: string;
@@ -678,9 +679,14 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
   const rowsHtml = rubricRows
     .map((row) => {
       const statusText = row.status ? 'true' : 'false';
+      const examplesHtml = row.criterion.examples?.length
+        ? `<div class="criterion-examples"><span>具体例（これらに限らない）</span><ul>${row.criterion.examples
+            .map((example) => `<li>${escapeHtml(example)}</li>`)
+            .join('')}</ul></div>`
+        : '';
       return `
         <tr data-criterion-index="${row.criterion.index}" data-criterion-status="${statusText}">
-          <td class="criterion-text">${escapeHtml(row.criterion.text)}</td>
+          <td class="criterion-text">${escapeHtml(row.criterion.text)}${examplesHtml}</td>
           <td class="criterion-points">${row.criterion.points}</td>
           <td class="criterion-status">${statusText}</td>
         </tr>`;
@@ -797,8 +803,9 @@ function renderHtmlDocument(
   testTitle: string,
   timeLimit: AssessmentTimeLimit | null,
   items: ItemReportModel[],
-  totalScore: number,
+  totalScore: number | string,
   totalMaxScore: number,
+  scoreCap: number | undefined,
   styleElement: string
 ): string {
   const itemsHtml = items.map((item) => renderItemBlock(item)).join('\n');
@@ -811,6 +818,12 @@ function renderHtmlDocument(
           <span class="summary-chip ok"><span class="ico" aria-hidden="true">&#10004;</span>満点 <span class="summary-count">${fullCount}</span> 問</span>
           <span class="summary-chip total">全 <span class="summary-count">${items.length}</span> 問</span>
         </div>`;
+  const scoreCapNote =
+    scoreCap === undefined
+      ? ''
+      : `<p class="score-cap-note">合計得点が${scoreCap}点を超えた場合は、評点を${scoreCap}点とします。</p>`;
+  const headerAfterMetaHtml =
+    scoreCapNote.length === 0 ? summaryBarHtml : `${scoreCapNote}\n        ${summaryBarHtml}`;
   return `<!DOCTYPE html>
 <html lang="ja">
   <head>
@@ -843,7 +856,7 @@ function renderHtmlDocument(
           </div>
           ${timeLimitMetaRow}
         </div>
-        ${summaryBarHtml}
+        ${headerAfterMetaHtml}
       </header>
       <main class="items-section">
         ${itemsHtml}
@@ -885,16 +898,6 @@ function buildItemReportModel(
   };
 }
 
-function computeTotalScore(
-  assessmentResult: ParsedAssessmentResult,
-  items: ItemReportModel[]
-): number {
-  if (assessmentResult.testScore !== null) {
-    return assessmentResult.testScore;
-  }
-  return items.reduce((sum, item) => sum + item.itemScore, 0);
-}
-
 function resolveStyle(styleCssPath: string | undefined, outputDirPath: string): ResolvedStyle {
   if (!styleCssPath) {
     return {
@@ -926,7 +929,9 @@ function resolveStyle(styleCssPath: string | undefined, outputDirPath: string): 
 
 export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): GeneratedHtmlReport {
   const assessmentTest = parseAssessmentTest(paths.assessmentTestPath);
-  const assessmentResult = parseAssessmentResult(paths.assessmentResultPath);
+  const assessmentResult = parseAssessmentResult(paths.assessmentResultPath, {
+    preserveExactScores: assessmentTest.scoreCap !== undefined,
+  });
 
   const assessmentItemIdentifiers = new Set(
     assessmentTest.itemRefs.map((itemRef) => itemRef.identifier)
@@ -976,11 +981,11 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
     );
   });
 
-  const totalScore = computeTotalScore(assessmentResult, items);
-  const totalMaxScore = items.reduce((sum, item) => sum + item.itemMaxScore, 0);
-  if (totalMaxScore <= 0) {
-    throw new Error('Invalid maximum score: total maximum score must be greater than zero');
-  }
+  const { totalScore, totalMaxScore } = resolveReportTotals(
+    assessmentResult,
+    items,
+    assessmentTest.scoreCap
+  );
 
   const resolvedStyle = resolveStyle(paths.styleCssPath, outputDirPath);
   const html = renderHtmlDocument(
@@ -990,6 +995,7 @@ export function generateHtmlReportFromFiles(paths: HtmlReportInputPaths): Genera
     items,
     totalScore,
     totalMaxScore,
+    assessmentTest.scoreCap,
     resolvedStyle.styleElement
   );
 

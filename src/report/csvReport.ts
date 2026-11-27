@@ -11,6 +11,7 @@ import {
 import { parseAssessmentTest } from '../qti/assessmentTest.js';
 import { resolveSubmittedValues, responseDedupeKey } from './interactionResponses.js';
 import { dropEmptyResponseValues } from './responseValues.js';
+import { resolveReportTotals } from './resolveReportTotals.js';
 
 export interface CsvReportInputPaths {
   assessmentTestPath: string;
@@ -194,20 +195,10 @@ function computeItemScore(item: ParsedAssessmentItem, itemResult: ParsedItemResu
   throw new Error(`Missing item score for ${item.identifier}`);
 }
 
-function computeTotalScore(
-  assessmentResult: ParsedAssessmentResult,
-  items: CsvItemModel[]
-): number {
-  if (assessmentResult.testScore !== null) {
-    return assessmentResult.testScore;
-  }
-  return items.reduce((sum, item) => sum + item.itemScore, 0);
-}
-
 function buildCsvRow(
   assessmentResult: ParsedAssessmentResult,
   testTitle: string,
-  totalScore: number,
+  totalScore: number | string,
   totalMaxScore: number,
   model: CsvItemModel
 ): string {
@@ -275,7 +266,9 @@ function writeCsv(csvPath: string, rows: string[]): void {
 
 export function generateCsvReportFromFiles(paths: CsvReportInputPaths): GeneratedCsvReport {
   const assessmentTest = parseAssessmentTest(paths.assessmentTestPath);
-  const assessmentResult = parseAssessmentResult(paths.assessmentResultPath);
+  const assessmentResult = parseAssessmentResult(paths.assessmentResultPath, {
+    preserveExactScores: assessmentTest.scoreCap !== undefined,
+  });
 
   const assessmentItemIdentifiers = new Set(
     assessmentTest.itemRefs.map((itemRef) => itemRef.identifier)
@@ -300,11 +293,11 @@ export function generateCsvReportFromFiles(paths: CsvReportInputPaths): Generate
     };
   });
 
-  const totalMaxScore = items.reduce((sum, item) => sum + item.item.itemMaxScore, 0);
-  if (totalMaxScore <= 0) {
-    throw new Error('Invalid maximum score: total maximum score must be greater than zero');
-  }
-  const totalScore = computeTotalScore(assessmentResult, items);
+  const { totalScore, totalMaxScore } = resolveReportTotals(
+    assessmentResult,
+    items,
+    assessmentTest.scoreCap
+  );
 
   const csvPath = path.join(paths.outputRootDir, CSV_FILE_NAME);
   fs.mkdirSync(paths.outputRootDir, { recursive: true });

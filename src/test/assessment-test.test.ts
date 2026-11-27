@@ -50,6 +50,7 @@ test('parses new package assessment-test with testPart time limit', () => {
   );
 
   assert.equal(assessmentTest.title, 'New Package Compatibility');
+  assert.equal(Object.hasOwn(assessmentTest, 'scoreCap'), false);
   assert.deepEqual(
     assessmentTest.itemRefs.map((itemRef) => itemRef.identifier),
     ['new-choice', 'new-cloze', 'new-descriptive']

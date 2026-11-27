@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { parseAssessmentScoreCap } from 'qti-xml-core';
 
 import { extractOpenTag, parseAttributes } from './xml.js';
 
@@ -19,6 +20,7 @@ export interface ParsedAssessmentTest {
   title: string;
   timeLimit: AssessmentTimeLimit | null;
   itemRefs: AssessmentItemRef[];
+  scoreCap?: number;
 }
 
 function parseTimeLimit(xml: string): AssessmentTimeLimit | null {
@@ -42,6 +44,7 @@ function parseTimeLimit(xml: string): AssessmentTimeLimit | null {
 export function parseAssessmentTest(assessmentTestPath: string): ParsedAssessmentTest {
   const xml = fs.readFileSync(assessmentTestPath, 'utf8');
   const baseDir = path.dirname(assessmentTestPath);
+  const scoreCap = parseAssessmentScoreCap(xml);
 
   const assessmentTestTagMatch = xml.match(/<qti-assessment-test\b[^>]*>/);
   if (!assessmentTestTagMatch) {
@@ -84,5 +87,6 @@ export function parseAssessmentTest(assessmentTestPath: string): ParsedAssessmen
     title,
     timeLimit: parseTimeLimit(xml),
     itemRefs,
+    ...(scoreCap === undefined ? {} : { scoreCap }),
   };
 }

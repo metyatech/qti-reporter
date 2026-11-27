@@ -53,6 +53,25 @@ Time limits:
 - Item `time-dependent` attributes describe scoring-time behavior and are not
   used as report time limits.
 
+Score cap:
+
+- `SCORE_CAP` is optional. When present, it must be one direct
+  `qti-outcome-declaration` child of `qti-assessment-test`, with
+  `cardinality="single"`, `base-type="float"`, and one direct default value
+  containing a positive safe integer `qti-value`.
+- A missing declaration leaves whole-test totals uncapped. Duplicate or invalid
+  declarations are rejected before report output is created.
+- The cap changes only the whole-test total and maximum; item scores, rubric
+  outcomes, and item maximums are preserved.
+
+Example:
+
+```xml
+<qti-outcome-declaration identifier="SCORE_CAP" cardinality="single" base-type="float">
+  <qti-default-value><qti-value>80</qti-value></qti-default-value>
+</qti-outcome-declaration>
+```
+
 ### Referenced assessment items
 
 Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
@@ -62,6 +81,11 @@ Each referenced item must be a `qti-assessment-item` (QTI 3.0) with:
 - `adaptive="false"`, `time-dependent="false"`.
 - `qti-item-body` containing the prompt and interaction(s) as QTI flow content.
 - `qti-response-declaration` aligned to the interaction(s) used.
+
+Scorer rubric examples may be authored as a `<ul class="scoring-examples">`
+immediately after a criterion `<p>` in `qti-rubric-block view="scorer"`.
+The renderer associates the list's nonempty text with that criterion. Examples
+are explanatory and do not add criteria or points.
 
 ### Presentation content
 

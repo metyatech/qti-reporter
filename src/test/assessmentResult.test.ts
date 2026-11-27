@@ -404,3 +404,31 @@ test('whitespace/tab/newline/CRLF preserved across multiple values', () => {
   // CRLF (&#x0d;&#x0a;) normalized to LF
   assert.equal(values[2], 'crlf\nlf\n  end');
 });
+
+test('preserves exact SCORE source text only when requested', () => {
+  const resultPath = writeTempResult([
+    `<itemResult identifier="exact-score" sessionStatus="final">
+      <outcomeVariable identifier="SCORE" baseType="float" cardinality="single">
+        <value>81invalid</value>
+      </outcomeVariable>
+    </itemResult>`,
+  ]);
+  try {
+    const source = fs
+      .readFileSync(resultPath, 'utf8')
+      .replace('<value>0</value>', '<value>79.9999999999999999</value>');
+    fs.writeFileSync(resultPath, source, 'utf8');
+
+    const legacy = parseAssessmentResult(resultPath);
+    assert.equal(legacy.testScore, 80);
+    assert.equal(Object.hasOwn(legacy, 'testScoreText'), false);
+    assert.equal(Object.hasOwn(legacy.itemResults.get('exact-score')!, 'scoreText'), false);
+
+    const exact = parseAssessmentResult(resultPath, { preserveExactScores: true });
+    assert.equal(exact.testScoreText, '79.9999999999999999');
+    assert.equal(exact.itemResults.get('exact-score')?.scoreText, '81invalid');
+    assert.equal(exact.itemResults.get('exact-score')?.score, 81);
+  } finally {
+    fs.rmSync(path.dirname(resultPath), { recursive: true, force: true });
+  }
+});

@@ -12,6 +12,10 @@ QTI assessmentResult XML files to produce the HTML reports and `report.csv`.
 When the QTI package includes `qti-time-limits@max-time`, qti-reporter only
 formats that QTI test-level time limit for display in the HTML report. It does
 not parse Markdown time-limit notation and does not use time limits for scoring.
+A test may declare a positive integer `SCORE_CAP`; HTML and CSV totals then use
+that cap while per-item scores remain unchanged. Scorer rubric examples authored
+as `scoring-examples` lists are shown as escaped examples in the matching HTML
+criterion cell.
 
 ## Specifications
 
@@ -23,7 +27,7 @@ not parse Markdown time-limit notation and does not use time limits for scoring.
 
 ## Renderer integration
 
-qti-reporter uses `qti-html-renderer@^0.2.0` as the single source of truth
+qti-reporter uses `qti-html-renderer` as the single source of truth
 for item XML parsing. The reporter calls
 `renderQtiItemForReport(xml, expectedIdentifier, options)` once per item
 and reads `interactions[].correctResponse`, `interactions[].id`,
@@ -37,6 +41,12 @@ already calls the supplied `codeHighlighter` for both the question body
 and the explanation body, and the reporter only resolves local image
 assets under `qti-modal-feedback` / `qti-content-body` and inside
 `<qti-simple-choice>` choices.
+
+The renderer also supplies scorer criterion `examples` from a
+`<ul class="scoring-examples">` immediately following that criterion. The
+reporter displays them as escaped explanatory examples without adding rubric
+rows or points. `qti-xml-core` supplies the assessment-test `SCORE_CAP` parser
+and the exact decimal helpers shared by the HTML and CSV totals.
 
 `InteractionInfo.declarationValueIndex` is the renderer's authoritative
 record of the legacy ordered `RESPONSE` distribution. The reporter is

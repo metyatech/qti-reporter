@@ -59,7 +59,8 @@
   "dependencies": {
     "highlight.js": "^11.11.1",
     "jsdom": "^27.4.0",
-    "qti-html-renderer": "^0.2.0"
+    "qti-html-renderer": "github:metyatech/qti-html-renderer#5a08b4996048edf03ff4dc9039d1ef10d450ea9a",
+    "qti-xml-core": "github:metyatech/qti-xml-core#f96a1ad7ee20dd9a4ae2bb7beb025a3ad8638f94"
   },
   "overrides": {
     "minimatch": "^10.2.1",
@@ -73,5 +74,10 @@
     "*.{json,md}": [
       "prettier --check"
     ]
+  },
+  "allowScripts": {
+    "github:metyatech/qti-html-renderer#5a08b4996048edf03ff4dc9039d1ef10d450ea9a": true,
+    "github:metyatech/qti-xml-core#b3f389a2cec7cd9429b4d5dcf5efeaff3b5a9c75": true,
+    "github:metyatech/qti-xml-core#f96a1ad7ee20dd9a4ae2bb7beb025a3ad8638f94": true
   }
 }

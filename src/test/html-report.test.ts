@@ -873,6 +873,11 @@ test('canonical presentation HTML survives report rendering through qti-html-ren
   const rubric = block?.querySelector('table.rubric-table');
   assert.ok(rubric, 'scorer rubric table must exist');
   assert.equal(rubric?.querySelector('.criterion-text')?.textContent, 'criterion');
+  assert.equal(
+    rubric?.querySelector('.criterion-text')?.outerHTML,
+    '<td class="criterion-text">criterion</td>',
+    'criteria without examples must keep the legacy cell HTML'
+  );
   assert.equal(rubric?.querySelector('.criterion-points')?.textContent, '2');
 
   const choices = retry?.querySelector('.choice-retry');

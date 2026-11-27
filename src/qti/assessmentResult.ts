@@ -30,6 +30,7 @@ export interface ParsedItemResponse {
 export interface ParsedItemResult {
   identifier: string;
   score: number | null;
+  scoreText?: string | null;
   responses: ParsedItemResponse[];
   rubricOutcomes: Map<number, boolean>;
   comment: string | null;
@@ -39,7 +40,12 @@ export interface ParsedAssessmentResult {
   candidateNumber: string;
   candidateName: string;
   testScore: number | null;
+  testScoreText?: string | null;
   itemResults: Map<string, ParsedItemResult>;
+}
+
+export interface ParseAssessmentResultOptions {
+  preserveExactScores?: boolean;
 }
 
 function extractCandidateId(
@@ -100,6 +106,14 @@ function parseOutcomeVariableNumber(xml: string, identifier: string): number | n
     throw new Error(`Invalid numeric outcomeVariable value for ${identifier}`);
   }
   return value;
+}
+
+function parseOutcomeVariableText(xml: string, identifier: string): string | null {
+  const pattern = new RegExp(
+    `<outcomeVariable\\b[^>]*identifier="${identifier}"[^>]*>[\\s\\S]*?<\\/outcomeVariable>`
+  );
+  const match = xml.match(pattern);
+  return match ? parseValueFromVariableBlock(match[0]) : null;
 }
 
 function parseOutcomeVariableString(xml: string, identifier: string): string | null {
@@ -238,7 +252,10 @@ function parseRubricOutcomes(itemXml: string): Map<number, boolean> {
   return rubricOutcomes;
 }
 
-function parseItemResults(xml: string): Map<string, ParsedItemResult> {
+function parseItemResults(
+  xml: string,
+  options: ParseAssessmentResultOptions
+): Map<string, ParsedItemResult> {
   const itemResultPattern = /<itemResult\b[^>]*>[\s\S]*?<\/itemResult>/g;
   const itemResultTags = xml.match(itemResultPattern) ?? [];
   const itemResults = new Map<string, ParsedItemResult>();
@@ -258,6 +275,7 @@ function parseItemResults(xml: string): Map<string, ParsedItemResult> {
     itemResults.set(identifier, {
       identifier,
       score,
+      ...(options.preserveExactScores ? { scoreText: parseOutcomeVariableText(tag, 'SCORE') } : {}),
       responses,
       rubricOutcomes,
       comment,
@@ -267,7 +285,10 @@ function parseItemResults(xml: string): Map<string, ParsedItemResult> {
   return itemResults;
 }
 
-export function parseAssessmentResult(assessmentResultPath: string): ParsedAssessmentResult {
+export function parseAssessmentResult(
+  assessmentResultPath: string,
+  options: ParseAssessmentResultOptions = {}
+): ParsedAssessmentResult {
   const xml = fs.readFileSync(assessmentResultPath, 'utf8');
 
   const contextBlock = findFirstTagBlock(xml, 'context');
@@ -285,13 +306,18 @@ export function parseAssessmentResult(assessmentResultPath: string): ParsedAsses
   }
   const testResultBlock = findFirstTagBlock(xml, 'testResult');
   const testScore = testResultBlock ? parseOutcomeVariableNumber(testResultBlock, 'SCORE') : null;
+  const testScoreText =
+    options.preserveExactScores && testResultBlock
+      ? parseOutcomeVariableText(testResultBlock, 'SCORE')
+      : null;
 
-  const itemResults = parseItemResults(xml);
+  const itemResults = parseItemResults(xml, options);
 
   return {
     candidateNumber,
     candidateName,
     testScore,
+    ...(options.preserveExactScores ? { testScoreText } : {}),
     itemResults,
   };
 }

@@ -19,6 +19,7 @@ The reporter can draw from the following inputs:
   `completionStatus`, `SCORE`, `duration`, `numAttempts`.
 - Test-level time limit from `qti-assessment-test` or `qti-test-part`
   `qti-time-limits@max-time`, when present.
+- Optional positive safe-integer `SCORE_CAP` from `qti-assessment-test`.
 - Item-level variables from `assessmentResult/itemResult`:
   per-item `SCORE`, rubric outcome variables
   (`RUBRIC_{index}_MET`), and per-`responseVariable` candidate
@@ -61,6 +62,13 @@ Output must be arranged in the following order:
 - Candidate name: `context/sessionIdentifier` with `sourceID=candidateName`.
 - Test time limit: `qti-time-limits@max-time`, rendered as a test-level display
   value. Item `time-dependent` attributes are not displayed as time limits.
+- Whole-test score: a stored `testResult/SCORE` when present; otherwise the
+  existing per-item scoring policy. For capped assessments, the stored score or
+  exact fallback sum is clamped to the cap and the displayed maximum is the cap.
+- An absent `SCORE_CAP` preserves the existing whole-test score and raw maximum.
+  A malformed or duplicate cap is rejected before report output is created.
+- The cap applies only to the whole-test total. Per-item score and maximum,
+  rubric outcomes, and rubric points retain their existing values.
 
 ### Item matching and order
 
@@ -76,6 +84,9 @@ Output must be arranged in the following order:
   - `baseType=boolean`, value is `true/false`
 - Map `{index}` to the scorer rubric criterion order in the corresponding
   `qti-rubric-block view="scorer"`.
+- A renderer-provided `criterion.examples` list, when present, appears escaped
+  as a nested list in the same criterion cell, labelled
+  `具体例（これらに限らない）`. It adds no rubric rows, points, or statuses.
 
 ### Item block content
 
@@ -124,6 +135,14 @@ Do not display any other fields beyond the five sections above.
 - The problem number is the 1-based position of the item in assessment-test
   order. The title is sourced from `qti-assessment-item@title`, falling back to
   the item identifier when absent.
+- A capped report shows `合計得点が{cap}点を超えた場合は、評点を{cap}点とします。`
+  once near the total score.
+
+## CSV score fields
+
+- `total_score` and `total_max_score` use the cap for capped assessments.
+- `item_score` and `item_max_score` retain their uncapped per-item values. The
+  CSV columns and schema do not change.
 
 ### Interaction requirements
 
