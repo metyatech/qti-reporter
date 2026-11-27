@@ -68,7 +68,7 @@ interface ItemReportModel {
   itemTitle: string;
   itemScore: number;
   itemMaxScore: number;
-  itemResultState: ItemResultState;
+  itemResultState: ItemResultState | null;
   hasComment: boolean;
   rubricRows: RubricRowModel[];
   retryQuestionHtml: string;
@@ -740,8 +740,13 @@ function renderAnswerExplanationSection(model: ItemReportModel): string {
 
 function renderItemBlock(model: ItemReportModel): string {
   const rubricHtml = renderRubricTable(model.rubricRows);
-  const pill = STATUS_PILLS[model.itemResultState];
-  const statusPillHtml = `<span class="status-pill"><span class="ico" aria-hidden="true">${pill.icon}</span>${pill.label}</span>`;
+  const pill = model.itemResultState ? STATUS_PILLS[model.itemResultState] : null;
+  const statusPillHtml = pill
+    ? `<span class="status-pill"><span class="ico" aria-hidden="true">${pill.icon}</span>${pill.label}</span>`
+    : '';
+  const itemResultAttr = model.itemResultState
+    ? ` data-item-result="${model.itemResultState}"`
+    : '';
   const commentFlagHtml = model.hasComment
     ? `<span class="comment-flag"><span class="ico" aria-hidden="true">${COMMENT_ICON}</span>コメントあり</span>`
     : '';
@@ -757,7 +762,7 @@ function renderItemBlock(model: ItemReportModel): string {
     : '';
   const answerExplanationSectionHtml = renderAnswerExplanationSection(model);
   return `
-    <details class="item-block" data-item-result="${model.itemResultState}" data-item-identifier="${escapeHtml(
+    <details class="item-block"${itemResultAttr} data-item-identifier="${escapeHtml(
       model.item.identifier
     )}"${commentDataAttr}>
       <summary class="item-summary">
@@ -886,7 +891,10 @@ function buildItemReportModel(
     itemTitle: resolveItemTitle(item),
     itemScore,
     itemMaxScore,
-    itemResultState: computeItemResultState(itemScore, itemMaxScore),
+    itemResultState:
+      itemMaxScore === 0 && item.rubricCriteria.length === 0
+        ? null
+        : computeItemResultState(itemScore, itemMaxScore),
     hasComment: commentHtml !== null,
     rubricRows,
     retryQuestionHtml,

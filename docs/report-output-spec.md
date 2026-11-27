@@ -110,6 +110,9 @@ Do not display any other fields beyond the five sections above.
   - `zero`: `itemScore == 0`
 - The state is exposed on the `.item-block` element as
   `data-item-result="full|partial|zero"`.
+- An item without scorer rubric criteria has an item maximum of zero, so its
+  score cannot be classified against a rubric maximum. In that case the HTML
+  omits the result state and status pill while preserving the raw item score.
 - The closed `<summary>` row must convey the state without relying on color
   alone: a left color band (`border-left`), a status pill with both icon and
   text (`✓ 満点` / `▲ 要確認` / `✗ 0点`), and a score badge whose color tracks

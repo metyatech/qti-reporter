@@ -16,6 +16,7 @@ interface CriterionFixture {
 interface ItemFixture {
   identifier: string;
   criteria: CriterionFixture[];
+  score?: string;
 }
 
 interface ScenarioFixture {
@@ -29,7 +30,7 @@ interface ScenarioFixture {
 function writeScenario(
   root: string,
   fixture: ScenarioFixture
-): { outputDir: string; exitCode: number } {
+): { outputDir: string; exitCode: number; errors: string[] } {
   const itemRefs = fixture.items.map((item) => {
     const itemPath = path.join(root, `${item.identifier}.qti.xml`);
     const rubric = item.criteria
@@ -44,7 +45,7 @@ function writeScenario(
       .join('');
     fs.writeFileSync(
       itemPath,
-      `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="${item.identifier}" title="${item.identifier}"><qti-item-body><p>Question</p><qti-rubric-block view="scorer">${rubric}</qti-rubric-block></qti-item-body></qti-assessment-item>`,
+      `<qti-assessment-item xmlns="http://www.imsglobal.org/xsd/imsqtiasi_v3p0" identifier="${item.identifier}" title="${item.identifier}"><qti-item-body><p>Question</p>${rubric ? `<qti-rubric-block view="scorer">${rubric}</qti-rubric-block>` : ''}</qti-item-body></qti-assessment-item>`,
       'utf8'
     );
     return `<qti-assessment-item-ref identifier="${item.identifier}" href="${itemPath}" />`;
@@ -63,14 +64,20 @@ function writeScenario(
   );
   const itemResults = fixture.items
     .map((item) => {
-      const score = item.criteria.reduce((sum, criterion) => sum + Number(criterion.points), 0);
+      const score =
+        item.score ??
+        String(item.criteria.reduce((sum, criterion) => sum + Number(criterion.points), 0));
       const outcomes = item.criteria
         .map(
           (criterion, index) =>
             `<outcomeVariable identifier="RUBRIC_${index + 1}_MET" baseType="boolean" cardinality="single"><value>${criterion.met}</value></outcomeVariable>`
         )
         .join('');
-      return `<itemResult identifier="${item.identifier}" sessionStatus="final"><outcomeVariable identifier="SCORE" baseType="float" cardinality="single"><value>${score}</value></outcomeVariable>${outcomes}</itemResult>`;
+      const itemScore =
+        score !== ''
+          ? `<outcomeVariable identifier="SCORE" baseType="float" cardinality="single"><value>${score}</value></outcomeVariable>`
+          : '';
+      return `<itemResult identifier="${item.identifier}" sessionStatus="final">${itemScore}${outcomes}</itemResult>`;
     })
     .join('');
   const candidateScores = [
@@ -98,8 +105,9 @@ function writeScenario(
   for (const assessmentResultPath of assessmentResultPaths) {
     args.splice(args.length - 2, 0, '--assessment-result', assessmentResultPath);
   }
-  const exitCode = runCli(args);
-  return { outputDir, exitCode };
+  const errors: string[] = [];
+  const exitCode = runCli(args, { log: () => {}, error: (message) => errors.push(message) });
+  return { outputDir, exitCode, errors };
 }
 
 function withScenario(fixture: ScenarioFixture, action: (outputDir: string) => void): void {
@@ -123,12 +131,53 @@ function rubricItem(identifier: string, points: string[], metCount = points.leng
   };
 }
 
+function rawScoreItem(identifier: string, score: string): ItemFixture {
+  return { identifier, criteria: [], score };
+}
+
 function readFirstReport(outputDir: string): { html: string; csvRows: string[][] } {
   const reportDir = path.join(outputDir, 'candidate-1 Synthetic Candidate');
   const htmlPath = path.join(reportDir, 'candidate-1 Synthetic Candidate Score cap test 結果.html');
   const html = fs.readFileSync(htmlPath, 'utf8');
   const csv = fs.readFileSync(path.join(outputDir, 'report.csv'), 'utf8').replace(/^\uFEFF/, '');
-  return { html, csvRows: csv.split('\n').map((line) => line.split(',')) };
+  return { html, csvRows: parseCsv(csv) };
+}
+
+function parseCsv(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  for (let index = 0; index < csv.length; index += 1) {
+    const character = csv[index]!;
+    if (quoted) {
+      if (character === '"' && csv[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else if (character === '"') {
+        quoted = false;
+      } else {
+        field += character;
+      }
+    } else if (character === '"') {
+      quoted = true;
+    } else if (character === ',') {
+      row.push(field);
+      field = '';
+    } else if (character === '\n') {
+      row.push(field.replace(/\r$/, ''));
+      rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field.replace(/\r$/, ''));
+    rows.push(row);
+  }
+  return rows;
 }
 
 function scoreFromHtml(html: string): { score: string; max: string } {
@@ -288,6 +337,98 @@ test('caps a multi-item fallback sum without changing item scores and honors sto
     assert.equal(csvRows[1]?.[8], '50');
     assert.equal(csvRows[2]?.[8], '70');
   });
+});
+
+test('uses exact raw item SCORE for capped mixed-item fallback without changing item rows', () => {
+  const items = [
+    rawScoreItem('raw-score-item', '0.10000000000000001'),
+    rubricItem('rubric-item', ['10']),
+  ];
+  withScenario({ cap: '80', items }, (outputDir) => {
+    const { html, csvRows } = readFirstReport(outputDir);
+    const document = new JSDOM(html).window.document;
+    const htmlTotal = scoreFromHtml(html);
+    assert.deepEqual(htmlTotal, { score: '10.10000000000000001', max: '80' });
+    assert.equal(document.querySelectorAll('.score-cap-note').length, 1);
+
+    const rawItem = document.querySelector('details[data-item-identifier="raw-score-item"]');
+    const rubric = document.querySelector('details[data-item-identifier="rubric-item"]');
+    assert.ok(rawItem);
+    assert.ok(rubric);
+    assert.equal(rawItem.querySelector('.item-score .score-value')?.textContent, '0.1');
+    const rawMax = rawItem.querySelector('.item-score .score-max')?.textContent;
+    assert.equal(rawMax, '0');
+    assert.equal(csvRows[1]?.[9], '0');
+    assert.equal(rawItem.getAttribute('data-item-result'), null);
+    assert.equal(rawItem.querySelector('.status-pill'), null);
+    assert.equal(rubric.querySelector('.item-score .score-value')?.textContent, '10');
+    assert.equal(rubric.querySelector('.item-score .score-max')?.textContent, '10');
+    assert.deepEqual(
+      Array.from(rubric.querySelectorAll('.rubric-table tbody tr')).map((row) => [
+        row.getAttribute('data-criterion-status'),
+        row.querySelector('.criterion-points')?.textContent,
+      ]),
+      [['true', '10']]
+    );
+
+    assert.equal(csvRows.length, 3);
+    assert.equal(csvRows[1]?.[3], '10.10000000000000001');
+    assert.equal(csvRows[1]?.[4], '80');
+    assert.equal(csvRows[1]?.[6], 'raw-score-item');
+    assert.equal(csvRows[1]?.[8], '0.1');
+    assert.equal(csvRows[1]?.[9], rawMax);
+    assert.equal(csvRows[1]?.[10], '');
+    assert.equal(csvRows[2]?.[3], '10.10000000000000001');
+    assert.equal(csvRows[2]?.[4], '80');
+    assert.equal(csvRows[2]?.[6], 'rubric-item');
+    assert.equal(csvRows[2]?.[8], '10');
+    assert.equal(csvRows[2]?.[9], '10');
+    assert.equal(csvRows[2]?.[10], '1:true');
+    assert.equal(csvRows[2]?.[11], '1:10');
+  });
+
+  withScenario({ items }, (outputDir) => {
+    const { html, csvRows } = readFirstReport(outputDir);
+    const document = new JSDOM(html).window.document;
+    assert.deepEqual(scoreFromHtml(html), { score: '10.1', max: '10' });
+    assert.equal(document.querySelectorAll('.score-cap-note').length, 0);
+    assert.equal(csvRows[1]?.[3], '10.1');
+    assert.equal(csvRows[1]?.[4], '10');
+    assert.equal(csvRows[1]?.[8], '0.1');
+    assert.equal(csvRows[2]?.[3], '10.1');
+    assert.equal(csvRows[2]?.[8], '10');
+  });
+});
+
+test('rejects malformed raw item SCORE in capped mixed-item fallback before writing reports', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qti-reporter-invalid-item-score-'));
+  try {
+    const items = [
+      rawScoreItem('invalid-raw-score-item', '10invalid'),
+      rubricItem('valid-rubric-item', ['10']),
+    ];
+    const { outputDir, exitCode, errors } = writeScenario(root, { cap: '80', items });
+    assert.notEqual(exitCode, 0);
+    assert.ok(
+      errors.some((message) =>
+        message.includes('Invalid exact item SCORE for capped assessment: invalid-raw-score-item')
+      ),
+      'the raw SCORE must be rejected by exact decimal validation'
+    );
+    assert.equal(fs.existsSync(path.join(outputDir, 'report.csv')), false);
+    assert.equal(
+      fs.existsSync(
+        path.join(
+          outputDir,
+          'candidate-1 Synthetic Candidate',
+          'candidate-1 Synthetic Candidate Score cap test 結果.html'
+        )
+      ),
+      false
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('caps each candidate total in HTML and the aggregated CSV', () => {
