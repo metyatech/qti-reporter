@@ -350,6 +350,9 @@ test('uses exact raw item SCORE for capped mixed-item fallback without changing 
     const htmlTotal = scoreFromHtml(html);
     assert.deepEqual(htmlTotal, { score: '10.10000000000000001', max: '80' });
     assert.equal(document.querySelectorAll('.score-cap-note').length, 1);
+    assert.equal(document.querySelector('.summary-chip.review .summary-count')?.textContent, '0');
+    assert.equal(document.querySelector('.summary-chip.ok .summary-count')?.textContent, '1');
+    assert.equal(document.querySelector('.summary-chip.total .summary-count')?.textContent, '2');
 
     const rawItem = document.querySelector('details[data-item-identifier="raw-score-item"]');
     const rubric = document.querySelector('details[data-item-identifier="rubric-item"]');

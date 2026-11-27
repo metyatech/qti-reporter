@@ -803,6 +803,12 @@ function renderItemBlock(model: ItemReportModel): string {
     </details>`;
 }
 
+function countReviewItems(items: readonly ItemReportModel[]): number {
+  return items.filter(
+    (item) => item.itemResultState === 'partial' || item.itemResultState === 'zero'
+  ).length;
+}
+
 function renderHtmlDocument(
   assessmentResult: ParsedAssessmentResult,
   testTitle: string,
@@ -816,7 +822,7 @@ function renderHtmlDocument(
   const itemsHtml = items.map((item) => renderItemBlock(item)).join('\n');
   const timeLimitMetaRow = renderTimeLimitMetaRow(timeLimit);
   const fullCount = items.filter((item) => item.itemResultState === 'full').length;
-  const reviewCount = items.length - fullCount;
+  const reviewCount = countReviewItems(items);
   const summaryBarHtml = `
         <div class="summary-bar">
           <span class="summary-chip review"><span class="ico" aria-hidden="true">&#9650;</span>要確認 <span class="summary-count">${reviewCount}</span> 問</span>
