@@ -86,7 +86,7 @@ Output must be arranged in the following order:
   `qti-rubric-block view="scorer"`.
 - A nonempty renderer-provided `criterion.examples` list appears in a native,
   closed-by-default `<details>` disclosure inside the same criterion cell. Its
-  inline `<summary>` reads `具体例`; the expanded content is an escaped ordered
+  inline `<summary>` reads `具体例`; the expanded content is an escaped unordered
   list labelled `具体例（これらに限らない）`. Each criterion disclosure opens
   independently, and the criterion text remains visible outside it. An absent
   or empty list adds no markup or control. Examples add no rubric rows, points,
