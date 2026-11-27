@@ -672,6 +672,16 @@ function buildRubricRows(
   });
 }
 
+type CriterionExamples = readonly string[] | undefined;
+
+function renderCriterionExamples(examples: CriterionExamples): string {
+  if (!examples?.length) {
+    return '';
+  }
+  const listItems = examples.map((example) => `<li>${escapeHtml(example)}</li>`).join('');
+  return `<details class="criterion-examples"><summary>具体例</summary><div class="criterion-examples-content"><span>具体例（これらに限らない）</span><ul>${listItems}</ul></div></details>`;
+}
+
 function renderRubricTable(rubricRows: RubricRowModel[]): string {
   if (rubricRows.length === 0) {
     return '';
@@ -679,11 +689,7 @@ function renderRubricTable(rubricRows: RubricRowModel[]): string {
   const rowsHtml = rubricRows
     .map((row) => {
       const statusText = row.status ? 'true' : 'false';
-      const examplesHtml = row.criterion.examples?.length
-        ? `<div class="criterion-examples"><span>具体例（これらに限らない）</span><ul>${row.criterion.examples
-            .map((example) => `<li>${escapeHtml(example)}</li>`)
-            .join('')}</ul></div>`
-        : '';
+      const examplesHtml = renderCriterionExamples(row.criterion.examples);
       return `
         <tr data-criterion-index="${row.criterion.index}" data-criterion-status="${statusText}">
           <td class="criterion-text">${escapeHtml(row.criterion.text)}${examplesHtml}</td>

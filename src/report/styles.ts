@@ -481,6 +481,46 @@ tr[data-criterion-status="false"] .criterion-status::before {
 tr[data-criterion-status="false"] .criterion-text {
   font-weight: 700;
 }
+.criterion-text details.criterion-examples {
+  display: inline;
+  margin-inline-start: 0.45em;
+}
+.criterion-text details.criterion-examples > summary {
+  display: inline-block;
+  cursor: pointer;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+.criterion-text details.criterion-examples > summary::-webkit-details-marker {
+  display: none;
+}
+.criterion-text details.criterion-examples > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-inline-end: 0.25em;
+  font-size: 0.75em;
+  text-decoration: none;
+}
+.criterion-text details.criterion-examples[open] > summary::before {
+  content: "▾";
+}
+.criterion-text details.criterion-examples > summary:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.criterion-text details.criterion-examples .criterion-examples-content {
+  margin-block-start: 0.35em;
+  margin-inline-start: 1em;
+  font-size: 0.9em;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.criterion-text details.criterion-examples .criterion-examples-content ul {
+  margin: 0.2em 0 0;
+  padding-inline-start: 1.4em;
+}
 .criterion-points {
   order: 3;
   font-variant-numeric: tabular-nums;

@@ -14,8 +14,8 @@ formats that QTI test-level time limit for display in the HTML report. It does
 not parse Markdown time-limit notation and does not use time limits for scoring.
 A test may declare a positive integer `SCORE_CAP`; HTML and CSV totals then use
 that cap while per-item scores remain unchanged. Scorer rubric examples authored
-as `scoring-examples` lists are shown as escaped examples in the matching HTML
-criterion cell.
+as `scoring-examples` lists are available in a closed-by-default disclosure in
+the matching HTML criterion cell.
 
 ## Specifications
 

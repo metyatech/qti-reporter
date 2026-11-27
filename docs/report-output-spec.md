@@ -84,9 +84,13 @@ Output must be arranged in the following order:
   - `baseType=boolean`, value is `true/false`
 - Map `{index}` to the scorer rubric criterion order in the corresponding
   `qti-rubric-block view="scorer"`.
-- A renderer-provided `criterion.examples` list, when present, appears escaped
-  as a nested list in the same criterion cell, labelled
-  `具体例（これらに限らない）`. It adds no rubric rows, points, or statuses.
+- A nonempty renderer-provided `criterion.examples` list appears in a native,
+  closed-by-default `<details>` disclosure inside the same criterion cell. Its
+  inline `<summary>` reads `具体例`; the expanded content is an escaped ordered
+  list labelled `具体例（これらに限らない）`. Each criterion disclosure opens
+  independently, and the criterion text remains visible outside it. An absent
+  or empty list adds no markup or control. Examples add no rubric rows, points,
+  or statuses.
 
 ### Item block content
 

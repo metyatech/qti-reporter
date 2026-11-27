@@ -189,10 +189,15 @@ function scoreFromHtml(html: string): { score: string; max: string } {
 }
 
 test('caps only assessment totals and renders renderer criterion examples in their existing cells', () => {
-  const points = Array.from({ length: 12 }, () => '10');
-  const item = rubricItem('rubric-12', points);
+  const points = ['20', ...Array.from({ length: 11 }, () => '10')];
+  const item = rubricItem('rubric-12', points, 11);
   item.criteria[0]!.examples = ['alpha &amp; beta', '&lt;script&gt;alert(1)&lt;/script&gt;'];
-  item.criteria[1]!.examples = ['second criterion example'];
+  item.criteria[1]!.examples = [
+    'second criterion example',
+    '日本語の長い説明例です。余白や行の高さが必要でも配点や達成状況に重ならないこと。',
+    'a-very-long-unbroken-ascii-example-that-must-wrap-without-horizontal-overflow-0123456789',
+  ];
+  item.criteria[2]!.examples = [];
 
   withScenario({ cap: '80', testScore: '100', items: [item] }, (outputDir) => {
     const { html, csvRows } = readFirstReport(outputDir);
@@ -212,40 +217,70 @@ test('caps only assessment totals and renders renderer criterion examples in the
     assert.equal(csvRow[3], '80');
     assert.equal(csvRow[4], '80');
     assert.equal(csvRow[8], '120', 'the item score must not be capped');
-    assert.equal(csvRow[9], '120');
+    assert.equal(csvRow[9], '130');
     assert.equal(
       csvRow[10],
-      Array.from({ length: 12 }, (_, index) => `${index + 1}:true`).join(';')
+      [...Array.from({ length: 11 }, (_, index) => `${index + 1}:true`), '12:false'].join(';')
     );
 
     const rows = Array.from(document.querySelectorAll('.rubric-table tbody tr'));
     assert.equal(rows.length, 12, 'all rubric outcomes must remain present');
     assert.deepEqual(
       rows.map((row) => row.getAttribute('data-criterion-status')),
-      Array.from({ length: 12 }, () => 'true')
+      [...Array.from({ length: 11 }, () => 'true'), 'false']
     );
     assert.deepEqual(
       rows.map((row) => row.querySelector('.criterion-points')?.textContent),
       points
     );
     const firstCell = rows[0]?.querySelector('.criterion-text');
+    const disclosures = document.querySelectorAll('.criterion-text details.criterion-examples');
+    assert.equal(disclosures.length, 2, 'only criteria with nonempty examples have disclosures');
+    assert.equal(rows[0]?.getAttribute('data-criterion-status'), 'true');
+    assert.equal(rows[11]?.getAttribute('data-criterion-status'), 'false');
+    assert.equal(
+      firstCell?.childNodes[0]?.textContent?.trim(),
+      '20 point criterion',
+      'criterion text remains visible outside its disclosure'
+    );
+    assert.equal(firstCell?.querySelector('details')?.hasAttribute('open'), false);
+    assert.equal(firstCell?.querySelector('summary')?.textContent, '具体例');
     assert.equal(firstCell?.querySelectorAll('ul li').length, 2);
     assert.equal(
-      firstCell?.querySelector('ul')?.previousElementSibling?.textContent,
+      firstCell?.querySelector('.criterion-examples > div > span')?.textContent,
       '具体例（これらに限らない）'
     );
     assert.equal(firstCell?.querySelectorAll('script').length, 0);
     assert.equal(firstCell?.querySelectorAll('ul li')[1]?.textContent, '<script>alert(1)</script>');
+    assert.deepEqual(
+      Array.from(rows[0]?.querySelectorAll('.criterion-examples li') ?? []).map(
+        (example) => example.textContent
+      ),
+      ['alpha & beta', '<script>alert(1)</script>'],
+      'examples remain escaped and ordered'
+    );
+    assert.equal(rows[1]?.querySelector('summary')?.textContent, '具体例');
     assert.equal(
-      rows[1]?.querySelector('.criterion-text ul li')?.textContent,
+      rows[1]?.querySelectorAll('.criterion-examples li')[0]?.textContent,
       'second criterion example'
     );
-    assert.equal(rows[2]?.querySelector('.criterion-text')?.querySelector('ul'), null);
+    assert.equal(
+      rows[1]?.querySelectorAll('.criterion-examples li')[1]?.textContent,
+      item.criteria[1]?.examples?.[1]
+    );
+    assert.equal(
+      rows[1]?.querySelectorAll('.criterion-examples li')[2]?.textContent,
+      item.criteria[1]?.examples?.[2]
+    );
+    const emptyExamplesCell = rows[2]?.querySelector('.criterion-text');
+    assert.equal(emptyExamplesCell?.innerHTML, '10 point criterion');
+    assert.equal(emptyExamplesCell?.querySelector('ul'), null);
+    assert.equal(emptyExamplesCell?.querySelector('details'), null);
     const itemScore = document.querySelector(
       'details[data-item-identifier="rubric-12"] .item-score'
     );
     assert.equal(itemScore?.querySelector('.score-value')?.textContent, '120');
-    assert.equal(itemScore?.querySelector('.score-max')?.textContent, '120');
+    assert.equal(itemScore?.querySelector('.score-max')?.textContent, '130');
   });
 });
 
